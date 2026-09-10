@@ -133,7 +133,7 @@ async function handleStart(msg, registrationId) {
     await sendTelegramMessage(
       chatId,
       `Код подтверждения DonPion: <code>${code}</code>\n\nНажмите на код, чтобы скопировать, и введите его на сайте, чтобы завершить регистрацию.`,
-      { withMiniAppButton: true, parseMode: "HTML" }
+      { parseMode: "HTML" }
     );
   } catch (err) {
     console.error("Telegram /start handling failed:", err.message);

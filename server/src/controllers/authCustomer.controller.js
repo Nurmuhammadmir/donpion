@@ -73,7 +73,7 @@ export const registerCustomer = asyncHandler(async (req, res) => {
     await sendTelegramMessage(
       existingCustomer.telegramChatId,
       `Код подтверждения DonPion: <code>${botCode}</code>\n\nНажмите на код, чтобы скопировать, и введите его на сайте, чтобы завершить регистрацию.`,
-      { withMiniAppButton: true, parseMode: "HTML" }
+      { parseMode: "HTML" }
     );
     botSent = true;
   }
