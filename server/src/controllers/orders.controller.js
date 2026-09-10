@@ -66,7 +66,7 @@ export const createOrder = asyncHandler(async (req, res) => {
   // if the order never actually gets created (below) or later gets
   // cancelled (see updateOrderStatus).
   let pointsRedeemed = 0;
-  if (redeemPoints) {
+  if (redeemPoints === true) {
     const desired = Math.min(req.customer.pointsBalance, subtotal);
     if (desired > 0) {
       const spent = await Customer.findOneAndUpdate(
@@ -85,6 +85,19 @@ export const createOrder = asyncHandler(async (req, res) => {
   // subtotal — rewards real spend instead of letting a redeemed discount
   // also inflate the next cashback.
   const pointsEarned = Math.floor((totalAmount * cashbackPercent) / 100);
+
+  // Standalone MongoDB here (no replica set), so a real multi-document
+  // transaction spanning the point debit above and the order write below
+  // isn't available — a process crash in the narrow window between them
+  // (not a catchable JS error, an actual process death) could in theory
+  // leave points debited with no order and no catch block to refund them.
+  // This log line is the mitigation: it makes that state greppable/visible
+  // for manual reconciliation instead of silently vanishing. Move this to
+  // a real session-based transaction if this ever runs against a replica
+  // set (e.g. MongoDB Atlas) in production.
+  if (pointsRedeemed > 0) {
+    console.log(`[points] debited ${pointsRedeemed} from customer ${req.customer._id} — creating order now`);
+  }
 
   let order;
   try {
@@ -106,6 +119,7 @@ export const createOrder = asyncHandler(async (req, res) => {
     // were just spent above, or the customer loses them for nothing.
     if (pointsRedeemed > 0) {
       await Customer.findByIdAndUpdate(req.customer._id, { $inc: { pointsBalance: pointsRedeemed } });
+      console.log(`[points] order creation failed — refunded ${pointsRedeemed} back to customer ${req.customer._id}`);
     }
     throw err;
   }
@@ -160,13 +174,17 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
   // "completed". The findOneAndUpdate filter (pointsEarnedCredited: false)
   // is the atomicity guard: if the admin double-clicks or two requests
   // race, only one of them actually flips the flag, so only one credits
-  // the customer.
+  // the customer. No replica set here, so this and the Customer update
+  // below aren't in one transaction — the log line makes a crash in that
+  // exact window (flag flipped, credit never applied) greppable instead of
+  // silent; see the identical note in createOrder above.
   if (status === "completed" && order.pointsEarned > 0) {
     const claimed = await Order.findOneAndUpdate(
       { _id: order._id, pointsEarnedCredited: false },
       { $set: { pointsEarnedCredited: true } }
     );
     if (claimed) {
+      console.log(`[points] crediting ${order.pointsEarned} to customer ${order.customerId} for completed order ${order.orderNumber}`);
       await Customer.findByIdAndUpdate(order.customerId, { $inc: { pointsBalance: order.pointsEarned } });
     }
   }
@@ -179,6 +197,7 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
       { $set: { pointsRedeemedRefunded: true } }
     );
     if (claimed) {
+      console.log(`[points] refunding ${order.pointsRedeemed} to customer ${order.customerId} for cancelled order ${order.orderNumber}`);
       await Customer.findByIdAndUpdate(order.customerId, { $inc: { pointsBalance: order.pointsRedeemed } });
     }
   }
