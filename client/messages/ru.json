@@ -41,6 +41,7 @@
     "total": "Итого",
     "addToCart": "В корзину",
     "added": "Добавлено",
+    "addedCount": "Добавлено · {count}",
     "photoLabel": "Фото {n}"
   },
   "Home": {
