@@ -18,9 +18,9 @@ interface Props {
 // Once this product is in the cart, the button turns into a −/+ stepper
 // with the line total next to it — reactive to real cart state instead of
 // a timed "Добавлено" flash, and lets the visitor back out (− down to 0
-// removes it) without leaving the product page. A direct "Оформить заказ"
-// link sits right below it, so the visitor doesn't have to go hunt for the
-// cart icon themselves — add, then straight to checkout.
+// removes it) without leaving the product page. A direct "Перейти в
+// корзину" link sits right below it, so the visitor doesn't have to go
+// hunt for the cart icon themselves after adding something.
 export default function AddToCartButton({ productId, slug, name, price, image, className, full }: Props) {
   const { items, addItem, updateQuantity } = useCart();
   const t = useTranslations("Common");
@@ -53,8 +53,8 @@ export default function AddToCartButton({ productId, slug, name, price, image, c
           </div>
           <span className="font-display text-base text-ink">{formatUZS(price * quantityInCart, locale)}</span>
         </div>
-        <Button href="/checkout" className="w-full">
-          {tCart("checkoutCta")}
+        <Button href="/cart" className="w-full">
+          {tCart("goToCart")}
         </Button>
       </div>
     );

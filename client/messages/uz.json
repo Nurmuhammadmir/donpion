@@ -83,6 +83,7 @@
     "items": "Mahsulotlar",
     "deliveryNote": "Yetkazib berish narxi buyurtma rasmiylashtirilganda hisoblanadi.",
     "checkoutCta": "Buyurtma berish",
+    "goToCart": "Savatga o'tish",
     "currentOrderTitle": "Sizning joriy buyurtmangiz",
     "lastOrderTitle": "Sizning oxirgi buyurtmangiz",
     "currentOrderNote": "Buyurtma qayta ishlanmoqda va tez orada yetkazib berishga topshiriladi.",
