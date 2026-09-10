@@ -1,0 +1,32 @@
+node_modules/
+dist/
+build/
+.next/
+.cache/
+.env*
+!.env.example
+!.env.*.example
+!*/.env*.example
+.vite/
+vite.config.*.timestamp-*
+*.tsbuildinfo
+*-debug.log*
+logs/
+*.log
+.claude-replay.*
+.tmp-*
+
+# Uploaded product/hero photos — live runtime data written by the admin
+# panel (see server/src/controllers/uploads.controller.js), not source.
+# Grows and changes constantly; treat it like a database, not code — back
+# it up separately if needed, don't version it.
+server/public/uploads/*
+!server/public/uploads/.gitkeep
+
+# Platform-managed agentplat state, not project source. In the
+# client-initiated single-repo workspace layout (make's `Path: "."` spec) the
+# repo root IS the workspace root, so these land inside this repo rather than
+# beside it.
+/.plugins/
+/.opencode-skills/
+.claude/

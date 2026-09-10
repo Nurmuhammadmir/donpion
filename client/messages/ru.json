@@ -1,0 +1,193 @@
+{
+  "Metadata": {
+    "siteTitle": "DonPion — цветы, которые говорят",
+    "siteDescription": "Букеты и комнатные растения с доставкой по Ташкенту в день заказа. Розы, пионы, тюльпаны, орхидеи, фиалки, хризантемы.",
+    "orgDescription": "Цветочный магазин с доставкой по Ташкенту"
+  },
+  "Nav": {
+    "account": "Аккаунт",
+    "menu": "Меню",
+    "phone": "+998 87 835-35-08",
+    "cashbackBanner": "Кешбек {percent}% Пионами с каждой покупки"
+  },
+  "Footer": {
+    "tagline": "Букеты и комнатные растения с доставкой по Ташкенту. Собираем в день заказа.",
+    "catalogHeading": "Каталог",
+    "customersHeading": "Покупателям",
+    "cart": "Корзина",
+    "checkout": "Оформление заказа",
+    "deliveryAndPayment": "Доставка и оплата",
+    "freshnessGuarantee": "Гарантия свежести",
+    "contactsHeading": "Контакты",
+    "workingHours": "г. Ташкент, ежедневно 7:00–23:00",
+    "copyright": "© {year} «DonPion» ООО. Все права защищены."
+  },
+  "Common": {
+    "home": "Главная",
+    "back": "← Назад",
+    "seeAll": "Смотреть всё",
+    "seeAllLine1": "Смотреть",
+    "seeAllLine2": "всё →",
+    "loading": "Загрузка…",
+    "inStock": "В наличии",
+    "outOfStock": "Нет в наличии",
+    "breadcrumbLabel": "Хлебные крошки",
+    "nameLabel": "Имя",
+    "namePlaceholder": "Как к вам обращаться",
+    "phoneLabel": "Телефон",
+    "phonePlaceholder": "+998 90 000-00-00",
+    "goToCatalog": "Перейти в каталог",
+    "backHome": "Вернуться на главную",
+    "total": "Итого",
+    "addToCart": "В корзину",
+    "added": "Добавлено",
+    "photoLabel": "Фото {n}"
+  },
+  "Home": {
+    "heroTitle": "Искусство дарить эмоции",
+    "heroTitleMobilePrefix": "Искусство дарить ",
+    "heroTitleMobileAccent": "эмоции",
+    "heroTitleMobileSuffix": "",
+    "heroCta": "Подобрать букет",
+    "luxuryEyebrow": "Luxury Collection",
+    "luxuryHeading": "Люксовые коллекции",
+    "luxuryEmpty": "Коллекция пополняется — загляните чуть позже.",
+    "careEyebrow": "Забота",
+    "ritualHeading": "Ритуал вручения",
+    "ritual1Title": "Согласование в Telegram",
+    "ritual1Text": "Перед отправкой присылаем фото или короткое видео готового букета — вы видите его раньше получателя и можете попросить что-то поправить.",
+    "ritual2Title": "Аквабокс и фирменная упаковка",
+    "ritual2Text": "Стебли едут в аквабоксе с водой, поверх — сумка-коробка плотной формы и конверт для вашей личной записки.",
+    "ritual3Title": "Календарь важных дат",
+    "ritual3Text": "Оставьте дату — мы деликатно напомним заранее, без спама и лишних писем, только когда это действительно важно."
+  },
+  "Quiz": {
+    "eyebrow": "Мини-подбор",
+    "questionTitle": "Какой она человек?",
+    "resultTitle": "Похоже, подойдёт",
+    "loadingText": "Подбираем букеты…",
+    "emptyText": "Подходящие букеты пока пополняются — загляните чуть позже."
+  },
+  "Product": {
+    "compositionHeading": "Состав",
+    "careHeading": "Уход",
+    "aboutHeading": "Об этом букете",
+    "relatedHeading": "Похожие товары"
+  },
+  "Cart": {
+    "title": "Корзина",
+    "empty": "Ваша корзина пуста.",
+    "decreaseAria": "Уменьшить количество",
+    "increaseAria": "Увеличить количество",
+    "remove": "Удалить",
+    "summaryTitle": "Итого",
+    "items": "Товары",
+    "deliveryNote": "Доставка рассчитывается при оформлении заказа.",
+    "checkoutCta": "Оформить заказ",
+    "currentOrderTitle": "Ваш текущий заказ",
+    "lastOrderTitle": "Ваш последний заказ",
+    "currentOrderNote": "Заказ обрабатывается и скоро будет передан в доставку.",
+    "viewOrders": "Все заказы"
+  },
+  "Checkout": {
+    "title": "Оформление заказа",
+    "successTitle": "Заказ принят",
+    "successText": "Номер заказа <b>{orderNumber}</b>. Мы свяжемся с вами для подтверждения.",
+    "emptyCart": "В корзине нет товаров для оформления заказа.",
+    "paymentLabel": "Способ оплаты",
+    "paymentCash": "Наличными курьеру",
+    "paymentCard": "Картой курьеру",
+    "paymentOnline": "Онлайн",
+    "commentLabel": "Комментарий к заказу",
+    "commentPlaceholder": "Например: не звонить, только написать",
+    "addressLabel": "Адрес доставки",
+    "deliveryLabel": "Дата и время доставки",
+    "orderSummaryTitle": "Ваш заказ",
+    "subtotalLabel": "Сумма заказа",
+    "usePointsLabel": "Списать Пионы (доступно {count})",
+    "pointsDiscountLabel": "Скидка Пионами",
+    "pointsEarnedNote": "{count} Пионов поступят на баланс после оплаты заказа",
+    "submitting": "Оформляем…",
+    "submit": "Подтвердить заказ",
+    "genericError": "Ошибка оформления заказа",
+    "submitFailed": "Не удалось оформить заказ"
+  },
+  "DeliverySlotPicker": {
+    "dateLabel": "Дата доставки",
+    "timeLabel": "Время доставки",
+    "today": "Сегодня",
+    "noSlots": "На этот день слотов больше нет — выберите другой день.",
+    "weekdays": ["Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"],
+    "months": ["янв", "фев", "мар", "апр", "мая", "июн", "июл", "авг", "сен", "окт", "ноя", "дек"]
+  },
+  "Account": {
+    "title": "Аккаунт",
+    "profileEyebrow": "Ваш профиль",
+    "logout": "Выйти",
+    "logoutConfirm": "Вы уверены, что хотите выйти?",
+    "pointsBalance": "Баланс Пионов",
+    "pointsNote": "1 Пион = 1 сум скидки на следующий заказ",
+    "cashbackNote": "Кешбек {percent}% Пионами с каждой покупки"
+  },
+  "OrderHistory": {
+    "title": "История заказов",
+    "empty": "Заказов пока нет.",
+    "statusNew": "Новый",
+    "statusConfirmed": "Подтверждён",
+    "statusDelivering": "Доставляется",
+    "statusCompleted": "Завершён",
+    "statusCancelled": "Отменён"
+  },
+  "RegisterGate": {
+    "eyebrow": "Один шаг перед заказом",
+    "title": "Подтвердите номер",
+    "description": "Оформление доступно после короткой регистрации — имя, номер телефона и код подтверждения в Telegram.",
+    "getCode": "Получить код в Telegram",
+    "sending": "Отправляем…",
+    "gatewaySentNote": "Код отправлен в Telegram на указанный номер",
+    "openBot": "Открыть бота и нажать Start",
+    "codeSentViaBot": "Код также отправлен через бота",
+    "waitingForBot": "Или получите код через бота — нажмите Start",
+    "codeLabel": "Код из Telegram",
+    "verifying": "Проверяем…",
+    "confirm": "Подтвердить",
+    "registerFailed": "Не удалось начать регистрацию",
+    "genericError": "Ошибка",
+    "invalidCode": "Неверный код"
+  },
+  "NotFound": {
+    "title": "Страница не найдена",
+    "description": "Возможно, товар закончился или ссылка устарела."
+  },
+  "Catalog": {
+    "empty": "В этой категории пока нет товаров. Загляните чуть позже — ассортимент обновляется каждую неделю."
+  },
+  "Collection": {
+    "eyebrow": "Luxury Collection",
+    "title": "Избранные букеты",
+    "metaTitle": "Luxury Collection — избранные букеты",
+    "metaDescription": "Полная подборка Luxury Collection — лучшие букеты и композиции DonPion в одном месте.",
+    "description": "Композиции, которые мы отбираем сами — по свежести, редкости сорта и тому, как букет держит форму спустя неделю после доставки.",
+    "empty": "Подборка пока пополняется — загляните чуть позже."
+  },
+  "Character": {
+    "eyebrow": "Подбор по характеру",
+    "titleFor": "Букеты для «{name}»",
+    "empty": "Подходящие букеты пока пополняются — загляните чуть позже."
+  },
+  "LanguageSwitcher": {
+    "ru": "RU",
+    "uz": "UZ"
+  },
+  "AddressMapPicker": {
+    "tapToPick": "Нажмите на карту, чтобы выбрать адрес доставки",
+    "locating": "Определяем адрес…",
+    "missingToken": "Карта временно недоступна"
+  },
+  "BranchesMap": {
+    "heading": "Наши салоны",
+    "directions": "Маршрут",
+    "openGoogle": "Открыть в Google Картах",
+    "openYandex": "Открыть в Яндекс Картах"
+  }
+}

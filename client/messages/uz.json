@@ -1,0 +1,193 @@
+{
+  "Metadata": {
+    "siteTitle": "DonPion — gapiradigan gullar",
+    "siteDescription": "Toshkent bo'ylab buyurtma kuni yetkaziladigan guldastalar va uy o'simliklari. Atirgullar, pionlar, lolalar, orkideyalar, binafshalar, xrizantemalar.",
+    "orgDescription": "Toshkent bo'ylab yetkazib beriladigan gul do'koni"
+  },
+  "Nav": {
+    "account": "Kabinet",
+    "menu": "Menyu",
+    "phone": "+998 87 835-35-08",
+    "cashbackBanner": "Har xaridda {percent}% Pion keshbek"
+  },
+  "Footer": {
+    "tagline": "Toshkent bo'ylab yetkazib beriladigan guldastalar va uy o'simliklari. Buyurtma kuni tayyorlaymiz.",
+    "catalogHeading": "Katalog",
+    "customersHeading": "Xaridorlarga",
+    "cart": "Savat",
+    "checkout": "Buyurtmani rasmiylashtirish",
+    "deliveryAndPayment": "Yetkazib berish va to'lov",
+    "freshnessGuarantee": "Yangilik kafolati",
+    "contactsHeading": "Kontaktlar",
+    "workingHours": "Toshkent shahri, har kuni 7:00–23:00",
+    "copyright": "© {year} «DonPion» MChJ. Barcha huquqlar himoyalangan."
+  },
+  "Common": {
+    "home": "Bosh sahifa",
+    "back": "← Orqaga",
+    "seeAll": "Barchasini ko'rish",
+    "seeAllLine1": "Barchasini",
+    "seeAllLine2": "ko'rish →",
+    "loading": "Yuklanmoqda…",
+    "inStock": "Mavjud",
+    "outOfStock": "Mavjud emas",
+    "breadcrumbLabel": "Sahifa yo'li",
+    "nameLabel": "Ism",
+    "namePlaceholder": "Ismingizni kiriting",
+    "phoneLabel": "Telefon",
+    "phonePlaceholder": "+998 90 000-00-00",
+    "goToCatalog": "Katalogga o'tish",
+    "backHome": "Bosh sahifaga qaytish",
+    "total": "Jami",
+    "addToCart": "Savatga qo'shish",
+    "added": "Qo'shildi",
+    "photoLabel": "Rasm {n}"
+  },
+  "Home": {
+    "heroTitle": "His-tuyg'ularni sovg'a qilish san'ati",
+    "heroTitleMobilePrefix": "",
+    "heroTitleMobileAccent": "His-tuyg'ularni",
+    "heroTitleMobileSuffix": " sovg'a qilish san'ati",
+    "heroCta": "Guldasta tanlash",
+    "luxuryEyebrow": "Luxury Collection",
+    "luxuryHeading": "Hashamatli to'plamlar",
+    "luxuryEmpty": "To'plam yangilanmoqda — birozdan so'ng qayta tashrif buyuring.",
+    "careEyebrow": "G'amxo'rlik",
+    "ritualHeading": "Topshirish marosimi",
+    "ritual1Title": "Telegram orqali kelishuv",
+    "ritual1Text": "Jo'natishdan oldin tayyor guldastaning suratini yoki qisqa videosini yuboramiz — uni qabul qiluvchidan oldin ko'rasiz va nimanidir tuzatishni so'rashingiz mumkin.",
+    "ritual2Title": "Akvaboks va firma qadoqlash",
+    "ritual2Text": "Poyalar suvli akvaboksda boradi, ustidan — zich shakldagi sumka-quti va shaxsiy xatingiz uchun konvert.",
+    "ritual3Title": "Muhim sanalar kalendari",
+    "ritual3Text": "Sanani qoldiring — biz oldindan, ortiqcha xabarlarsiz, faqat haqiqatan muhim bo'lganda nazokat bilan eslatamiz."
+  },
+  "Quiz": {
+    "eyebrow": "Mini-tanlov",
+    "questionTitle": "U qanday inson?",
+    "resultTitle": "Bu mos kelishi mumkin",
+    "loadingText": "Guldastalarni tanlamoqdamiz…",
+    "emptyText": "Mos guldastalar hozircha to'ldirilmoqda — birozdan so'ng qayta tashrif buyuring."
+  },
+  "Product": {
+    "compositionHeading": "Tarkibi",
+    "careHeading": "Parvarish",
+    "aboutHeading": "Ushbu guldasta haqida",
+    "relatedHeading": "O'xshash mahsulotlar"
+  },
+  "Cart": {
+    "title": "Savat",
+    "empty": "Savatingiz bo'sh.",
+    "decreaseAria": "Miqdorni kamaytirish",
+    "increaseAria": "Miqdorni oshirish",
+    "remove": "O'chirish",
+    "summaryTitle": "Jami",
+    "items": "Mahsulotlar",
+    "deliveryNote": "Yetkazib berish narxi buyurtma rasmiylashtirilganda hisoblanadi.",
+    "checkoutCta": "Buyurtma berish",
+    "currentOrderTitle": "Sizning joriy buyurtmangiz",
+    "lastOrderTitle": "Sizning oxirgi buyurtmangiz",
+    "currentOrderNote": "Buyurtma qayta ishlanmoqda va tez orada yetkazib berishga topshiriladi.",
+    "viewOrders": "Barcha buyurtmalar"
+  },
+  "Checkout": {
+    "title": "Buyurtmani rasmiylashtirish",
+    "successTitle": "Buyurtma qabul qilindi",
+    "successText": "Buyurtma raqami: <b>{orderNumber}</b>. Tasdiqlash uchun siz bilan bog'lanamiz.",
+    "emptyCart": "Savatda buyurtma berish uchun mahsulot yo'q.",
+    "paymentLabel": "To'lov usuli",
+    "paymentCash": "Kuryerga naqd pul bilan",
+    "paymentCard": "Kuryerga karta bilan",
+    "paymentOnline": "Onlayn",
+    "commentLabel": "Buyurtmaga izoh",
+    "commentPlaceholder": "Masalan: qo'ng'iroq qilmang, faqat yozing",
+    "addressLabel": "Yetkazib berish manzili",
+    "deliveryLabel": "Yetkazib berish sanasi va vaqti",
+    "orderSummaryTitle": "Sizning buyurtmangiz",
+    "subtotalLabel": "Buyurtma summasi",
+    "usePointsLabel": "Pionlarni ishlatish (mavjud {count})",
+    "pointsDiscountLabel": "Pion chegirmasi",
+    "pointsEarnedNote": "Buyurtma to'lovidan so'ng balansga {count} Pion qo'shiladi",
+    "submitting": "Rasmiylashtirilmoqda…",
+    "submit": "Buyurtmani tasdiqlash",
+    "genericError": "Buyurtmani rasmiylashtirishda xatolik",
+    "submitFailed": "Buyurtmani rasmiylashtirib bo'lmadi"
+  },
+  "DeliverySlotPicker": {
+    "dateLabel": "Yetkazib berish sanasi",
+    "timeLabel": "Yetkazib berish vaqti",
+    "today": "Bugun",
+    "noSlots": "Bu kun uchun bo'sh vaqt qolmadi — boshqa kunni tanlang.",
+    "weekdays": ["Ya", "Du", "Se", "Cho", "Pay", "Ju", "Sha"],
+    "months": ["yan", "fev", "mar", "apr", "may", "iyun", "iyul", "avg", "sen", "okt", "noy", "dek"]
+  },
+  "Account": {
+    "title": "Kabinet",
+    "profileEyebrow": "Sizning profilingiz",
+    "logout": "Chiqish",
+    "logoutConfirm": "Chiqishni xohlaysizmi?",
+    "pointsBalance": "Pion balansi",
+    "pointsNote": "1 Pion = keyingi buyurtmada 1 so'm chegirma",
+    "cashbackNote": "Har xaridda {percent}% Pion keshbek"
+  },
+  "OrderHistory": {
+    "title": "Buyurtmalar tarixi",
+    "empty": "Hozircha buyurtmalar yo'q.",
+    "statusNew": "Yangi",
+    "statusConfirmed": "Tasdiqlangan",
+    "statusDelivering": "Yetkazilmoqda",
+    "statusCompleted": "Yakunlangan",
+    "statusCancelled": "Bekor qilingan"
+  },
+  "RegisterGate": {
+    "eyebrow": "Buyurtmadan oldin bir qadam",
+    "title": "Raqamingizni tasdiqlang",
+    "description": "Buyurtma berish qisqa ro'yxatdan o'tishdan so'ng mavjud — ism, telefon raqami va Telegram orqali tasdiqlash kodi.",
+    "getCode": "Telegram orqali kod olish",
+    "sending": "Yuborilmoqda…",
+    "gatewaySentNote": "Kod ko'rsatilgan raqamga Telegram orqali yuborildi",
+    "openBot": "Botni oching va Start tugmasini bosing",
+    "codeSentViaBot": "Kod bot orqali ham yuborildi",
+    "waitingForBot": "Yoki bot orqali kod oling — Start tugmasini bosing",
+    "codeLabel": "Telegram kodi",
+    "verifying": "Tekshirilmoqda…",
+    "confirm": "Tasdiqlash",
+    "registerFailed": "Ro'yxatdan o'tishni boshlab bo'lmadi",
+    "genericError": "Xatolik",
+    "invalidCode": "Kod noto'g'ri"
+  },
+  "NotFound": {
+    "title": "Sahifa topilmadi",
+    "description": "Ehtimol, mahsulot tugagan yoki havola eskirgan."
+  },
+  "Catalog": {
+    "empty": "Bu kategoriyada hozircha mahsulot yo'q. Birozdan so'ng qayta tashrif buyuring — assortiment har hafta yangilanadi."
+  },
+  "Collection": {
+    "eyebrow": "Luxury Collection",
+    "title": "Tanlangan guldastalar",
+    "metaTitle": "Luxury Collection — tanlangan guldastalar",
+    "metaDescription": "Luxury Collection to'liq to'plami — DonPion'ning eng yaxshi guldasta va kompozitsiyalari bir joyda.",
+    "description": "Biz o'zimiz tanlagan kompozitsiyalar — yangiligi, nodir navlari va guldasta yetkazib berilgandan bir hafta o'tgach shaklini qanday saqlashiga qarab.",
+    "empty": "To'plam hozircha to'ldirilmoqda — birozdan so'ng qayta tashrif buyuring."
+  },
+  "Character": {
+    "eyebrow": "Xarakterga qarab tanlash",
+    "titleFor": "\"{name}\" uchun guldastalar",
+    "empty": "Mos guldastalar hozircha to'ldirilmoqda — birozdan so'ng qayta tashrif buyuring."
+  },
+  "LanguageSwitcher": {
+    "ru": "RU",
+    "uz": "UZ"
+  },
+  "AddressMapPicker": {
+    "tapToPick": "Yetkazib berish manzilini tanlash uchun xaritani bosing",
+    "locating": "Manzil aniqlanmoqda…",
+    "missingToken": "Xarita vaqtincha mavjud emas"
+  },
+  "BranchesMap": {
+    "heading": "Bizning salonlarimiz",
+    "directions": "Yo'nalish",
+    "openGoogle": "Google Xaritalarda ochish",
+    "openYandex": "Yandex Xaritalarda ochish"
+  }
+}
