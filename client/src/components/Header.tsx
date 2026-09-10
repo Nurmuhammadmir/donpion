@@ -42,7 +42,7 @@ export default function Header({ categories, cashbackPercent }: { categories: Ca
           everything else. Disappears entirely if the admin sets the rate
           to 0 (see Settings), not just visually hidden. */}
       {cashbackPercent > 0 && (
-        <div className="bg-hermes-500 px-4 py-1.5 text-center text-[10px] font-medium uppercase tracking-wide2 text-white">
+        <div className="bg-ink px-4 py-2 text-center font-display text-xs tracking-wide2 text-white">
           {t("cashbackBanner", { percent: cashbackPercent })}
         </div>
       )}
