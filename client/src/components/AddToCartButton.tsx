@@ -3,6 +3,7 @@
 import { useLocale, useTranslations } from "next-intl";
 import { useCart } from "@/components/CartProvider";
 import { formatUZS } from "@/lib/format";
+import Button from "@/components/Button";
 
 interface Props {
   productId: string;
@@ -17,7 +18,9 @@ interface Props {
 // Once this product is in the cart, the button turns into a −/+ stepper
 // with the line total next to it — reactive to real cart state instead of
 // a timed "Добавлено" flash, and lets the visitor back out (− down to 0
-// removes it) without leaving the product page.
+// removes it) without leaving the product page. A direct "Оформить заказ"
+// link sits right below it, so the visitor doesn't have to go hunt for the
+// cart icon themselves — add, then straight to checkout.
 export default function AddToCartButton({ productId, slug, name, price, image, className, full }: Props) {
   const { items, addItem, updateQuantity } = useCart();
   const t = useTranslations("Common");
@@ -27,27 +30,32 @@ export default function AddToCartButton({ productId, slug, name, price, image, c
 
   if (quantityInCart > 0) {
     return (
-      <div className={`flex items-center gap-4 ${full ? "w-full justify-between" : ""} ${className ?? ""}`}>
-        <div className="flex items-center border border-hairline">
-          <button
-            type="button"
-            aria-label={tCart("decreaseAria")}
-            onClick={() => updateQuantity(productId, quantityInCart - 1)}
-            className="h-10 w-10 text-graphite hover:text-hermes-500"
-          >
-            −
-          </button>
-          <span className="w-8 text-center text-sm">{quantityInCart}</span>
-          <button
-            type="button"
-            aria-label={tCart("increaseAria")}
-            onClick={() => addItem({ productId, slug, name, price, image })}
-            className="h-10 w-10 text-graphite hover:text-hermes-500"
-          >
-            +
-          </button>
+      <div className={`space-y-3 ${full ? "w-full" : ""} ${className ?? ""}`}>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center border border-hairline">
+            <button
+              type="button"
+              aria-label={tCart("decreaseAria")}
+              onClick={() => updateQuantity(productId, quantityInCart - 1)}
+              className="h-10 w-10 text-graphite hover:text-hermes-500"
+            >
+              −
+            </button>
+            <span className="w-8 text-center text-sm">{quantityInCart}</span>
+            <button
+              type="button"
+              aria-label={tCart("increaseAria")}
+              onClick={() => addItem({ productId, slug, name, price, image })}
+              className="h-10 w-10 text-graphite hover:text-hermes-500"
+            >
+              +
+            </button>
+          </div>
+          <span className="font-display text-base text-ink">{formatUZS(price * quantityInCart, locale)}</span>
         </div>
-        <span className="font-display text-base text-ink">{formatUZS(price * quantityInCart, locale)}</span>
+        <Button href="/checkout" className="w-full">
+          {tCart("checkoutCta")}
+        </Button>
       </div>
     );
   }
