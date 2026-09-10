@@ -1,7 +1,8 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useCart } from "@/components/CartProvider";
+import { formatUZS } from "@/lib/format";
 
 interface Props {
   productId: string;
@@ -13,27 +14,51 @@ interface Props {
   full?: boolean;
 }
 
-// Shows how many of this exact product are already in the cart, right on
-// the card — reactive to the real cart state instead of a timed "Добавлено"
-// flash that reverted back to "В корзину" and left it unclear whether (or
-// how many times) the click actually landed. Clicking again just adds
-// another one, incrementing the count shown.
+// Once this product is in the cart, the button turns into a −/+ stepper
+// with the line total next to it — reactive to real cart state instead of
+// a timed "Добавлено" flash, and lets the visitor back out (− down to 0
+// removes it) without leaving the product page.
 export default function AddToCartButton({ productId, slug, name, price, image, className, full }: Props) {
-  const { items, addItem } = useCart();
+  const { items, addItem, updateQuantity } = useCart();
   const t = useTranslations("Common");
+  const tCart = useTranslations("Cart");
+  const locale = useLocale();
   const quantityInCart = items.find((i) => i.productId === productId)?.quantity ?? 0;
 
-  const handleClick = () => {
-    addItem({ productId, slug, name, price, image });
-  };
+  if (quantityInCart > 0) {
+    return (
+      <div className={`flex items-center gap-4 ${full ? "w-full justify-between" : ""} ${className ?? ""}`}>
+        <div className="flex items-center border border-hairline">
+          <button
+            type="button"
+            aria-label={tCart("decreaseAria")}
+            onClick={() => updateQuantity(productId, quantityInCart - 1)}
+            className="h-10 w-10 text-graphite hover:text-hermes-500"
+          >
+            −
+          </button>
+          <span className="w-8 text-center text-sm">{quantityInCart}</span>
+          <button
+            type="button"
+            aria-label={tCart("increaseAria")}
+            onClick={() => addItem({ productId, slug, name, price, image })}
+            className="h-10 w-10 text-graphite hover:text-hermes-500"
+          >
+            +
+          </button>
+        </div>
+        <span className="font-display text-base text-ink">{formatUZS(price * quantityInCart, locale)}</span>
+      </div>
+    );
+  }
 
   return (
     <button
       type="button"
-      onClick={handleClick}
+      onClick={() => addItem({ productId, slug, name, price, image })}
       className={`btn-primary ${full ? "w-full" : ""} ${className ?? ""}`}
     >
-      {quantityInCart > 0 ? t("addedCount", { count: quantityInCart }) : t("addToCart")}
+      {t("addToCart")}
     </button>
   );
 }

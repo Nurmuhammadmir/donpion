@@ -40,8 +40,6 @@
     "backHome": "Bosh sahifaga qaytish",
     "total": "Jami",
     "addToCart": "Savatga qo'shish",
-    "added": "Qo'shildi",
-    "addedCount": "Qo'shildi · {count}",
     "photoLabel": "Rasm {n}"
   },
   "Home": {
