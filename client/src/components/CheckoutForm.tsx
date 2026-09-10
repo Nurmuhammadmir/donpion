@@ -279,11 +279,22 @@ export default function CheckoutForm() {
         </div>
 
         <Field label={t("paymentLabel")}>
-          <select value={form.paymentMethod} onChange={update("paymentMethod")} className="input">
-            <option value="cash">{t("paymentCash")}</option>
-            <option value="card">{t("paymentCard")}</option>
-            <option value="online">{t("paymentOnline")}</option>
-          </select>
+          <div className="grid grid-cols-3 gap-2">
+            {(["cash", "card", "online"] as const).map((method) => (
+              <button
+                key={method}
+                type="button"
+                onClick={() => setForm((prev) => ({ ...prev, paymentMethod: method }))}
+                className={`border px-2 py-3 text-center text-sm transition-colors ${
+                  form.paymentMethod === method
+                    ? "border-hermes-500 bg-hermes-500/25 text-white [text-shadow:0_1px_4px_rgba(0,0,0,0.7)]"
+                    : "border-hairline text-graphite hover:border-ink hover:text-ink"
+                }`}
+              >
+                {t(method === "cash" ? "paymentCash" : method === "card" ? "paymentCard" : "paymentOnline")}
+              </button>
+            ))}
+          </div>
         </Field>
 
         <Field label={t("commentLabel")}>
