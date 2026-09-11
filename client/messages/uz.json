@@ -153,7 +153,8 @@
     "confirm": "Tasdiqlash",
     "registerFailed": "Ro'yxatdan o'tishni boshlab bo'lmadi",
     "genericError": "Xatolik",
-    "invalidCode": "Kod noto'g'ri"
+    "invalidCode": "Kod noto'g'ri",
+    "changeNumber": "Raqamni o'zgartirish / yangi kod olish"
   },
   "NotFound": {
     "title": "Sahifa topilmadi",

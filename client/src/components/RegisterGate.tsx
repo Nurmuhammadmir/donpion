@@ -6,8 +6,23 @@ import { useCustomerAuth } from "@/components/CustomerAuthProvider";
 import PhoneInput from "@/components/PhoneInput";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4100/api";
+const STORAGE_KEY = "flower-shop-registration";
+// Mirrors TTL_MS in server/src/controllers/authCustomer.controller.js — no
+// point resuming into the "enter code" step with a code that's already
+// expired server-side; the form step is the right place to land instead.
+const TTL_MS = 15 * 60 * 1000;
 
 type Step = "form" | "code";
+
+interface StoredRegistration {
+  registrationId: string;
+  name: string;
+  phone: string;
+  gatewaySent: boolean;
+  botSent: boolean;
+  botLink: string | null;
+  expiresAt: number;
+}
 
 declare global {
   interface Window {
@@ -62,6 +77,48 @@ export default function RegisterGate() {
     }, 2000);
   };
 
+  // Resumes straight into the "enter code" step if the visitor already
+  // requested one and closed the tab (or the site) before typing it in —
+  // otherwise they'd land back on the name+phone form and have to request
+  // a brand new code for no reason.
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
+      const stored: StoredRegistration = JSON.parse(raw);
+      if (!stored.registrationId || stored.expiresAt < Date.now()) {
+        localStorage.removeItem(STORAGE_KEY);
+        return;
+      }
+      setRegistrationId(stored.registrationId);
+      setName(stored.name);
+      setPhone(stored.phone);
+      setGatewaySent(stored.gatewaySent);
+      setBotSent(stored.botSent);
+      setBotLink(stored.botLink);
+      setStep("code");
+      if (stored.botLink && !stored.botSent) {
+        startPolling(stored.registrationId);
+      }
+    } catch {
+      // corrupt/unavailable storage — just start at the form as usual
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const restart = () => {
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch {
+      // ignore
+    }
+    if (pollRef.current) clearInterval(pollRef.current);
+    setStep("form");
+    setCode("");
+    setError(null);
+    setCodeSent(false);
+  };
+
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
@@ -80,6 +137,24 @@ export default function RegisterGate() {
       setBotSent(data.botSent);
       setBotLink(data.botLink);
       setStep("code");
+
+      try {
+        localStorage.setItem(
+          STORAGE_KEY,
+          JSON.stringify({
+            registrationId: data.registrationId,
+            name,
+            phone,
+            gatewaySent: data.gatewaySent,
+            botSent: data.botSent,
+            botLink: data.botLink,
+            expiresAt: Date.now() + TTL_MS,
+          } satisfies StoredRegistration)
+        );
+      } catch {
+        // storage unavailable (private mode, quota) — registration still
+        // works, it just won't survive closing the tab
+      }
 
       // Only need to wait for a Start press when the bot couldn't already
       // push the code straight to a known chat (a first-time visitor).
@@ -116,6 +191,11 @@ export default function RegisterGate() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || t("invalidCode"));
 
+      try {
+        localStorage.removeItem(STORAGE_KEY);
+      } catch {
+        // ignore
+      }
       await refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : t("genericError"));
@@ -180,6 +260,14 @@ export default function RegisterGate() {
               {submitting ? t("verifying") : t("confirm")}
             </button>
           </form>
+
+          <button
+            type="button"
+            onClick={restart}
+            className="block w-full text-center text-xs font-medium uppercase tracking-wide2 text-graphite underline underline-offset-4 hover:text-hermes-500"
+          >
+            {t("changeNumber")}
+          </button>
         </div>
       )}
     </div>
