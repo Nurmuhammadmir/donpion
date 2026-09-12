@@ -22,8 +22,10 @@ interface AddressMapPickerProps {
 }
 
 function createGeolocationDot(): HTMLDivElement {
-  // A small "you are here" dot, distinct from the orange delivery pin —
-  // purely informational, not draggable, just for orientation.
+  // A small round "you are here" dot, distinct from the orange delivery
+  // pin — purely informational, never draggable, and never the thing that
+  // sets the delivery address. Where someone is standing and where they
+  // want flowers delivered are two different things.
   const el = document.createElement("div");
   el.style.width = "14px";
   el.style.height = "14px";
@@ -35,20 +37,18 @@ function createGeolocationDot(): HTMLDivElement {
 }
 
 // Lets the customer drop a pin for the delivery address instead of typing
-// one — opens centered on Tashkent, a draggable marker reverse-geocodes to
-// a readable address via Mapbox's Geocoding API as it's moved. If the
-// visitor hasn't picked a spot yet, the pin starts at their own real
-// position instead of the generic Tashkent center whenever geolocation is
-// available — and keeps trying if permission is granted a moment late
-// (the browser prompt, or the visitor flipping it on in site settings)
-// rather than requiring a page refresh to notice.
+// one — opens centered on Tashkent (or a previously saved pin), a
+// draggable orange marker reverse-geocodes to a readable address via
+// Mapbox's Geocoding API as it's clicked or dragged. Geolocation only ever
+// drives a separate round blue dot plus where the camera looks — it never
+// moves the delivery pin itself.
 export default function AddressMapPicker({ value, onChange }: AddressMapPickerProps) {
   const locale = useLocale();
   const t = useTranslations("AddressMapPicker");
   const mapContainer = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const markerRef = useRef<mapboxgl.Marker | null>(null);
-  const userMovedPinRef = useRef(false);
+  const geoMarkerRef = useRef<mapboxgl.Marker | null>(null);
   const hadInitialValueRef = useRef(!!value);
   const [address, setAddress] = useState(value?.address ?? "");
   const [loadingAddress, setLoadingAddress] = useState(false);
@@ -74,20 +74,25 @@ export default function AddressMapPicker({ value, onChange }: AddressMapPickerPr
     }
   };
 
-  // Moves the pin (and the map) to the visitor's real position right now —
-  // used both for the silent first-load attempt and the manual "Определить
-  // моё местоположение" link below the map.
-  const centerOnClient = () => {
-    if (!mapRef.current || !markerRef.current) return;
+  // Shows (or moves) the round "you are here" dot and points the camera at
+  // it — used both for the silent first-load attempt and the manual
+  // "Определить моё местоположение" button. Never touches the delivery pin.
+  const showClientLocation = (shouldFly: boolean) => {
+    if (!mapRef.current) return;
     setLocatingMe(true);
     navigator.geolocation?.getCurrentPosition(
       (pos) => {
         setLocatingMe(false);
-        if (!mapRef.current || !markerRef.current) return;
+        if (!mapRef.current) return;
         const { latitude: lat, longitude: lng } = pos.coords;
-        markerRef.current.setLngLat([lng, lat]);
-        mapRef.current.flyTo({ center: [lng, lat], zoom: 15, duration: 800 });
-        reverseGeocode(lat, lng);
+        if (geoMarkerRef.current) {
+          geoMarkerRef.current.setLngLat([lng, lat]);
+        } else {
+          geoMarkerRef.current = new mapboxgl.Marker({ element: createGeolocationDot() })
+            .setLngLat([lng, lat])
+            .addTo(mapRef.current);
+        }
+        if (shouldFly) mapRef.current.flyTo({ center: [lng, lat], zoom: 15, duration: 800 });
       },
       () => setLocatingMe(false),
       { enableHighAccuracy: true, timeout: 8000 }
@@ -120,72 +125,38 @@ export default function AddressMapPicker({ value, onChange }: AddressMapPickerPr
     markerRef.current = marker;
 
     marker.on("dragend", () => {
-      userMovedPinRef.current = true;
       const { lat, lng } = marker.getLngLat();
       reverseGeocode(lat, lng);
     });
 
     map.on("click", (e) => {
-      userMovedPinRef.current = true;
       marker.setLngLat(e.lngLat);
       reverseGeocode(e.lngLat.lat, e.lngLat.lng);
     });
 
-    if (value) {
-      // A saved pin already exists (editing a previous address) — just show
-      // a small "you are here" dot for orientation, never move the pin.
-      let cancelled = false;
-      navigator.geolocation?.getCurrentPosition(
-        (pos) => {
-          if (cancelled || !mapRef.current) return;
-          new mapboxgl.Marker({ element: createGeolocationDot() })
-            .setLngLat([pos.coords.longitude, pos.coords.latitude])
-            .addTo(map);
-        },
-        () => {},
-        { enableHighAccuracy: true, timeout: 8000 }
-      );
-      return () => {
-        cancelled = true;
-        map.remove();
-        mapRef.current = null;
-      };
+    if (!value) {
+      // No saved pin yet — reverse-geocode the default Tashkent center so
+      // the form starts with a real address string instead of raw coords.
+      reverseGeocode(DEFAULT_CENTER[1], DEFAULT_CENTER[0]);
     }
 
-    // No saved pin yet — the delivery pin's starting point should be where
-    // the visitor is actually standing, not a generic Tashkent center.
-    // Silently asks for permission (same prompt the old "you are here" dot
-    // used) and falls back to the Tashkent-center reverse geocode if denied,
-    // unavailable, or the visitor already dragged/tapped the pin themselves
-    // while the request was pending.
-    navigator.geolocation?.getCurrentPosition(
-      (pos) => {
-        if (!mapRef.current || userMovedPinRef.current) return;
-        const { latitude: lat, longitude: lng } = pos.coords;
-        marker.setLngLat([lng, lat]);
-        map.flyTo({ center: [lng, lat], zoom: 15, duration: 600 });
-        reverseGeocode(lat, lng);
-      },
-      () => {
-        if (!userMovedPinRef.current) reverseGeocode(DEFAULT_CENTER[1], DEFAULT_CENTER[0]);
-      },
-      { enableHighAccuracy: true, timeout: 8000 }
-    );
+    // Silently shows the "you are here" dot if permission is already
+    // granted — informational only. Only flies the camera there on first
+    // load if the visitor hasn't already got a saved pin to look at.
+    showClientLocation(!hadInitialValueRef.current);
 
     // Chrome/Edge/Android report permission changes live — if the visitor
     // had dismissed the prompt above and grants access a moment later (e.g.
-    // via the padlock menu) instead of reloading, this catches it and
-    // re-centers immediately. Safari has no "geolocation" entry in the
-    // Permissions API — the manual link below the map covers that case.
+    // via the padlock menu) instead of reloading, this catches it. Safari
+    // has no "geolocation" entry in the Permissions API — the manual
+    // button below the map covers that case.
     let permissionStatus: PermissionStatus | null = null;
     const watchPermission = async () => {
       try {
         permissionStatus = await navigator.permissions?.query({ name: "geolocation" as PermissionName });
         if (permissionStatus) {
           permissionStatus.onchange = () => {
-            if (permissionStatus?.state === "granted" && !hadInitialValueRef.current && !userMovedPinRef.current) {
-              centerOnClient();
-            }
+            if (permissionStatus?.state === "granted") showClientLocation(!hadInitialValueRef.current);
           };
         }
       } catch {
@@ -213,7 +184,7 @@ export default function AddressMapPicker({ value, onChange }: AddressMapPickerPr
         <p className="text-xs leading-relaxed text-graphite">{loadingAddress ? t("locating") : address || t("tapToPick")}</p>
         <button
           type="button"
-          onClick={centerOnClient}
+          onClick={() => showClientLocation(true)}
           disabled={locatingMe}
           className="flex-shrink-0 whitespace-nowrap text-[11px] font-medium uppercase tracking-wide2 text-hermes-500 underline underline-offset-2 transition-colors hover:text-hermes-600 disabled:opacity-50"
         >

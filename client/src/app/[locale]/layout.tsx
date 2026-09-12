@@ -9,6 +9,7 @@ import Footer from "@/components/Footer";
 import { CartProvider } from "@/components/CartProvider";
 import { CustomerAuthProvider } from "@/components/CustomerAuthProvider";
 import JsonLd from "@/components/JsonLd";
+import VisitNotifier from "@/components/VisitNotifier";
 import { getBranches, getCategories, getOccasions } from "@/lib/api";
 import { routing } from "@/i18n/routing";
 
@@ -92,6 +93,7 @@ export default async function LocaleLayout({
             description: t("orgDescription"),
           }}
         />
+        <VisitNotifier />
         <NextIntlClientProvider messages={messages}>
           <CustomerAuthProvider>
             <CartProvider>

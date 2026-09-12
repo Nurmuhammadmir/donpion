@@ -4,6 +4,7 @@ import { getProducts } from "@/lib/api";
 import ProductCard from "@/components/ProductCard";
 import BackLink from "@/components/BackLink";
 import Breadcrumbs from "@/components/Breadcrumbs";
+import { localeAlternates } from "@/lib/seo";
 
 export const revalidate = 600;
 
@@ -16,7 +17,7 @@ export async function generateMetadata({ params: { locale } }: PageProps): Promi
   return {
     title: t("metaTitle"),
     description: t("metaDescription"),
-    alternates: { canonical: "/collection" },
+    alternates: localeAlternates("/collection"),
   };
 }
 

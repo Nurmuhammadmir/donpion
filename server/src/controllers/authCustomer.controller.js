@@ -181,6 +181,17 @@ export const verifyCustomer = asyncHandler(async (req, res) => {
       telegramChatId: verification.telegramChatId,
       telegramUsername: verification.telegramUsername,
     });
+
+    // Owner alert — a genuinely new customer, not just a returning one
+    // re-verifying to place another order.
+    const adminChatId = process.env.ADMIN_TELEGRAM_CHAT_ID;
+    if (adminChatId) {
+      sendTelegramMessage(
+        adminChatId,
+        `🆕 <b>Новая регистрация</b>\n\nИмя: ${customer.name}\nТелефон: ${customer.phone}`,
+        { parseMode: "HTML" }
+      );
+    }
   }
 
   await PhoneVerification.deleteOne({ _id: verification._id });

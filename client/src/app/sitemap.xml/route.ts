@@ -1,4 +1,4 @@
-import { getAllProductsForSitemap, getCategories } from "@/lib/api";
+import { getAddonCategories, getAllProductsForSitemap, getCategories, getCharacters, getOccasions } from "@/lib/api";
 import { resolveImageUrl } from "@/lib/images";
 import { routing } from "@/i18n/routing";
 
@@ -77,16 +77,44 @@ function renderUrl(entry: UrlEntry): string {
 // extension, and getting products found in Google Images (not just Google
 // Web Search) is worth the extra control here.
 export async function GET() {
-  const [categories, products] = await Promise.all([getCategories(), getAllProductsForSitemap()]);
+  const [categories, products, characters, occasions, addonCategories] = await Promise.all([
+    getCategories(),
+    getAllProductsForSitemap(),
+    getCharacters(),
+    getOccasions(),
+    getAddonCategories(),
+  ]);
 
   const entries: UrlEntry[] = [
     { path: "/", changeFrequency: "daily", priority: 1 },
+    { path: "/collection", changeFrequency: "daily", priority: 0.7 },
     ...categories.map(
       (cat): UrlEntry => ({
         path: `/catalog/${cat.slug}`,
         changeFrequency: "daily",
         priority: 0.8,
         images: [{ loc: resolveImageUrl(cat.image), title: cat.name }],
+      })
+    ),
+    ...characters.map(
+      (character): UrlEntry => ({
+        path: `/character/${character.slug}`,
+        changeFrequency: "weekly",
+        priority: 0.5,
+      })
+    ),
+    ...occasions.map(
+      (occasion): UrlEntry => ({
+        path: `/occasion/${occasion.slug}`,
+        changeFrequency: "weekly",
+        priority: 0.6,
+      })
+    ),
+    ...addonCategories.map(
+      (addon): UrlEntry => ({
+        path: `/addon/${addon.slug}`,
+        changeFrequency: "weekly",
+        priority: 0.4,
       })
     ),
     ...products.map(

@@ -12,6 +12,7 @@ import ProductGallery from "@/components/ProductGallery";
 import { formatUZS } from "@/lib/format";
 import { resolveImageUrl } from "@/lib/images";
 import { routing } from "@/i18n/routing";
+import { localeAlternates } from "@/lib/seo";
 
 export const revalidate = 600;
 
@@ -39,7 +40,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     // seoTitle stored in MongoDB is already the exact, complete <title>.
     title: { absolute: product.seoTitle },
     description: product.seoDescription,
-    alternates: { canonical },
+    alternates: localeAlternates(canonical),
     openGraph: {
       title: product.seoTitle,
       description: product.seoDescription,

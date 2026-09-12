@@ -7,6 +7,7 @@ import BackLink from "@/components/BackLink";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import JsonLd from "@/components/JsonLd";
 import { routing } from "@/i18n/routing";
+import { localeAlternates } from "@/lib/seo";
 
 export const revalidate = 600;
 
@@ -30,7 +31,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   return {
     title: t("titleFor", { name: category.name }),
-    alternates: { canonical },
+    alternates: localeAlternates(canonical),
   };
 }
 

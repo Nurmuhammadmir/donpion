@@ -8,6 +8,7 @@ import Breadcrumbs from "@/components/Breadcrumbs";
 import JsonLd from "@/components/JsonLd";
 import { resolveImageUrl } from "@/lib/images";
 import { routing } from "@/i18n/routing";
+import { localeAlternates } from "@/lib/seo";
 
 export const revalidate = 600;
 
@@ -35,7 +36,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     // seoTitle stored in MongoDB is already the exact, complete <title>.
     title: { absolute: category.seoTitle },
     description: category.seoDescription,
-    alternates: { canonical },
+    alternates: localeAlternates(canonical),
     openGraph: {
       title: category.seoTitle,
       description: category.seoDescription,

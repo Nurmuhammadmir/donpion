@@ -4,6 +4,31 @@ import Product from "../models/Product.js";
 import Customer from "../models/Customer.js";
 import SiteSettings from "../models/SiteSettings.js";
 import StockEntry from "../models/StockEntry.js";
+import { sendTelegramMessage } from "../utils/telegramBot.js";
+
+const PAYMENT_METHOD_LABELS = { cash: "Наличными курьеру", card: "Картой курьеру", online: "Онлайн" };
+
+function buildOrderAlertText(order) {
+  const itemsText = order.items.map((i) => `• ${i.name} × ${i.quantity} — ${(i.price * i.quantity).toLocaleString("ru-RU")} сум`).join("\n");
+  const lines = [
+    `🛍 <b>Новый заказ ${order.orderNumber}</b>`,
+    "",
+    `Клиент: ${order.customer.name}`,
+    `Телефон: ${order.customer.phone}`,
+  ];
+  if (order.customer.address) lines.push(`Адрес: ${order.customer.address}`);
+  if (order.location?.lat && order.location?.lng) {
+    lines.push(`Карта: https://www.google.com/maps?q=${order.location.lat},${order.location.lng}`);
+  }
+  if (order.deliveryDate) lines.push(`Доставка: ${order.deliveryDate}${order.deliveryTime ? `, ${order.deliveryTime}` : ""}`);
+  lines.push(`Оплата: ${PAYMENT_METHOD_LABELS[order.paymentMethod] || order.paymentMethod}`);
+  lines.push("", itemsText, "");
+  lines.push(`Сумма заказа: ${order.subtotal.toLocaleString("ru-RU")} сум`);
+  if (order.pointsRedeemed > 0) lines.push(`Списано Пионов: ${order.pointsRedeemed.toLocaleString("ru-RU")}`);
+  lines.push(`К оплате: ${order.totalAmount.toLocaleString("ru-RU")} сум`);
+  if (order.customer.comment) lines.push("", `Комментарий: ${order.customer.comment}`);
+  return lines.join("\n");
+}
 
 // Short and readable on a receipt/SMS: two letters + four digits (e.g.
 // FL-4821). No date stamp — retried on the rare collision instead.
@@ -152,6 +177,11 @@ export const createOrder = asyncHandler(async (req, res) => {
   );
   order.stockDeducted = true;
   await order.save();
+
+  const adminChatId = process.env.ADMIN_TELEGRAM_CHAT_ID;
+  if (adminChatId) {
+    sendTelegramMessage(adminChatId, buildOrderAlertText(order), { parseMode: "HTML" });
+  }
 
   res.status(201).json(order);
 });
