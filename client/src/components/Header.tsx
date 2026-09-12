@@ -39,11 +39,14 @@ export default function Header({ categories, cashbackPercent }: { categories: Ca
   return (
     <header className="sticky top-0 z-40 bg-navy">
       {/* Cashback promo strip — the very top of the sticky header, above
-          everything else. Disappears entirely if the admin sets the rate
-          to 0 (see Settings), not just visually hidden. */}
+          everything else. Same navy as the rest of the header (a separate
+          black bar here just read as a stray leftover element) with only
+          the percentage picked out in the brand accent. Disappears
+          entirely if the admin sets the rate to 0 (see Settings), not just
+          visually hidden. */}
       {cashbackPercent > 0 && (
-        <div className="bg-ink px-4 py-2 text-center font-display text-xs tracking-wide2 text-white">
-          {t("cashbackBanner", { percent: cashbackPercent })}
+        <div className="border-b border-white/10 px-4 py-2 text-center font-display text-xs tracking-wide2 text-white/80">
+          {t.rich("cashbackBanner", { percent: cashbackPercent, b: (chunks) => <span className="text-hermes-500">{chunks}</span> })}
         </div>
       )}
 

@@ -24,6 +24,7 @@ export interface AddonCategory {
   _id: string;
   name: string;
   slug: string;
+  image: string;
   sortOrder: number;
   isActive: boolean;
 }

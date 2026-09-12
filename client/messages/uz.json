@@ -8,7 +8,7 @@
     "account": "Kabinet",
     "menu": "Menyu",
     "phone": "+998 87 835-35-08",
-    "cashbackBanner": "Har xaridda {percent}% keshbek"
+    "cashbackBanner": "Har xaridda <b>{percent}%</b> keshbek"
   },
   "Footer": {
     "tagline": "Toshkent bo'ylab yetkazib beriladigan guldastalar va uy o'simliklari. Buyurtma kuni tayyorlaymiz.",
@@ -78,7 +78,8 @@
   "ProductAddons": {
     "heading": "Buyurtmani to'ldiring",
     "loading": "Yuklanmoqda…",
-    "empty": "Bu toifada hozircha bo'sh — birozdan so'ng qayta tashrif buyuring."
+    "empty": "Bu toifada hozircha bo'sh — birozdan so'ng qayta tashrif buyuring.",
+    "reset": "Boshqa toifani tanlash"
   },
   "Pions": {
     "earn": "+{count} Pion",

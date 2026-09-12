@@ -9,6 +9,9 @@ const addonCategorySchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true },
     slug: { type: String, required: true, unique: true, lowercase: true, trim: true, index: true },
+    // Optional — the storefront falls back to a generic line-art icon when
+    // empty, so existing categories keep working until an admin uploads one.
+    image: { type: String, default: "" },
     sortOrder: { type: Number, default: 0 },
     isActive: { type: Boolean, default: true },
   },

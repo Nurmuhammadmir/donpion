@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
-import { api, ApiError } from "@/lib/api";
+import { useEffect, useRef, useState } from "react";
+import { api, ApiError, resolveImageUrl, uploadProductImages } from "@/lib/api";
 import type { AddonCategory } from "@/lib/types";
 
 const emptyForm = {
   name: "",
+  image: "",
   sortOrder: "0",
   isActive: true,
 };
@@ -19,7 +20,9 @@ export default function AddonCategories() {
   const [showForm, setShowForm] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const load = () => {
     setLoading(true);
@@ -42,6 +45,7 @@ export default function AddonCategories() {
     setEditingId(category._id);
     setForm({
       name: category.name,
+      image: category.image || "",
       sortOrder: String(category.sortOrder),
       isActive: category.isActive,
     });
@@ -56,6 +60,23 @@ export default function AddonCategories() {
       setForm((prev) => ({ ...prev, [field]: value }));
     };
 
+  const handleFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    setError(null);
+    try {
+      const [url] = await uploadProductImages([file], form.name);
+      setForm((prev) => ({ ...prev, image: url }));
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Не удалось загрузить фото");
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
@@ -63,6 +84,7 @@ export default function AddonCategories() {
 
     const payload = {
       name: form.name,
+      image: form.image,
       sortOrder: Number(form.sortOrder) || 0,
       isActive: form.isActive,
     };
@@ -116,6 +138,32 @@ export default function AddonCategories() {
 
           <Field label="Название" required>
             <input required value={form.name} onChange={update("name")} className="input" placeholder="Вазы" />
+          </Field>
+
+          <Field label="Мини-фото (показывается на карточке товара)">
+            <div className="flex items-center gap-3">
+              {form.image && (
+                <img src={resolveImageUrl(form.image)} alt="" className="h-16 w-16 rounded-full border border-hairline object-cover" />
+              )}
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                className="btn-secondary"
+              >
+                {uploading ? "Загружаем…" : form.image ? "Заменить фото" : "Загрузить фото"}
+              </button>
+            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/avif"
+              onChange={handleFileSelected}
+              className="hidden"
+            />
+            <p className="mt-2 text-xs text-graphite">
+              Необязательно — без фото на сайте покажется обычная иконка.
+            </p>
           </Field>
 
           <div className="grid gap-4 sm:grid-cols-2">
