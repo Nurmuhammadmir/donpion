@@ -49,7 +49,7 @@ export default function Header({ categories }: { categories: Category[] }) {
 
   return (
     <header
-      className={`sticky top-0 z-40 bg-navy transition-transform duration-300 ease-out lg:translate-y-0 ${
+      className={`sticky top-0 z-40 bg-navy transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] lg:translate-y-0 ${
         hideHeader && !menuOpen ? "-translate-y-full" : "translate-y-0"
       }`}
     >

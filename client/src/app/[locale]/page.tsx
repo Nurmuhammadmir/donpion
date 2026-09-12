@@ -3,6 +3,7 @@ import { getCharacters, getOccasions, getProducts, getSiteSettings } from "@/lib
 import BouquetQuiz from "@/components/BouquetQuiz";
 import OccasionPicker from "@/components/OccasionPicker";
 import ProductShelf from "@/components/ProductShelf";
+import Reveal from "@/components/Reveal";
 import { resolveImageUrl } from "@/lib/images";
 
 export const revalidate = 600;
@@ -53,6 +54,11 @@ export default async function HomePage({ params: { locale } }: PageProps) {
             solid navy header into the photo instead of a hard edge where
             the two meet. */}
         <div className="absolute inset-x-0 top-0 z-10 h-28 bg-gradient-to-b from-navy/60 to-transparent lg:h-40" />
+        {/* Same idea at the bottom, mobile only — that's where the photo's
+            bottom edge meets the page directly (desktop/tablet instead
+            overlay the headline there with the scrim below, so a white fade
+            would fight with that white text). */}
+        <div className="absolute inset-x-0 bottom-0 z-10 h-24 bg-gradient-to-t from-paper to-transparent sm:hidden" />
         {/* Tablet/desktop only: headline overlays the photo directly — white
             text with a soft shadow — with a light scrim for legibility.
             Hidden on mobile, where the headline moves below the photo
@@ -93,33 +99,37 @@ export default async function HomePage({ params: { locale } }: PageProps) {
           Phone/tablet: the same pieces in a horizontal strip — scroll right
           to see the rest, rather than a tall vertical grid. */}
       <section className="mx-auto max-w-6xl px-6 py-20 lg:px-10 lg:py-28">
-        <div className="mb-12 text-center">
-          <p className="eyebrow mb-4">{t("luxuryEyebrow")}</p>
-          <h2 className="font-display text-2xl tracking-luxe text-ink sm:text-3xl">{t("luxuryHeading")}</h2>
-        </div>
+        <Reveal>
+          <div className="mb-12 text-center">
+            <p className="eyebrow mb-4">{t("luxuryEyebrow")}</p>
+            <h2 className="font-display text-2xl tracking-luxe text-ink sm:text-3xl">{t("luxuryHeading")}</h2>
+          </div>
 
-        <ProductShelf
-          products={luxuryItems}
-          seeAllHref="/collection"
-          seeAllLabel={tc("seeAll")}
-          seeAllLine1={tc("seeAllLine1")}
-          seeAllLine2={tc("seeAllLine2")}
-          emptyText={t("luxuryEmpty")}
-        />
+          <ProductShelf
+            products={luxuryItems}
+            seeAllHref="/collection"
+            seeAllLabel={tc("seeAll")}
+            seeAllLine1={tc("seeAllLine1")}
+            seeAllLine2={tc("seeAllLine2")}
+            emptyText={t("luxuryEmpty")}
+          />
+        </Reveal>
       </section>
 
       {/* Mini quiz — matches a character tagged directly on each product
           (see Character model / admin "Характеры"), with results shown
           inline right here rather than a separate results page. */}
       <section className="border-y border-hairline bg-paper px-6 py-24 lg:px-10">
-        <BouquetQuiz characters={characters} />
+        <Reveal>
+          <BouquetQuiz characters={characters} />
+        </Reveal>
       </section>
 
       {/* Right after the personality quiz — a shelf of whatever's tagged
           into the "Шоколад" add-on category (see AddonCategory / admin
           "Допы"), the same shelf shape as Luxury Collection above. */}
       <section className="border-b border-hairline bg-paper px-6 py-24 lg:px-10">
-        <div className="mx-auto max-w-6xl">
+        <Reveal className="mx-auto max-w-6xl">
           <div className="mb-12 text-center">
             <p className="eyebrow mb-4">{t("chocolateEyebrow")}</p>
             <h2 className="font-display text-2xl tracking-luxe text-ink sm:text-3xl">{t("chocolateHeading")}</h2>
@@ -132,19 +142,21 @@ export default async function HomePage({ params: { locale } }: PageProps) {
             seeAllLine2={tc("seeAllLine2")}
             emptyText={t("chocolateEmpty")}
           />
-        </div>
+        </Reveal>
       </section>
 
       {/* Right after that — same mechanism again, grouped by what the
           flowers are FOR instead of who they suit (see Occasion model /
           admin "Поводы"). */}
       <section className="border-b border-hairline bg-paper px-6 py-24 lg:px-10">
-        <OccasionPicker occasions={occasions} />
+        <Reveal>
+          <OccasionPicker occasions={occasions} />
+        </Reveal>
       </section>
 
       {/* The ritual of gifting — what happens after checkout, not delivery bullet points */}
       <section className="border-t border-hairline bg-paper">
-        <div className="mx-auto max-w-5xl px-6 py-24 lg:px-10">
+        <Reveal className="mx-auto max-w-5xl px-6 py-24 lg:px-10">
           <div className="mb-16 text-center">
             <p className="eyebrow mb-4">{t("careEyebrow")}</p>
             <h2 className="font-display text-2xl tracking-luxe text-ink sm:text-3xl">{t("ritualHeading")}</h2>
@@ -162,7 +174,7 @@ export default async function HomePage({ params: { locale } }: PageProps) {
               </div>
             ))}
           </div>
-        </div>
+        </Reveal>
       </section>
     </>
   );
