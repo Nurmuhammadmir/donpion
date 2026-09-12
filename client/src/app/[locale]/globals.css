@@ -3,10 +3,13 @@
 @tailwind utilities;
 
 @layer base {
-  html {
-    scroll-behavior: smooth;
-  }
-
+  /* Deliberately NOT `scroll-behavior: smooth` globally — that also
+     animates the scroll-position reset Next.js does on every route change
+     and on browser back/forward, so instead of landing on a new page
+     instantly you'd visibly see it scroll there from wherever you'd
+     scrolled to on the previous page. Jarring, not smooth. Anchor links
+     (e.g. the hero's #quiz CTA) just jump now instead of gliding — a fair
+     trade for navigation never doing that again. */
   body {
     @apply bg-paper text-ink antialiased tabular-nums;
     font-feature-settings: "liga" 1, "kern" 1;

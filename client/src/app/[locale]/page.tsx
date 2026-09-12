@@ -1,7 +1,6 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { getCharacters, getOccasions, getProducts, getSiteSettings } from "@/lib/api";
 import BouquetQuiz from "@/components/BouquetQuiz";
-import OccasionPicker from "@/components/OccasionPicker";
 import ProductShelf from "@/components/ProductShelf";
 import Reveal from "@/components/Reveal";
 import { resolveImageUrl } from "@/lib/images";
@@ -16,12 +15,13 @@ export default async function HomePage({ params: { locale } }: PageProps) {
   setRequestLocale(locale);
   const t = await getTranslations("Home");
   const tc = await getTranslations("Common");
+  const tOccasion = await getTranslations("Occasion");
 
   const [characters, occasions, featuredRes, chocolateRes, settings] = await Promise.all([
     getCharacters(),
     getOccasions(),
     getProducts({ featured: true, limit: 8 }),
-    getProducts({ addonCategory: "shokolad", limit: 8 }),
+    getProducts({ addonCategory: "klubnika-v-shokolade", limit: 8 }),
     getSiteSettings(),
   ]);
 
@@ -30,6 +30,16 @@ export default async function HomePage({ params: { locale } }: PageProps) {
   // heading still always renders; see the empty-state message below.
   const luxuryItems = featuredRes.items;
   const chocolateItems = chocolateRes.items;
+
+  // One shelf per occasion, straight away — no "pick one" step. Fetched
+  // after `occasions` resolves above (its own list is the input here), but
+  // still all in parallel with each other.
+  const occasionShelves = await Promise.all(
+    occasions.map(async (occasion) => ({
+      occasion,
+      products: (await getProducts({ occasion: occasion.slug, limit: 8 })).items,
+    }))
+  );
 
   return (
     <>
@@ -94,10 +104,10 @@ export default async function HomePage({ params: { locale } }: PageProps) {
         </div>
       </div>
 
-      {/* Luxury Collection — always shown right after the hero, before the
-          quiz. Desktop: a fixed grid with a "see all" link below.
-          Phone/tablet: the same pieces in a horizontal strip — scroll right
-          to see the rest, rather than a tall vertical grid. */}
+      {/* Luxury Collection — always shown right after the hero. Desktop: a
+          fixed grid with a "see all" link below. Phone/tablet: the same
+          pieces in a horizontal strip — scroll right to see the rest,
+          rather than a tall vertical grid. */}
       <section className="mx-auto max-w-6xl px-6 py-20 lg:px-10 lg:py-28">
         <Reveal>
           <div className="mb-12 text-center">
@@ -116,19 +126,10 @@ export default async function HomePage({ params: { locale } }: PageProps) {
         </Reveal>
       </section>
 
-      {/* Mini quiz — matches a character tagged directly on each product
-          (see Character model / admin "Характеры"), with results shown
-          inline right here rather than a separate results page. */}
+      {/* Right after Luxury Collection, before the quiz — a shelf of
+          whatever's tagged into the "Клубника в шоколаде" add-on category
+          (see AddonCategory / admin "Допы"), same shelf shape as above. */}
       <section className="border-y border-hairline bg-paper px-6 py-24 lg:px-10">
-        <Reveal>
-          <BouquetQuiz characters={characters} />
-        </Reveal>
-      </section>
-
-      {/* Right after the personality quiz — a shelf of whatever's tagged
-          into the "Шоколад" add-on category (see AddonCategory / admin
-          "Допы"), the same shelf shape as Luxury Collection above. */}
-      <section className="border-b border-hairline bg-paper px-6 py-24 lg:px-10">
         <Reveal className="mx-auto max-w-6xl">
           <div className="mb-12 text-center">
             <p className="eyebrow mb-4">{t("chocolateEyebrow")}</p>
@@ -136,7 +137,7 @@ export default async function HomePage({ params: { locale } }: PageProps) {
           </div>
           <ProductShelf
             products={chocolateItems}
-            seeAllHref="/addon/shokolad"
+            seeAllHref="/addon/klubnika-v-shokolade"
             seeAllLabel={tc("seeAll")}
             seeAllLine1={tc("seeAllLine1")}
             seeAllLine2={tc("seeAllLine2")}
@@ -145,14 +146,38 @@ export default async function HomePage({ params: { locale } }: PageProps) {
         </Reveal>
       </section>
 
-      {/* Right after that — same mechanism again, grouped by what the
-          flowers are FOR instead of who they suit (see Occasion model /
-          admin "Поводы"). */}
+      {/* Mini quiz — matches a character tagged directly on each product
+          (see Character model / admin "Характеры"), with results shown
+          inline right here rather than a separate results page. */}
       <section className="border-b border-hairline bg-paper px-6 py-24 lg:px-10">
         <Reveal>
-          <OccasionPicker occasions={occasions} />
+          <BouquetQuiz characters={characters} />
         </Reveal>
       </section>
+
+      {/* One shelf per occasion (see Occasion model / admin "Поводы") —
+          shown straight away, not behind a "pick one" step. */}
+      {occasionShelves.map(({ occasion, products }) => (
+        <section key={occasion._id} className="border-b border-hairline bg-paper px-6 py-24 lg:px-10">
+          <Reveal className="mx-auto max-w-6xl">
+            <div className="mb-12 text-center">
+              <p className="eyebrow mb-4">{tOccasion("eyebrow")}</p>
+              <h2 className="font-display text-2xl tracking-luxe text-ink sm:text-3xl">{occasion.name}</h2>
+              {occasion.description && (
+                <p className="mx-auto mt-4 max-w-md text-sm leading-relaxed text-graphite">{occasion.description}</p>
+              )}
+            </div>
+            <ProductShelf
+              products={products}
+              seeAllHref={`/occasion/${occasion.slug}`}
+              seeAllLabel={tc("seeAll")}
+              seeAllLine1={tc("seeAllLine1")}
+              seeAllLine2={tc("seeAllLine2")}
+              emptyText={tOccasion("empty")}
+            />
+          </Reveal>
+        </section>
+      ))}
 
       {/* The ritual of gifting — what happens after checkout, not delivery bullet points */}
       <section className="border-t border-hairline bg-paper">

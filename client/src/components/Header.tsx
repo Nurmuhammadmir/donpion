@@ -14,9 +14,12 @@ export default function Header({ categories }: { categories: Category[] }) {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   // Tucks the header away on a downward scroll and brings it straight back
-  // on the very next upward one — phone/tablet only (desktop stays pinned
-  // via the lg:translate-y-0 override below), so the navy bar doesn't sit
-  // permanently between the visitor and the page while they're reading.
+  // on the very next upward one — phone/tablet only. The hide/show classes
+  // below are prefixed max-lg: specifically so no transform utility is ever
+  // applied at desktop widths at all (rather than relying on a competing
+  // lg:translate-y-0 to win the cascade) — a translate-y-full that isn't
+  // reliably overridden is exactly what makes the whole header, logo
+  // included, silently slide out of view.
   const [hideHeader, setHideHeader] = useState(false);
   const lastScrollY = useRef(0);
 
@@ -49,8 +52,8 @@ export default function Header({ categories }: { categories: Category[] }) {
 
   return (
     <header
-      className={`sticky top-0 z-40 bg-navy transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] lg:translate-y-0 ${
-        hideHeader && !menuOpen ? "-translate-y-full" : "translate-y-0"
+      className={`sticky top-0 z-40 bg-navy transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+        hideHeader && !menuOpen ? "max-lg:-translate-y-full" : "max-lg:translate-y-0"
       }`}
     >
       {/* Mobile & tablet: cart pinned left, wordmark centered, menu right */}
