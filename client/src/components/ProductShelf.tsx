@@ -9,6 +9,7 @@ interface ProductShelfProps {
   seeAllLine1: string;
   seeAllLine2: string;
   emptyText: string;
+  showFromPrice?: boolean;
 }
 
 // Shared "shelf" shape used by every homepage product strip (Luxury
@@ -17,7 +18,7 @@ interface ProductShelfProps {
 // scroll strip with up to 8 (scrolling makes the extra 4 free, a plain
 // grid wouldn't). No hooks/directives, so it renders fine from either a
 // server page or a "use client" component.
-export default function ProductShelf({ products, seeAllHref, seeAllLabel, seeAllLine1, seeAllLine2, emptyText }: ProductShelfProps) {
+export default function ProductShelf({ products, seeAllHref, seeAllLabel, seeAllLine1, seeAllLine2, emptyText, showFromPrice }: ProductShelfProps) {
   if (products.length === 0) {
     return <p className="text-center text-sm text-graphite">{emptyText}</p>;
   }
@@ -30,7 +31,7 @@ export default function ProductShelf({ products, seeAllHref, seeAllLabel, seeAll
             key={product._id}
             className={`w-[45%] flex-shrink-0 sm:w-[42%] lg:w-auto lg:flex-shrink ${i >= 4 ? "lg:hidden" : ""}`}
           >
-            <ProductCard product={product} />
+            <ProductCard product={product} showFromPrice={showFromPrice} />
           </div>
         ))}
         {/* Mobile/tablet: "see all" rides at the end of the same strip

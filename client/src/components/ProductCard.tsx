@@ -8,7 +8,14 @@ import type { ProductCardData } from "@/types";
 import { formatUZS } from "@/lib/format";
 import { resolveImageUrl } from "@/lib/images";
 
-export default function ProductCard({ product }: { product: ProductCardData }) {
+interface ProductCardProps {
+  product: ProductCardData;
+  // Corporate orders are typically customized/bulk — the sticker price is
+  // a starting point, not what everyone pays, so it's shown as "от X" there.
+  showFromPrice?: boolean;
+}
+
+export default function ProductCard({ product, showFromPrice }: ProductCardProps) {
   const t = useTranslations("Common");
   const locale = useLocale();
   // The second-photo crossfade is driven by explicit state, not CSS
@@ -70,7 +77,9 @@ export default function ProductCard({ product }: { product: ProductCardData }) {
       <div className="mt-5 flex flex-col items-center px-2 text-center">
         <h3 className="font-display text-lg leading-snug tracking-luxe text-ink">{product.name}</h3>
         <div className="mt-2 flex items-baseline gap-3">
-          <span className="font-display text-base text-ink/85">{formatUZS(product.price, locale)}</span>
+          <span className="font-display text-base text-ink/85">
+            {showFromPrice ? t("priceFrom", { price: formatUZS(product.price, locale) }) : formatUZS(product.price, locale)}
+          </span>
           {product.oldPrice && (
             <span className="font-display text-sm text-graphite line-through">{formatUZS(product.oldPrice, locale)}</span>
           )}

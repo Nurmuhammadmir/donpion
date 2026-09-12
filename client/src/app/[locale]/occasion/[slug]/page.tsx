@@ -68,7 +68,7 @@ export default async function OccasionPage({ params: { locale, slug } }: PagePro
       {items.length > 0 ? (
         <div className="mt-16 grid grid-cols-2 gap-x-6 gap-y-12 sm:gap-x-8 lg:grid-cols-4">
           {items.map((product) => (
-            <ProductCard key={product._id} product={product} />
+            <ProductCard key={product._id} product={product} showFromPrice={occasion.slug === "korporativnye-zakazy"} />
           ))}
         </div>
       ) : (

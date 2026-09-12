@@ -41,7 +41,8 @@
     "backHome": "Вернуться на главную",
     "total": "Итого",
     "addToCart": "В корзину",
-    "photoLabel": "Фото {n}"
+    "photoLabel": "Фото {n}",
+    "priceFrom": "от {price}"
   },
   "Home": {
     "heroTitle": "Искусство дарить эмоции",

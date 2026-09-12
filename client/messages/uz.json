@@ -41,7 +41,8 @@
     "backHome": "Bosh sahifaga qaytish",
     "total": "Jami",
     "addToCart": "Savatga qo'shish",
-    "photoLabel": "Rasm {n}"
+    "photoLabel": "Rasm {n}",
+    "priceFrom": "{price} dan"
   },
   "Home": {
     "heroTitle": "His-tuyg'ularni sovg'a qilish san'ati",

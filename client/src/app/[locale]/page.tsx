@@ -176,6 +176,7 @@ export default async function HomePage({ params: { locale } }: PageProps) {
               seeAllLine1={tc("seeAllLine1")}
               seeAllLine2={tc("seeAllLine2")}
               emptyText={tOccasion("empty")}
+              showFromPrice={occasion.slug === "korporativnye-zakazy"}
             />
           </Reveal>
         </section>
