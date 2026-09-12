@@ -78,7 +78,7 @@ export default function Header({ categories }: { categories: Category[] }) {
       {/* Desktop */}
       <div className="mx-auto hidden max-w-6xl items-center justify-between gap-8 px-10 py-[17px] lg:flex">
         <Link href="/">
-          <Image src="/nav-logo.png" alt="DonPion" width={1397} height={435} className="h-9 w-auto" priority />
+          <Image src="/nav-logo.png" alt="DonPion" width={1397} height={435} className="h-10 w-auto" priority />
         </Link>
 
         <nav className="flex items-center gap-9">
