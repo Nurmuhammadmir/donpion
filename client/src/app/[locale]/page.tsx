@@ -204,6 +204,33 @@ export default async function HomePage({ params: { locale } }: PageProps) {
           </div>
         </Reveal>
       </section>
+
+      {/* Where the flowers actually come from — a quiet trust signal right
+          before the footer, not a loud banner. Same thin-line + heading
+          shape as the ritual section above, just 4 columns instead of 3. */}
+      <section className="border-t border-hairline bg-paper">
+        <Reveal className="mx-auto max-w-5xl px-6 py-24 lg:px-10">
+          <div className="mb-16 text-center">
+            <p className="eyebrow mb-4">{t("sourcingEyebrow")}</p>
+            <h2 className="font-display text-2xl tracking-luxe text-ink sm:text-3xl">{t("sourcingHeading")}</h2>
+            <p className="mx-auto mt-5 max-w-lg text-sm leading-relaxed text-graphite">{t("sourcingText")}</p>
+          </div>
+          <div className="grid grid-cols-2 gap-x-8 gap-y-12 lg:grid-cols-4">
+            {[
+              { title: t("sourcingEcuadorTitle"), text: t("sourcingEcuadorText") },
+              { title: t("sourcingHollandTitle"), text: t("sourcingHollandText") },
+              { title: t("sourcingKenyaTitle"), text: t("sourcingKenyaText") },
+              { title: t("sourcingIsraelTitle"), text: t("sourcingIsraelText") },
+            ].map((item) => (
+              <div key={item.title} className="text-center">
+                <div className="mx-auto h-px w-8 bg-hermes-500" />
+                <h3 className="mt-5 font-display text-base tracking-luxe text-ink">{item.title}</h3>
+                <p className="mt-3 text-sm leading-relaxed text-graphite">{item.text}</p>
+              </div>
+            ))}
+          </div>
+        </Reveal>
+      </section>
     </>
   );
 }
