@@ -132,7 +132,7 @@ export default function Header({ categories, occasions }: { categories: Category
 
         <div className="flex items-center gap-5">
           <a
-            href="tel:+998878353508"
+            href="tel:+998878006030"
             className="flex flex-shrink-0 items-center gap-2 whitespace-nowrap text-xs font-medium uppercase tracking-wide2 text-white transition-colors hover:text-hermes-500"
           >
             <span className="text-hermes-500">●</span>
@@ -196,7 +196,7 @@ export default function Header({ categories, occasions }: { categories: Category
           </Link>
           <div className="flex items-center justify-between pt-3">
             <a
-              href="tel:+998878353508"
+              href="tel:+998878006030"
               onClick={() => setMenuOpen(false)}
               className="text-xs font-medium uppercase tracking-wide2 text-ink"
             >

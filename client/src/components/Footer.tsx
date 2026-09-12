@@ -73,8 +73,8 @@ export default function Footer({ categories, branches }: { categories: Category[
           <h3 className="eyebrow mb-6">{t("contactsHeading")}</h3>
           <ul className="space-y-3.5 text-sm text-graphite">
             <li>
-              <a href="tel:+998878353508" className="hover:text-hermes-500">
-                +998 87 835-35-08
+              <a href="tel:+998878006030" className="hover:text-hermes-500">
+                +998 87 800-60-30
               </a>
             </li>
             <li>
