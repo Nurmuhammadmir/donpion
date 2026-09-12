@@ -177,10 +177,17 @@ export default function Header({ categories, occasions }: { categories: Category
             {t("account")}
           </Link>
           <div className="flex items-center justify-between pt-3">
-            <a href="tel:+998878353508" className="text-xs font-medium uppercase tracking-wide2 text-ink">
+            <a
+              href="tel:+998878353508"
+              onClick={() => setMenuOpen(false)}
+              className="text-xs font-medium uppercase tracking-wide2 text-ink"
+            >
               {t("phone")}
             </a>
-            <LanguageSwitcher className="text-xs font-medium uppercase tracking-wide2 text-graphite hover:text-hermes-500" />
+            <LanguageSwitcher
+              onClick={() => setMenuOpen(false)}
+              className="text-xs font-medium uppercase tracking-wide2 text-graphite hover:text-hermes-500"
+            />
           </div>
         </div>
       </nav>
