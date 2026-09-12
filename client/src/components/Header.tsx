@@ -106,16 +106,20 @@ export default function Header({ categories, occasions }: { categories: Category
 
       {/* Desktop */}
       <div className="mx-auto hidden max-w-6xl items-center justify-between gap-8 px-10 py-[17px] lg:flex">
-        <Link href="/">
+        <Link href="/" className="flex-shrink-0">
           <Image src="/nav-logo.png" alt="DonPion" width={1397} height={435} className="h-10 w-auto" priority />
         </Link>
 
-        <nav className="flex items-center gap-9">
+        {/* min-w-0 is what actually lets this shrink below its content's
+            natural width in a flex row — without it, the nav items being
+            longer now (full occasion names, not single words) squeezed the
+            logo and icons instead of scrolling themselves. */}
+        <nav className="no-scrollbar flex min-w-0 flex-1 items-center gap-9 overflow-x-auto">
           {navOccasions.map((occasion) => (
             <Link
               key={occasion._id}
               href={`/occasion/${occasion.slug}`}
-              className="text-xs font-medium uppercase tracking-wide2 text-white/75 transition-colors hover:text-hermes-500"
+              className="flex-shrink-0 whitespace-nowrap text-xs font-medium uppercase tracking-wide2 text-white/75 transition-colors hover:text-hermes-500"
             >
               {occasion.name}
             </Link>
@@ -123,14 +127,14 @@ export default function Header({ categories, occasions }: { categories: Category
           {chocolateCategory && (
             <Link
               href={`/catalog/${chocolateCategory.slug}`}
-              className="text-xs font-medium uppercase tracking-wide2 text-white/75 transition-colors hover:text-hermes-500"
+              className="flex-shrink-0 whitespace-nowrap text-xs font-medium uppercase tracking-wide2 text-white/75 transition-colors hover:text-hermes-500"
             >
               {chocolateCategory.name}
             </Link>
           )}
         </nav>
 
-        <div className="flex items-center gap-5">
+        <div className="flex flex-shrink-0 items-center gap-5">
           <a
             href="tel:+998878006030"
             className="flex flex-shrink-0 items-center gap-2 whitespace-nowrap text-xs font-medium uppercase tracking-wide2 text-white transition-colors hover:text-hermes-500"

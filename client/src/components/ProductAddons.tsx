@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/Link";
@@ -30,6 +30,38 @@ export default function ProductAddons({ categories }: { categories: AddonCategor
   const [activeId, setActiveId] = useState<string | null>(null);
   const [products, setProducts] = useState<ProductCardData[]>([]);
   const [status, setStatus] = useState<"idle" | "loading" | "done">("idle");
+  const scrollerRef = useRef<HTMLDivElement | null>(null);
+  const dragRef = useRef({ isDown: false, startX: 0, scrollLeft: 0, moved: false });
+
+  // Mouse-drag-to-scroll for desktop, where there's no touch swipe — touch
+  // devices already get native momentum scrolling from scroll-touch below,
+  // so this only ever listens to mouse events and leaves touch alone.
+  const onMouseDown = (e: React.MouseEvent) => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    dragRef.current = { isDown: true, startX: e.pageX - el.offsetLeft, scrollLeft: el.scrollLeft, moved: false };
+  };
+  const onMouseMove = (e: React.MouseEvent) => {
+    const el = scrollerRef.current;
+    if (!el || !dragRef.current.isDown) return;
+    e.preventDefault();
+    const x = e.pageX - el.offsetLeft;
+    const walk = x - dragRef.current.startX;
+    if (Math.abs(walk) > 3) dragRef.current.moved = true;
+    el.scrollLeft = dragRef.current.scrollLeft - walk;
+  };
+  const endDrag = () => {
+    dragRef.current.isDown = false;
+  };
+  // Swallows the click that would otherwise fire right after a drag (e.g.
+  // landing on a product link mid-scroll) — a plain click with no drag
+  // still reaches the link/button normally.
+  const onClickCapture = (e: React.MouseEvent) => {
+    if (dragRef.current.moved) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  };
 
   const handleSelect = async (category: AddonCategory) => {
     if (activeId === category._id) {
@@ -111,12 +143,21 @@ export default function ProductAddons({ categories }: { categories: AddonCategor
             {status === "loading" && <p className="text-sm text-graphite">{t("loading")}</p>}
             {status === "done" && products.length === 0 && <p className="text-sm text-graphite">{t("empty")}</p>}
             {status === "done" && products.length > 0 && (
-              // Phone/tablet: a horizontal scroll strip (all products in one
-              // row, swipe for the rest) instead of wrapping into several
-              // short rows. Desktop: a real 3-column grid, no scrolling.
-              <div className="flex gap-4 overflow-x-auto scroll-touch no-scrollbar pb-1 sm:grid sm:grid-cols-3 sm:overflow-visible sm:pb-0">
+              // Always a horizontal scroll strip, phone through desktop —
+              // touch swipes natively; desktop has no touch, so mouse-drag
+              // (onMouseDown/Move above) does the same job there, roughly
+              // 3 tiles visible at a time with the rest a drag away.
+              <div
+                ref={scrollerRef}
+                onMouseDown={onMouseDown}
+                onMouseMove={onMouseMove}
+                onMouseUp={endDrag}
+                onMouseLeave={endDrag}
+                onClickCapture={onClickCapture}
+                className="flex cursor-grab gap-4 overflow-x-auto scroll-touch no-scrollbar pb-1 active:cursor-grabbing"
+              >
                 {products.map((product) => (
-                  <div key={product._id} className="w-[42%] flex-shrink-0 sm:w-auto">
+                  <div key={product._id} className="w-[42%] flex-shrink-0 sm:w-[160px]">
                     <AddonTile product={product} />
                   </div>
                 ))}
