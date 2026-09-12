@@ -35,11 +35,13 @@
       disabled:cursor-not-allowed disabled:opacity-50;
   }
 
-  /* Secondary / quiet action — hairline ink border, no fill. */
+  /* Secondary / quiet action — hairline ink border, no fill. Fills navy on
+     hover (not ink) — the one deliberate, contained reuse of the header's
+     navy elsewhere on the site. */
   .btn-outline {
     @apply inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-none
       border border-ink px-9 py-4 font-sans text-xs font-semibold uppercase tracking-wide2
-      text-ink transition-colors duration-200 hover:bg-ink hover:text-paper
+      text-ink transition-colors duration-200 hover:border-navy hover:bg-navy hover:text-paper
       disabled:cursor-not-allowed disabled:opacity-50;
   }
 

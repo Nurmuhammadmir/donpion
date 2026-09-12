@@ -12,9 +12,9 @@ import type { Branch } from "@/types";
 const BranchesMap = dynamic(() => import("@/components/BranchesMap"), {
   ssr: false,
   loading: () => (
-    <div className="border-t border-white/10 pt-10">
-      <div className="mb-4 h-3 w-24 animate-pulse bg-white/10" />
-      <div className="h-56 w-full animate-pulse border border-white/10 bg-white/5" />
+    <div className="border-t border-hairline pt-10">
+      <div className="mb-4 h-3 w-24 animate-pulse bg-hermes-50" />
+      <div className="h-56 w-full animate-pulse border border-hairline bg-hermes-50/30" />
     </div>
   ),
 });

@@ -60,6 +60,11 @@ export default function ProductCard({ product }: { product: ProductCardData }) {
             {t("outOfStock")}
           </span>
         )}
+        {product.oldPrice && (
+          <span className="absolute left-0 top-0 bg-navy px-3 py-1.5 text-[10px] font-medium uppercase tracking-wide2 text-white">
+            {t("sale")}
+          </span>
+        )}
       </div>
 
       <div className="mt-5 flex flex-col items-center px-2 text-center">

@@ -58,14 +58,14 @@ export default function BranchesMap({ branches }: { branches: Branch[] }) {
   if (!MAPBOX_TOKEN || branches.length === 0) return null;
 
   return (
-    <div className="border-t border-white/10 pt-10">
+    <div className="border-t border-hairline pt-10">
       <h3 className="eyebrow mb-4">{t("heading")}</h3>
-      <div ref={mapContainer} className="h-56 w-full border border-white/10" />
+      <div ref={mapContainer} className="h-56 w-full border border-hairline" />
 
       {activeBranch && (
-        <div className="page-transition mt-4 border border-white/10 p-4 text-sm">
-          <p className="font-display text-base text-white">{activeBranch.name}</p>
-          <p className="mt-1 text-white/60">{activeBranch.address}</p>
+        <div className="page-transition mt-4 border border-hairline p-4 text-sm">
+          <p className="font-display text-base text-ink">{activeBranch.name}</p>
+          <p className="mt-1 text-graphite">{activeBranch.address}</p>
           <div className="mt-3 flex flex-wrap gap-4">
             <a
               href={googleMapsDirectionsUrl(activeBranch.lat, activeBranch.lng)}
