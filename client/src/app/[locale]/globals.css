@@ -104,13 +104,14 @@
 }
 
 @keyframes page-fade-in {
+  /* Pure opacity — no translateY. A page (or popover) sliding up from
+     below on every navigation read as content flying in from the wrong
+     direction; it should just appear in place. */
   from {
     opacity: 0;
-    transform: translateY(6px);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
   }
 }
 

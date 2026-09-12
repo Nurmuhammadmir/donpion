@@ -7,10 +7,11 @@ import { Link } from "@/i18n/Link";
 import CartIcon from "@/components/CartIcon";
 import AccountIcon from "@/components/AccountIcon";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
-import type { Category } from "@/types";
+import type { Category, Occasion } from "@/types";
 
-export default function Header({ categories }: { categories: Category[] }) {
+export default function Header({ categories, occasions }: { categories: Category[]; occasions: Occasion[] }) {
   const t = useTranslations("Nav");
+  const chocolateCategory = categories.find((c) => c.slug === "klubnika-v-shokolade");
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   // Tucks the header away on a downward scroll and brings it straight back
@@ -133,6 +134,27 @@ export default function Header({ categories }: { categories: Category[] }) {
         }`}
       >
         <div className="flex flex-col gap-1">
+          {/* Quick picks by occasion — surfaced here too, not just as a
+              scroll down the homepage, so they're reachable in one tap. */}
+          {occasions.map((occasion) => (
+            <Link
+              key={occasion._id}
+              href={`/occasion/${occasion.slug}`}
+              onClick={() => setMenuOpen(false)}
+              className="border-b border-hairline py-3 text-xs font-medium uppercase tracking-wide2 text-graphite hover:text-hermes-500"
+            >
+              {occasion.name}
+            </Link>
+          ))}
+          {chocolateCategory && (
+            <Link
+              href={`/catalog/${chocolateCategory.slug}`}
+              onClick={() => setMenuOpen(false)}
+              className="border-b border-hairline py-3 text-xs font-medium uppercase tracking-wide2 text-graphite hover:text-hermes-500"
+            >
+              {chocolateCategory.name}
+            </Link>
+          )}
           {categories.map((cat) => (
             <Link
               key={cat._id}
