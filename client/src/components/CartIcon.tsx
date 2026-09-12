@@ -4,7 +4,7 @@ import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/Link";
 import { useCart } from "@/components/CartProvider";
 
-export default function CartIcon() {
+export default function CartIcon({ className }: { className?: string }) {
   const { totalCount } = useCart();
   const t = useTranslations("Footer");
 
@@ -12,7 +12,7 @@ export default function CartIcon() {
     <Link
       href="/cart"
       aria-label={t("cart")}
-      className="relative flex h-10 w-10 items-center justify-center text-ink transition-colors hover:text-hermes-500"
+      className={`relative flex h-10 w-10 items-center justify-center transition-colors hover:text-hermes-500 ${className ?? "text-ink"}`}
     >
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
         <path

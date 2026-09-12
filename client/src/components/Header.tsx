@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/Link";
 import CartIcon from "@/components/CartIcon";
 import AccountIcon from "@/components/AccountIcon";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
-import Logo from "@/components/Logo";
 import type { Category } from "@/types";
 
 export default function Header({ categories, cashbackPercent }: { categories: Category[]; cashbackPercent: number }) {
@@ -37,7 +37,7 @@ export default function Header({ categories, cashbackPercent }: { categories: Ca
   }, [menuOpen]);
 
   return (
-    <header className="sticky top-0 z-40 bg-paper">
+    <header className="sticky top-0 z-40 bg-navy">
       {/* Cashback promo strip — the very top of the sticky header, above
           everything else. Disappears entirely if the admin sets the rate
           to 0 (see Settings), not just visually hidden. */}
@@ -50,17 +50,17 @@ export default function Header({ categories, cashbackPercent }: { categories: Ca
       {/* Mobile & tablet: cart pinned left, wordmark centered, menu right */}
       <div className="grid grid-cols-3 items-center px-6 py-[13px] lg:hidden">
         <div className="flex justify-start">
-          <CartIcon />
+          <CartIcon className="text-white" />
         </div>
         <Link href="/" className="flex justify-center">
-          <Logo className="text-xl font-semibold" />
+          <Image src="/nav-logo.png" alt="DonPion" width={1397} height={435} className="h-8 w-auto" priority />
         </Link>
         <div className="flex justify-end">
           <button
             type="button"
             aria-label={t("menu")}
             onClick={() => setMenuOpen((v) => !v)}
-            className="flex h-10 w-10 items-center justify-center text-ink transition-colors hover:text-hermes-500"
+            className="flex h-10 w-10 items-center justify-center text-white transition-colors hover:text-hermes-500"
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" strokeWidth="1" strokeLinecap="round" />
@@ -72,7 +72,7 @@ export default function Header({ categories, cashbackPercent }: { categories: Ca
       {/* Desktop */}
       <div className="mx-auto hidden max-w-6xl items-center justify-between gap-8 px-10 py-[17px] lg:flex">
         <Link href="/">
-          <Logo className="text-xl font-semibold" />
+          <Image src="/nav-logo.png" alt="DonPion" width={1397} height={435} className="h-9 w-auto" priority />
         </Link>
 
         <nav className="flex items-center gap-9">
@@ -80,7 +80,7 @@ export default function Header({ categories, cashbackPercent }: { categories: Ca
             <Link
               key={cat._id}
               href={`/catalog/${cat.slug}`}
-              className="text-xs font-medium uppercase tracking-wide2 text-graphite transition-colors hover:text-hermes-500"
+              className="text-xs font-medium uppercase tracking-wide2 text-white/75 transition-colors hover:text-hermes-500"
             >
               {cat.name}
             </Link>
@@ -90,14 +90,14 @@ export default function Header({ categories, cashbackPercent }: { categories: Ca
         <div className="flex items-center gap-5">
           <a
             href="tel:+998878353508"
-            className="flex flex-shrink-0 items-center gap-2 whitespace-nowrap text-xs font-medium uppercase tracking-wide2 text-ink transition-colors hover:text-hermes-500"
+            className="flex flex-shrink-0 items-center gap-2 whitespace-nowrap text-xs font-medium uppercase tracking-wide2 text-white transition-colors hover:text-hermes-500"
           >
             <span className="text-hermes-500">●</span>
             {t("phone")}
           </a>
-          <LanguageSwitcher className="text-xs font-medium uppercase tracking-wide2 text-graphite transition-colors hover:text-hermes-500" />
-          <AccountIcon />
-          <CartIcon />
+          <LanguageSwitcher className="text-xs font-medium uppercase tracking-wide2 text-white/75 transition-colors hover:text-hermes-500" />
+          <AccountIcon className="text-white" />
+          <CartIcon className="text-white" />
         </div>
       </div>
 
@@ -106,7 +106,7 @@ export default function Header({ categories, cashbackPercent }: { categories: Ca
         className="h-px w-full bg-hermes-500 transition-opacity duration-300"
         style={{ opacity: scrolled ? 1 : 0 }}
       />
-      <div className="h-px w-full bg-hairline" />
+      <div className="h-px w-full bg-white/10" />
 
       {/* Popup menu — overlays the page instead of pushing it down, and
           fades/slides in rather than snapping open. */}

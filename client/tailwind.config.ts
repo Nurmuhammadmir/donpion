@@ -11,13 +11,15 @@ const config: Config = {
         ink: "#1A1A1A",
         graphite: "#5A564F",
         hairline: "#E7E1D6",
+        // Header/nav background — deep indigo-black, distinct from `ink`.
+        navy: "#131026",
         // The one permitted accent — used strictly for CTAs, discount tags
         // and micro-indicators. Never as a large fill.
         hermes: {
           50: "#FDECE0",
           100: "#FAD3B8",
           300: "#F5A46A",
-          500: "#F37021",
+          500: "#F9511D",
           600: "#D85A0F",
           700: "#B3480D",
         },

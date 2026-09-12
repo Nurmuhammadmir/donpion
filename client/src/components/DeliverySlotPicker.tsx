@@ -119,7 +119,7 @@ export default function DeliverySlotPicker({ date, time, onChange }: DeliverySlo
                 onClick={() => onChange({ date: key, time: "" })}
                 className={`flex w-[calc((100%-1.5rem)/4)] flex-shrink-0 flex-col items-center border py-3 text-center transition-colors sm:w-16 ${
                   isSelected
-                    ? "border-hermes-500 bg-hermes-500/25 text-white [text-shadow:0_1px_4px_rgba(0,0,0,0.7)]"
+                    ? "border-[#F37021] bg-[#F37021]/25 text-white [text-shadow:0_1px_4px_rgba(0,0,0,0.7)]"
                     : "border-hairline text-ink hover:border-ink"
                 }`}
               >
@@ -149,7 +149,7 @@ export default function DeliverySlotPicker({ date, time, onChange }: DeliverySlo
                 onClick={() => onChange({ date: selectedDate, time: slot })}
                 className={`w-[calc((100%-2rem)/5)] flex-shrink-0 border px-2 py-2.5 text-center text-sm transition-colors sm:w-auto sm:px-4 ${
                   slot === time
-                    ? "border-hermes-500 bg-hermes-500/25 text-white [text-shadow:0_1px_4px_rgba(0,0,0,0.7)]"
+                    ? "border-[#F37021] bg-[#F37021]/25 text-white [text-shadow:0_1px_4px_rgba(0,0,0,0.7)]"
                     : "border-hairline text-ink hover:border-ink"
                 }`}
               >
