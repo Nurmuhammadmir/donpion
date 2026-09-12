@@ -9,15 +9,19 @@ import AccountIcon from "@/components/AccountIcon";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import type { Category, Occasion } from "@/types";
 
-// The nav (desktop bar and mobile menu alike) is a short curated list, not
-// the full flower-type catalog — these three occasions plus the chocolate
-// category, in this exact order, nothing else.
+// Mobile menu: a short curated list, not the full flower-type catalog —
+// these three occasions plus the chocolate category, in this exact order.
 const NAV_OCCASION_SLUGS = ["svadebnaya-floristika", "korporativnye-zakazy", "gorshechnye-rasteniya"];
+// Desktop bar: even shorter — just the two, no chocolate category link.
+const DESKTOP_NAV_OCCASION_SLUGS = ["svadebnaya-floristika", "korporativnye-zakazy"];
 
 export default function Header({ categories, occasions }: { categories: Category[]; occasions: Occasion[] }) {
   const t = useTranslations("Nav");
   const chocolateCategory = categories.find((c) => c.slug === "klubnika-v-shokolade");
   const navOccasions = NAV_OCCASION_SLUGS.map((slug) => occasions.find((o) => o.slug === slug)).filter(
+    (o): o is Occasion => Boolean(o)
+  );
+  const desktopNavOccasions = DESKTOP_NAV_OCCASION_SLUGS.map((slug) => occasions.find((o) => o.slug === slug)).filter(
     (o): o is Occasion => Boolean(o)
   );
   const [scrolled, setScrolled] = useState(false);
@@ -115,7 +119,7 @@ export default function Header({ categories, occasions }: { categories: Category
             longer now (full occasion names, not single words) squeezed the
             logo and icons instead of scrolling themselves. */}
         <nav className="no-scrollbar flex min-w-0 flex-1 items-center gap-9 overflow-x-auto">
-          {navOccasions.map((occasion) => (
+          {desktopNavOccasions.map((occasion) => (
             <Link
               key={occasion._id}
               href={`/occasion/${occasion.slug}`}
@@ -124,14 +128,6 @@ export default function Header({ categories, occasions }: { categories: Category
               {occasion.name}
             </Link>
           ))}
-          {chocolateCategory && (
-            <Link
-              href={`/catalog/${chocolateCategory.slug}`}
-              className="flex-shrink-0 whitespace-nowrap text-xs font-medium uppercase tracking-wide2 text-white/75 transition-colors hover:text-hermes-500"
-            >
-              {chocolateCategory.name}
-            </Link>
-          )}
         </nav>
 
         <div className="flex flex-shrink-0 items-center gap-5">
