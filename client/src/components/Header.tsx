@@ -31,6 +31,8 @@ export default function Header({ categories, occasions }: { categories: Category
   // included, silently slide out of view.
   const [hideHeader, setHideHeader] = useState(false);
   const lastScrollY = useRef(0);
+  const menuRef = useRef<HTMLElement | null>(null);
+  const menuButtonRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
     const onScroll = () => {
@@ -44,17 +46,31 @@ export default function Header({ categories, occasions }: { categories: Category
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  // Popup behaviour: lock background scroll while open, close on Escape.
+  // Popup behaviour: lock background scroll while open, close on Escape,
+  // and close on literally any click that isn't inside the menu itself
+  // (or the toggle button, which already handles itself) — a document-level
+  // listener rather than relying only on the dimmed backdrop's own onClick,
+  // since that depends on the backdrop actually winning the click over
+  // whatever else is on the page instead of just checking "was this click
+  // inside the menu at all".
   useEffect(() => {
     if (!menuOpen) return;
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") setMenuOpen(false);
     };
+    const onDocumentClick = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (menuRef.current?.contains(target)) return;
+      if (menuButtonRef.current?.contains(target)) return;
+      setMenuOpen(false);
+    };
     document.addEventListener("keydown", onKeyDown);
+    document.addEventListener("click", onDocumentClick);
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
       document.removeEventListener("keydown", onKeyDown);
+      document.removeEventListener("click", onDocumentClick);
       document.body.style.overflow = previousOverflow;
     };
   }, [menuOpen]);
@@ -75,6 +91,7 @@ export default function Header({ categories, occasions }: { categories: Category
         </Link>
         <div className="flex justify-end">
           <button
+            ref={menuButtonRef}
             type="button"
             aria-label={t("menu")}
             onClick={() => setMenuOpen((v) => !v)}
@@ -144,6 +161,7 @@ export default function Header({ categories, occasions }: { categories: Category
         onClick={() => setMenuOpen(false)}
       />
       <nav
+        ref={menuRef}
         aria-hidden={!menuOpen}
         className={`absolute left-0 right-0 top-full z-50 origin-top border-b border-hairline bg-paper px-6 py-6 transition-all duration-300 ease-out lg:hidden ${
           menuOpen ? "translate-y-0 opacity-100" : "pointer-events-none -translate-y-2 opacity-0"
