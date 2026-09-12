@@ -69,6 +69,14 @@ export async function getAddonCategories(): Promise<AddonCategory[]> {
   }
 }
 
+export async function getAddonCategoryBySlug(slug: string): Promise<AddonCategory | null> {
+  try {
+    return await apiFetch<AddonCategory>(`/addon-categories/${slug}`);
+  } catch {
+    return null;
+  }
+}
+
 export async function getOccasions(): Promise<Occasion[]> {
   try {
     return await apiFetch<Occasion[]>("/occasions");

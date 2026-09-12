@@ -2,9 +2,8 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { Link } from "@/i18n/Link";
 import { getProducts } from "@/lib/api";
-import ProductCard from "@/components/ProductCard";
+import ProductShelf from "@/components/ProductShelf";
 import type { Occasion, ProductCardData } from "@/types";
 
 type Status = "idle" | "loading" | "done";
@@ -24,7 +23,7 @@ export default function OccasionPicker({ occasions }: { occasions: Occasion[] })
   const handleSelect = async (occasion: Occasion) => {
     setSelected(occasion);
     setStatus("loading");
-    const res = await getProducts({ occasion: occasion.slug, limit: 4 });
+    const res = await getProducts({ occasion: occasion.slug, limit: 8 });
     setProducts(res.items);
     setStatus("done");
   };
@@ -59,32 +58,15 @@ export default function OccasionPicker({ occasions }: { occasions: Occasion[] })
           {status === "loading" && <p className="mt-10 text-sm text-graphite">{t("loadingText")}</p>}
 
           {status === "done" && products.length > 0 && (
-            <div className="page-transition">
-              <div className="-mx-6 mt-12 flex scroll-touch no-scrollbar gap-4 overflow-x-auto scroll-smooth px-6 pb-2 text-left lg:mx-0 lg:grid lg:grid-cols-4 lg:gap-x-8 lg:gap-y-12 lg:overflow-visible lg:px-0 lg:pb-0">
-                {products.map((product) => (
-                  <div key={product._id} className="w-[45%] flex-shrink-0 sm:w-[42%] lg:w-auto lg:flex-shrink">
-                    <ProductCard product={product} />
-                  </div>
-                ))}
-                <Link
-                  href={`/occasion/${selected.slug}`}
-                  className="flex aspect-[3/4] w-[45%] flex-shrink-0 flex-col items-center justify-center text-center sm:w-[42%] lg:hidden"
-                >
-                  <span className="text-xs font-medium uppercase tracking-wide2 text-hermes-500">
-                    {tc("seeAllLine1")}
-                    <br />
-                    {tc("seeAllLine2")}
-                  </span>
-                </Link>
-              </div>
-              <div className="mt-10 hidden justify-center lg:flex lg:mt-14">
-                <Link
-                  href={`/occasion/${selected.slug}`}
-                  className="text-xs font-medium uppercase tracking-wide2 text-hermes-500 underline underline-offset-4"
-                >
-                  {tc("seeAll")}
-                </Link>
-              </div>
+            <div className="page-transition mt-12 text-left">
+              <ProductShelf
+                products={products}
+                seeAllHref={`/occasion/${selected.slug}`}
+                seeAllLabel={tc("seeAll")}
+                seeAllLine1={tc("seeAllLine1")}
+                seeAllLine2={tc("seeAllLine2")}
+                emptyText={t("emptyText")}
+              />
             </div>
           )}
 

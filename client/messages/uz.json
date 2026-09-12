@@ -58,7 +58,10 @@
     "ritual2Title": "Akvaboks va firma qadoqlash",
     "ritual2Text": "Poyalar suvli akvaboksda boradi, ustidan — zich shakldagi sumka-quti va shaxsiy xatingiz uchun konvert.",
     "ritual3Title": "Muhim sanalar kalendari",
-    "ritual3Text": "Sanani qoldiring — biz oldindan, ortiqcha xabarlarsiz, faqat haqiqatan muhim bo'lganda nazokat bilan eslatamiz."
+    "ritual3Text": "Sanani qoldiring — biz oldindan, ortiqcha xabarlarsiz, faqat haqiqatan muhim bo'lganda nazokat bilan eslatamiz.",
+    "chocolateEyebrow": "Shirin qo'shimcha",
+    "chocolateHeading": "Shokoladli qulupnay",
+    "chocolateEmpty": "Hozircha tayyorlanmoqda — birozdan so'ng qayta tashrif buyuring."
   },
   "Quiz": {
     "eyebrow": "Mini-tanlov",
@@ -199,6 +202,11 @@
     "eyebrow": "Sabab bo'yicha tanlov",
     "titleFor": "\"{name}\" uchun guldastalar",
     "empty": "Mos guldastalar hozircha to'ldirilmoqda — birozdan so'ng qayta tashrif buyuring."
+  },
+  "Addon": {
+    "eyebrow": "Qo'shimcha tovarlar",
+    "titleFor": "\"{name}\"",
+    "empty": "Bu toifada hozircha tovar yo'q — birozdan so'ng qayta tashrif buyuring."
   },
   "LanguageSwitcher": {
     "ru": "RU",

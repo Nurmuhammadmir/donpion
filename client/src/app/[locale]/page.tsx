@@ -1,9 +1,8 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
-import { Link } from "@/i18n/Link";
 import { getCharacters, getOccasions, getProducts, getSiteSettings } from "@/lib/api";
-import ProductCard from "@/components/ProductCard";
 import BouquetQuiz from "@/components/BouquetQuiz";
 import OccasionPicker from "@/components/OccasionPicker";
+import ProductShelf from "@/components/ProductShelf";
 import { resolveImageUrl } from "@/lib/images";
 
 export const revalidate = 600;
@@ -17,10 +16,11 @@ export default async function HomePage({ params: { locale } }: PageProps) {
   const t = await getTranslations("Home");
   const tc = await getTranslations("Common");
 
-  const [characters, occasions, featuredRes, settings] = await Promise.all([
+  const [characters, occasions, featuredRes, chocolateRes, settings] = await Promise.all([
     getCharacters(),
     getOccasions(),
     getProducts({ featured: true, limit: 8 }),
+    getProducts({ addonCategory: "shokolad", limit: 8 }),
     getSiteSettings(),
   ]);
 
@@ -28,6 +28,7 @@ export default async function HomePage({ params: { locale } }: PageProps) {
   // "Показывать в Популярном" — no fallback substitutes. The section
   // heading still always renders; see the empty-state message below.
   const luxuryItems = featuredRes.items;
+  const chocolateItems = chocolateRes.items;
 
   return (
     <>
@@ -93,40 +94,14 @@ export default async function HomePage({ params: { locale } }: PageProps) {
           <h2 className="font-display text-2xl tracking-luxe text-ink sm:text-3xl">{t("luxuryHeading")}</h2>
         </div>
 
-        {luxuryItems.length > 0 ? (
-          <>
-            <div className="-mx-6 flex scroll-touch no-scrollbar gap-4 overflow-x-auto scroll-smooth px-6 pb-2 lg:mx-0 lg:grid lg:grid-cols-4 lg:gap-x-8 lg:gap-y-12 lg:overflow-visible lg:px-0 lg:pb-0">
-              {luxuryItems.slice(0, 4).map((product) => (
-                <div key={product._id} className="w-[45%] flex-shrink-0 sm:w-[42%] lg:w-auto lg:flex-shrink">
-                  <ProductCard product={product} />
-                </div>
-              ))}
-              {/* Mobile/tablet: "see all" rides at the end of the same strip
-                  instead of a separate block below it. */}
-              <Link
-                href="/collection"
-                className="flex aspect-[3/4] w-[45%] flex-shrink-0 flex-col items-center justify-center text-center sm:w-[42%] lg:hidden"
-              >
-                <span className="text-xs font-medium uppercase tracking-wide2 text-hermes-500">
-                  {tc("seeAllLine1")}
-                  <br />
-                  {tc("seeAllLine2")}
-                </span>
-              </Link>
-            </div>
-
-            <div className="mt-14 hidden text-center lg:block">
-              <Link
-                href="/collection"
-                className="text-xs font-medium uppercase tracking-wide2 text-hermes-500 underline underline-offset-4"
-              >
-                {tc("seeAll")}
-              </Link>
-            </div>
-          </>
-        ) : (
-          <p className="text-center text-sm text-graphite">{t("luxuryEmpty")}</p>
-        )}
+        <ProductShelf
+          products={luxuryItems}
+          seeAllHref="/collection"
+          seeAllLabel={tc("seeAll")}
+          seeAllLine1={tc("seeAllLine1")}
+          seeAllLine2={tc("seeAllLine2")}
+          emptyText={t("luxuryEmpty")}
+        />
       </section>
 
       {/* Mini quiz — matches a character tagged directly on each product
@@ -136,8 +111,28 @@ export default async function HomePage({ params: { locale } }: PageProps) {
         <BouquetQuiz characters={characters} />
       </section>
 
-      {/* Right after the personality quiz — same mechanism, grouped by what
-          the flowers are FOR instead of who they suit (see Occasion model /
+      {/* Right after the personality quiz — a shelf of whatever's tagged
+          into the "Шоколад" add-on category (see AddonCategory / admin
+          "Допы"), the same shelf shape as Luxury Collection above. */}
+      <section className="border-b border-hairline bg-paper px-6 py-24 lg:px-10">
+        <div className="mx-auto max-w-6xl">
+          <div className="mb-12 text-center">
+            <p className="eyebrow mb-4">{t("chocolateEyebrow")}</p>
+            <h2 className="font-display text-2xl tracking-luxe text-ink sm:text-3xl">{t("chocolateHeading")}</h2>
+          </div>
+          <ProductShelf
+            products={chocolateItems}
+            seeAllHref="/addon/shokolad"
+            seeAllLabel={tc("seeAll")}
+            seeAllLine1={tc("seeAllLine1")}
+            seeAllLine2={tc("seeAllLine2")}
+            emptyText={t("chocolateEmpty")}
+          />
+        </div>
+      </section>
+
+      {/* Right after that — same mechanism again, grouped by what the
+          flowers are FOR instead of who they suit (see Occasion model /
           admin "Поводы"). */}
       <section className="border-b border-hairline bg-paper px-6 py-24 lg:px-10">
         <OccasionPicker occasions={occasions} />
