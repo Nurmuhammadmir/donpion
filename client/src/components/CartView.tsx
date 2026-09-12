@@ -115,7 +115,7 @@ export default function CartView() {
         </div>
         {cashbackPercent > 0 && (
           <p key={pointsEstimate} className="amount-pulse mt-2 text-xs text-hermes-600">
-            {tp("earn", { count: pointsEstimate })}
+            {tp("earn", { count: new Intl.NumberFormat("en-US").format(pointsEstimate) })}
           </p>
         )}
         <p className="mt-2 text-xs leading-relaxed text-graphite">{t("deliveryNote")}</p>

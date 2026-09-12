@@ -94,7 +94,7 @@ function PionsEstimate({ price, quantity, cashbackPercent }: { price: number; qu
   return (
     <div className="relative flex items-center gap-1.5">
       <span key={points} className="amount-pulse text-xs text-hermes-600">
-        {t("earn", { count: points })}
+        {t("earn", { count: new Intl.NumberFormat("en-US").format(points) })}
       </span>
       <button
         type="button"
