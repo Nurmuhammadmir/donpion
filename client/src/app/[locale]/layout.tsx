@@ -9,7 +9,7 @@ import Footer from "@/components/Footer";
 import { CartProvider } from "@/components/CartProvider";
 import { CustomerAuthProvider } from "@/components/CustomerAuthProvider";
 import JsonLd from "@/components/JsonLd";
-import { getBranches, getCategories, getSiteSettings } from "@/lib/api";
+import { getBranches, getCategories } from "@/lib/api";
 import { routing } from "@/i18n/routing";
 
 const display = Playfair_Display({
@@ -72,11 +72,10 @@ export default async function LocaleLayout({
   }
 
   setRequestLocale(locale);
-  const [messages, categories, branches, settings, t] = await Promise.all([
+  const [messages, categories, branches, t] = await Promise.all([
     getMessages(),
     getCategories(),
     getBranches(),
-    getSiteSettings(),
     getTranslations({ locale, namespace: "Metadata" }),
   ]);
 
@@ -95,7 +94,7 @@ export default async function LocaleLayout({
         <NextIntlClientProvider messages={messages}>
           <CustomerAuthProvider>
             <CartProvider>
-              <Header categories={categories} cashbackPercent={settings.cashbackPercent} />
+              <Header categories={categories} />
               <main className="flex-1">{children}</main>
               <Footer categories={categories} branches={branches} />
             </CartProvider>

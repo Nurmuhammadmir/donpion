@@ -9,7 +9,7 @@ import AccountIcon from "@/components/AccountIcon";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import type { Category } from "@/types";
 
-export default function Header({ categories, cashbackPercent }: { categories: Category[]; cashbackPercent: number }) {
+export default function Header({ categories }: { categories: Category[] }) {
   const t = useTranslations("Nav");
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -38,18 +38,6 @@ export default function Header({ categories, cashbackPercent }: { categories: Ca
 
   return (
     <header className="sticky top-0 z-40 bg-navy">
-      {/* Cashback promo strip — the very top of the sticky header, above
-          everything else. Same navy as the rest of the header (a separate
-          black bar here just read as a stray leftover element) with only
-          the percentage picked out in the brand accent. Disappears
-          entirely if the admin sets the rate to 0 (see Settings), not just
-          visually hidden. */}
-      {cashbackPercent > 0 && (
-        <div className="border-b border-white/10 px-4 py-2 text-center font-display text-xs tracking-wide2 text-white/80">
-          {t.rich("cashbackBanner", { percent: cashbackPercent, b: (chunks) => <span className="text-hermes-500">{chunks}</span> })}
-        </div>
-      )}
-
       {/* Mobile & tablet: cart pinned left, wordmark centered, menu right */}
       <div className="grid grid-cols-3 items-center px-6 py-[13px] lg:hidden">
         <div className="flex justify-start">
