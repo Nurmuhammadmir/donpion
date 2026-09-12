@@ -15,6 +15,9 @@ const siteSettingsSchema = new mongoose.Schema(
     // system — no further accrual, and the client hides its promo banner.
     // Existing orders/balances are untouched by turning it off or down.
     cashbackPercent: { type: Number, default: 10, min: 0, max: 100 },
+    // Below this stock count, the warehouse page flags a product as
+    // running low so the florist knows to reorder before it hits zero.
+    lowStockThreshold: { type: Number, default: 5, min: 0 },
   },
   { timestamps: true }
 );

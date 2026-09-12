@@ -26,6 +26,7 @@ import settingsRoutes from "./routes/settings.routes.js";
 import branchRoutes from "./routes/branches.routes.js";
 import addonCategoryRoutes from "./routes/addonCategories.routes.js";
 import occasionRoutes from "./routes/occasions.routes.js";
+import warehouseRoutes from "./routes/warehouse.routes.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -67,6 +68,7 @@ app.use("/api/settings", settingsRoutes);
 app.use("/api/branches", branchRoutes);
 app.use("/api/addon-categories", addonCategoryRoutes);
 app.use("/api/occasions", occasionRoutes);
+app.use("/api/warehouse", warehouseRoutes);
 
 app.use(notFound);
 app.use(errorHandler);

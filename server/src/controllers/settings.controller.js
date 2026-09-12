@@ -16,7 +16,7 @@ export const getSettings = asyncHandler(async (req, res) => {
 
 // PUT /api/settings  (admin)
 export const updateSettings = asyncHandler(async (req, res) => {
-  const { heroImage, heroImageTablet, heroImageMobile, cashbackPercent } = req.body;
+  const { heroImage, heroImageTablet, heroImageMobile, cashbackPercent, lowStockThreshold } = req.body;
 
   const update = {};
   if (heroImage !== undefined) update.heroImage = heroImage;
@@ -29,6 +29,14 @@ export const updateSettings = asyncHandler(async (req, res) => {
       throw new Error("Кешбек должен быть от 0 до 100");
     }
     update.cashbackPercent = percent;
+  }
+  if (lowStockThreshold !== undefined) {
+    const threshold = Number(lowStockThreshold);
+    if (!Number.isFinite(threshold) || threshold < 0) {
+      res.status(400);
+      throw new Error("Порог низкого остатка не может быть отрицательным");
+    }
+    update.lowStockThreshold = threshold;
   }
 
   const settings = await SiteSettings.findOneAndUpdate(

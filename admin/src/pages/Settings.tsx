@@ -11,6 +11,7 @@ type HeroFields = {
 export default function Settings() {
   const [hero, setHero] = useState<HeroFields>({ heroImage: "", heroImageTablet: "", heroImageMobile: "" });
   const [cashbackPercent, setCashbackPercent] = useState("10");
+  const [lowStockThreshold, setLowStockThreshold] = useState("5");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -25,6 +26,7 @@ export default function Settings() {
           heroImageMobile: s.heroImageMobile ?? "",
         });
         setCashbackPercent(String(s.cashbackPercent ?? 0));
+        setLowStockThreshold(String(s.lowStockThreshold ?? 5));
       })
       .catch((err) => setError(err instanceof ApiError ? err.message : "Не удалось загрузить настройки"))
       .finally(() => setLoading(false));
@@ -41,6 +43,7 @@ export default function Settings() {
           heroImageTablet: hero.heroImageTablet || null,
           heroImageMobile: hero.heroImageMobile || null,
           cashbackPercent: Number(cashbackPercent) || 0,
+          lowStockThreshold: Number(lowStockThreshold) || 0,
         }),
       });
       setSaved(true);
@@ -112,6 +115,25 @@ export default function Settings() {
             />
             <span className="text-sm text-graphite">%</span>
           </div>
+        </label>
+      </div>
+
+      <div className="mt-8 max-w-sm border-t border-hairline pt-6">
+        <h2 className="font-serif text-lg font-semibold text-ink">Склад</h2>
+        <p className="mt-1 text-sm text-graphite">
+          Если остаток товара опускается до этого числа или ниже, страница «Склад» и обзор
+          отмечают его как «Мало на складе».
+        </p>
+        <label className="mt-4 block">
+          <span className="mb-2 block text-xs font-medium uppercase tracking-wide text-graphite">Порог «мало на складе»</span>
+          <input
+            type="number"
+            min={0}
+            step={1}
+            value={lowStockThreshold}
+            onChange={(e) => setLowStockThreshold(e.target.value)}
+            className="input w-24"
+          />
         </label>
       </div>
 

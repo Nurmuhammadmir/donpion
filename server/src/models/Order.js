@@ -55,6 +55,13 @@ const orderSchema = new mongoose.Schema(
     pointsEarned: { type: Number, default: 0, min: 0 },
     pointsEarnedCredited: { type: Boolean, default: false },
     pointsRedeemedRefunded: { type: Boolean, default: false },
+    // Warehouse stock — deducted once, right after the order is created
+    // (see createOrder); restored once, the first time the order reaches
+    // "cancelled" (see updateOrderStatus). Same one-shot-flag pattern as
+    // the points fields above, for the same reason: a double status change
+    // must never double-restore stock.
+    stockDeducted: { type: Boolean, default: false },
+    stockRestored: { type: Boolean, default: false },
     status: {
       type: String,
       enum: ["new", "confirmed", "delivering", "completed", "cancelled"],

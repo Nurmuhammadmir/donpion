@@ -54,6 +54,7 @@ export interface SiteSettings {
   heroImageTablet?: string | null;
   heroImageMobile?: string | null;
   cashbackPercent: number;
+  lowStockThreshold: number;
 }
 
 export interface Product {
@@ -120,3 +121,41 @@ export const ORDER_STATUS_LABELS: Record<Order["status"], string> = {
   completed: "Завершён",
   cancelled: "Отменён",
 };
+
+export interface WarehouseItem {
+  _id: string;
+  name: string;
+  slug: string;
+  category: { _id: string; name: string } | null;
+  stock: number;
+  isActive: boolean;
+  image: string;
+  lowStock: boolean;
+}
+
+export interface WarehouseOverview {
+  threshold: number;
+  items: WarehouseItem[];
+}
+
+export interface StockEntry {
+  _id: string;
+  product: { _id: string; name: string; slug: string } | null;
+  quantity: number;
+  reason: "receipt" | "sale" | "cancel_restock" | "adjustment";
+  note: string;
+  createdAt: string;
+}
+
+export const STOCK_REASON_LABELS: Record<StockEntry["reason"], string> = {
+  receipt: "Приход",
+  sale: "Продажа",
+  cancel_restock: "Возврат (отмена заказа)",
+  adjustment: "Корректировка",
+};
+
+export interface OrderStats {
+  revenue30d: number;
+  orders30d: number;
+  ordersToday: number;
+}

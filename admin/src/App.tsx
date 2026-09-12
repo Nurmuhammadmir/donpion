@@ -5,6 +5,7 @@ import Login from "@/pages/Login";
 import Dashboard from "@/pages/Dashboard";
 import Products from "@/pages/Products";
 import ProductForm from "@/pages/ProductForm";
+import Warehouse from "@/pages/Warehouse";
 import Categories from "@/pages/Categories";
 import Characters from "@/pages/Characters";
 import AddonCategories from "@/pages/AddonCategories";
@@ -29,6 +30,7 @@ export default function App() {
         <Route path="/products" element={<Products />} />
         <Route path="/products/new" element={<ProductForm />} />
         <Route path="/products/:id" element={<ProductForm />} />
+        <Route path="/warehouse" element={<Warehouse />} />
         <Route path="/categories" element={<Categories />} />
         <Route path="/characters" element={<Characters />} />
         <Route path="/addon-categories" element={<AddonCategories />} />

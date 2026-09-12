@@ -3,6 +3,7 @@ import Order from "../models/Order.js";
 import Product from "../models/Product.js";
 import Customer from "../models/Customer.js";
 import SiteSettings from "../models/SiteSettings.js";
+import StockEntry from "../models/StockEntry.js";
 
 // Short and readable on a receipt/SMS: two letters + four digits (e.g.
 // FL-4821). No date stamp — retried on the rare collision instead.
@@ -124,6 +125,34 @@ export const createOrder = asyncHandler(async (req, res) => {
     throw err;
   }
 
+  // Pull stock the moment the order exists — a "new" order still holds the
+  // flowers, same as confirmed/delivering, so reserving here (not only on
+  // "completed") is what keeps the warehouse count honest. Not blocking on
+  // insufficient stock: a florist can still fulfil a slight oversell by
+  // hand, and stock going negative is a visible, correctable warehouse
+  // signal rather than a lost sale. Same no-transaction caveat as the
+  // points debit above: a crash between these writes and the stockDeducted
+  // flag below would leave stock pulled but the flag unset, so a later
+  // cancellation wouldn't know to restore it — this log line is the same
+  // greppable mitigation used there.
+  console.log(`[stock] deducting items for new order ${order.orderNumber}`);
+  await Promise.all(
+    orderItems.map((item) =>
+      Promise.all([
+        Product.findByIdAndUpdate(item.product, { $inc: { stock: -item.quantity } }),
+        StockEntry.create({
+          product: item.product,
+          quantity: -item.quantity,
+          reason: "sale",
+          order: order._id,
+          note: `Заказ ${order.orderNumber}`,
+        }),
+      ])
+    )
+  );
+  order.stockDeducted = true;
+  await order.save();
+
   res.status(201).json(order);
 });
 
@@ -202,6 +231,59 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
     }
   }
 
+  // Stock restore — same one-shot guard, on the order's first arrival at
+  // "cancelled", and only if stock was actually pulled for it in the
+  // first place (always true today, but guards against any order created
+  // before this field existed).
+  if (status === "cancelled" && order.stockDeducted) {
+    const claimed = await Order.findOneAndUpdate(
+      { _id: order._id, stockRestored: false },
+      { $set: { stockRestored: true } }
+    );
+    if (claimed) {
+      console.log(`[stock] restoring items for cancelled order ${order.orderNumber}`);
+      await Promise.all(
+        order.items.map((item) =>
+          Promise.all([
+            item.product && Product.findByIdAndUpdate(item.product, { $inc: { stock: item.quantity } }),
+            item.product &&
+              StockEntry.create({
+                product: item.product,
+                quantity: item.quantity,
+                reason: "cancel_restock",
+                order: order._id,
+                note: `Отмена заказа ${order.orderNumber}`,
+              }),
+          ])
+        )
+      );
+    }
+  }
+
   const fresh = await Order.findById(order._id);
   res.json(fresh);
+});
+
+// GET /api/orders/stats  (admin) — small dashboard rollup: revenue over the
+// last 30 days (excluding cancelled orders) and how many orders came in
+// today. Aggregated server-side rather than shipping every order to the
+// client just to sum a few numbers.
+export const getOrderStats = asyncHandler(async (req, res) => {
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+  const [revenueAgg, ordersToday] = await Promise.all([
+    Order.aggregate([
+      { $match: { createdAt: { $gte: thirtyDaysAgo }, status: { $ne: "cancelled" } } },
+      { $group: { _id: null, revenue: { $sum: "$totalAmount" }, count: { $sum: 1 } } },
+    ]),
+    Order.countDocuments({ createdAt: { $gte: startOfToday } }),
+  ]);
+
+  res.json({
+    revenue30d: revenueAgg[0]?.revenue ?? 0,
+    orders30d: revenueAgg[0]?.count ?? 0,
+    ordersToday,
+  });
 });
