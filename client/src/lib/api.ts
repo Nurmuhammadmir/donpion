@@ -1,7 +1,9 @@
 import type {
+  AddonCategory,
   Branch,
   Category,
   Character,
+  Occasion,
   Product,
   ProductDetailResponse,
   ProductListResponse,
@@ -59,6 +61,30 @@ export async function getCharacterBySlug(slug: string): Promise<Character | null
   }
 }
 
+export async function getAddonCategories(): Promise<AddonCategory[]> {
+  try {
+    return await apiFetch<AddonCategory[]>("/addon-categories");
+  } catch {
+    return [];
+  }
+}
+
+export async function getOccasions(): Promise<Occasion[]> {
+  try {
+    return await apiFetch<Occasion[]>("/occasions");
+  } catch {
+    return [];
+  }
+}
+
+export async function getOccasionBySlug(slug: string): Promise<Occasion | null> {
+  try {
+    return await apiFetch<Occasion>(`/occasions/${slug}`);
+  } catch {
+    return null;
+  }
+}
+
 export async function getBranches(): Promise<Branch[]> {
   try {
     return await apiFetch<Branch[]>("/branches");
@@ -83,6 +109,8 @@ export async function getSiteSettings(): Promise<SiteSettings> {
 export async function getProducts(params: {
   category?: string;
   character?: string;
+  addonCategory?: string;
+  occasion?: string;
   featured?: boolean;
   page?: number;
   limit?: number;
@@ -90,6 +118,8 @@ export async function getProducts(params: {
   const search = new URLSearchParams();
   if (params.category) search.set("category", params.category);
   if (params.character) search.set("character", params.character);
+  if (params.addonCategory) search.set("addonCategory", params.addonCategory);
+  if (params.occasion) search.set("occasion", params.occasion);
   if (params.featured) search.set("featured", "true");
   if (params.page) search.set("page", String(params.page));
   if (params.limit) search.set("limit", String(params.limit));

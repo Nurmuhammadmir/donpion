@@ -1,8 +1,9 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Link } from "@/i18n/Link";
-import { getCharacters, getProducts, getSiteSettings } from "@/lib/api";
+import { getCharacters, getOccasions, getProducts, getSiteSettings } from "@/lib/api";
 import ProductCard from "@/components/ProductCard";
 import BouquetQuiz from "@/components/BouquetQuiz";
+import OccasionPicker from "@/components/OccasionPicker";
 import { resolveImageUrl } from "@/lib/images";
 
 export const revalidate = 600;
@@ -16,8 +17,9 @@ export default async function HomePage({ params: { locale } }: PageProps) {
   const t = await getTranslations("Home");
   const tc = await getTranslations("Common");
 
-  const [characters, featuredRes, settings] = await Promise.all([
+  const [characters, occasions, featuredRes, settings] = await Promise.all([
     getCharacters(),
+    getOccasions(),
     getProducts({ featured: true, limit: 8 }),
     getSiteSettings(),
   ]);
@@ -132,6 +134,13 @@ export default async function HomePage({ params: { locale } }: PageProps) {
           inline right here rather than a separate results page. */}
       <section className="border-y border-hairline bg-paper px-6 py-24 lg:px-10">
         <BouquetQuiz characters={characters} />
+      </section>
+
+      {/* Right after the personality quiz — same mechanism, grouped by what
+          the flowers are FOR instead of who they suit (see Occasion model /
+          admin "Поводы"). */}
+      <section className="border-b border-hairline bg-paper px-6 py-24 lg:px-10">
+        <OccasionPicker occasions={occasions} />
       </section>
 
       {/* The ritual of gifting — what happens after checkout, not delivery bullet points */}

@@ -67,6 +67,19 @@
     "loadingText": "Guldastalarni tanlamoqdamiz…",
     "emptyText": "Mos guldastalar hozircha to'ldirilmoqda — birozdan so'ng qayta tashrif buyuring."
   },
+  "OccasionPicker": {
+    "eyebrow": "Sabab bo'yicha tanlov",
+    "questionTitle": "Qanday sabab uchun?",
+    "resultTitle": "Mana mos keladiganlari",
+    "loadingText": "Guldastalarni tanlamoqdamiz…",
+    "emptyText": "Mos guldastalar hozircha to'ldirilmoqda — birozdan so'ng qayta tashrif buyuring.",
+    "changeChoice": "Boshqa sababni tanlash"
+  },
+  "ProductAddons": {
+    "heading": "Buyurtmani to'ldiring",
+    "loading": "Yuklanmoqda…",
+    "empty": "Bu toifada hozircha bo'sh — birozdan so'ng qayta tashrif buyuring."
+  },
   "Product": {
     "compositionHeading": "Tarkibi",
     "careHeading": "Parvarish",
@@ -173,6 +186,11 @@
   },
   "Character": {
     "eyebrow": "Xarakterga qarab tanlash",
+    "titleFor": "\"{name}\" uchun guldastalar",
+    "empty": "Mos guldastalar hozircha to'ldirilmoqda — birozdan so'ng qayta tashrif buyuring."
+  },
+  "Occasion": {
+    "eyebrow": "Sabab bo'yicha tanlov",
     "titleFor": "\"{name}\" uchun guldastalar",
     "empty": "Mos guldastalar hozircha to'ldirilmoqda — birozdan so'ng qayta tashrif buyuring."
   },

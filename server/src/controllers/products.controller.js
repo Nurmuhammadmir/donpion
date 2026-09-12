@@ -2,6 +2,8 @@ import asyncHandler from "express-async-handler";
 import Product from "../models/Product.js";
 import Category from "../models/Category.js";
 import Character from "../models/Character.js";
+import AddonCategory from "../models/AddonCategory.js";
+import Occasion from "../models/Occasion.js";
 import { slugifyRu } from "../utils/slugify.js";
 import { notifyRevalidate } from "../utils/notifyRevalidate.js";
 
@@ -37,11 +39,13 @@ function asQueryString(value) {
   return typeof value === "string" ? value : undefined;
 }
 
-// GET /api/products?category=rozy&character=..&search=..&featured=true&page=1&limit=24
+// GET /api/products?category=rozy&character=..&addonCategory=..&occasion=..&search=..&featured=true&page=1&limit=24
 export const getProducts = asyncHandler(async (req, res) => {
   const { page = 1, limit = 24 } = req.query;
   const category = asQueryString(req.query.category);
   const character = asQueryString(req.query.character);
+  const addonCategory = asQueryString(req.query.addonCategory);
+  const occasion = asQueryString(req.query.occasion);
   const search = asQueryString(req.query.search);
   const featured = asQueryString(req.query.featured);
 
@@ -57,6 +61,18 @@ export const getProducts = asyncHandler(async (req, res) => {
     const char = await Character.findOne({ slug: character });
     if (!char) return res.json({ items: [], total: 0, page: Number(page), pages: 0 });
     filter.characters = char._id;
+  }
+
+  if (addonCategory) {
+    const addon = await AddonCategory.findOne({ slug: addonCategory });
+    if (!addon) return res.json({ items: [], total: 0, page: Number(page), pages: 0 });
+    filter.addonCategories = addon._id;
+  }
+
+  if (occasion) {
+    const occ = await Occasion.findOne({ slug: occasion });
+    if (!occ) return res.json({ items: [], total: 0, page: Number(page), pages: 0 });
+    filter.occasions = occ._id;
   }
 
   if (featured === "true") filter.isFeatured = true;
@@ -84,10 +100,9 @@ export const getProducts = asyncHandler(async (req, res) => {
 
 // GET /api/products/:slug  (public)
 export const getProductBySlug = asyncHandler(async (req, res) => {
-  const product = await Product.findOne({ slug: req.params.slug, isActive: true }).populate(
-    "category",
-    "name slug"
-  );
+  const product = await Product.findOne({ slug: req.params.slug, isActive: true })
+    .populate("category", "name slug")
+    .populate("addonCategories", "name slug");
   if (!product) {
     res.status(404);
     throw new Error("Product not found");
@@ -124,7 +139,9 @@ export const getProductsAdmin = asyncHandler(async (req, res) => {
 export const getProductByIdAdmin = asyncHandler(async (req, res) => {
   const product = await Product.findById(req.params.id)
     .populate("category", "name slug")
-    .populate("characters", "name slug");
+    .populate("characters", "name slug")
+    .populate("addonCategories", "name slug")
+    .populate("occasions", "name slug");
   if (!product) {
     res.status(404);
     throw new Error("Product not found");

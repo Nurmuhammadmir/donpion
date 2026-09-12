@@ -6,6 +6,8 @@ const NAV = [
   { to: "/products", label: "Товары" },
   { to: "/categories", label: "Категории" },
   { to: "/characters", label: "Характеры" },
+  { to: "/addon-categories", label: "Допы" },
+  { to: "/occasions", label: "Поводы" },
   { to: "/orders", label: "Заказы" },
   { to: "/branches", label: "Филиалы" },
   { to: "/settings", label: "Главная страница" },

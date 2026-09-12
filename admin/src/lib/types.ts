@@ -20,6 +20,23 @@ export interface Character {
   isActive: boolean;
 }
 
+export interface AddonCategory {
+  _id: string;
+  name: string;
+  slug: string;
+  sortOrder: number;
+  isActive: boolean;
+}
+
+export interface Occasion {
+  _id: string;
+  name: string;
+  slug: string;
+  description: string;
+  sortOrder: number;
+  isActive: boolean;
+}
+
 export interface Branch {
   _id: string;
   name: string;
@@ -44,6 +61,8 @@ export interface Product {
   slug: string;
   category: { _id: string; name: string; slug: string };
   characters: { _id: string; name: string; slug: string }[];
+  addonCategories: { _id: string; name: string; slug: string }[];
+  occasions: { _id: string; name: string; slug: string }[];
   price: number;
   oldPrice: number | null;
   stock: number;

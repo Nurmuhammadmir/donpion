@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { api, ApiError, resolveImageUrl, uploadProductImages } from "@/lib/api";
-import type { Category, Character, Product } from "@/lib/types";
+import type { AddonCategory, Category, Character, Occasion, Product } from "@/lib/types";
 
 const emptyForm = {
   name: "",
   category: "",
   characters: [] as string[],
+  addonCategories: [] as string[],
+  occasions: [] as string[],
   price: "",
   oldPrice: "",
   stock: "",
@@ -27,6 +29,8 @@ export default function ProductForm() {
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [characters, setCharacters] = useState<Character[]>([]);
+  const [addonCategories, setAddonCategories] = useState<AddonCategory[]>([]);
+  const [occasions, setOccasions] = useState<Occasion[]>([]);
   const [form, setForm] = useState(emptyForm);
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
@@ -38,6 +42,8 @@ export default function ProductForm() {
   useEffect(() => {
     api<Category[]>("/categories/admin/all").then(setCategories).catch(() => setCategories([]));
     api<Character[]>("/characters/admin/all").then(setCharacters).catch(() => setCharacters([]));
+    api<AddonCategory[]>("/addon-categories/admin/all").then(setAddonCategories).catch(() => setAddonCategories([]));
+    api<Occasion[]>("/occasions/admin/all").then(setOccasions).catch(() => setOccasions([]));
   }, []);
 
   useEffect(() => {
@@ -48,6 +54,8 @@ export default function ProductForm() {
           name: p.name,
           category: p.category?._id ?? "",
           characters: p.characters?.map((c) => c._id) ?? [],
+          addonCategories: p.addonCategories?.map((c) => c._id) ?? [],
+          occasions: p.occasions?.map((o) => o._id) ?? [],
           price: String(p.price),
           oldPrice: p.oldPrice ? String(p.oldPrice) : "",
           stock: String(p.stock),
@@ -112,6 +120,8 @@ export default function ProductForm() {
       name: form.name,
       category: form.category,
       characters: form.characters,
+      addonCategories: form.addonCategories,
+      occasions: form.occasions,
       price: Number(form.price),
       oldPrice: form.oldPrice ? Number(form.oldPrice) : null,
       stock: Number(form.stock),
@@ -203,6 +213,61 @@ export default function ProductForm() {
             Если не выбрать ни одного, сервер сам случайно привяжет один характер при сохранении —
             это можно будет изменить здесь в любой момент.
           </p>
+        </Field>
+
+        <Field label="Допы (этот товар — сам доп. товар, предлагается под другими)">
+          <div className="flex flex-wrap gap-x-5 gap-y-2">
+            {addonCategories.map((category) => (
+              <label key={category._id} className="flex items-center gap-2 text-sm text-ink">
+                <input
+                  type="checkbox"
+                  checked={form.addonCategories.includes(category._id)}
+                  onChange={(e) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      addonCategories: e.target.checked
+                        ? [...prev.addonCategories, category._id]
+                        : prev.addonCategories.filter((id) => id !== category._id),
+                    }))
+                  }
+                />
+                {category.name}
+              </label>
+            ))}
+            {addonCategories.length === 0 && (
+              <p className="text-xs text-graphite">Сначала добавьте категории в разделе «Допы».</p>
+            )}
+          </div>
+          <p className="mt-2 text-xs text-graphite">
+            Не обязательно — оставьте пустым, если это обычный букет, а не доп. товар (ваза,
+            шоколад, игрушка и т.п.).
+          </p>
+        </Field>
+
+        <Field label="Поводы (для раздела на главной странице)">
+          <div className="flex flex-wrap gap-x-5 gap-y-2">
+            {occasions.map((occasion) => (
+              <label key={occasion._id} className="flex items-center gap-2 text-sm text-ink">
+                <input
+                  type="checkbox"
+                  checked={form.occasions.includes(occasion._id)}
+                  onChange={(e) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      occasions: e.target.checked
+                        ? [...prev.occasions, occasion._id]
+                        : prev.occasions.filter((id) => id !== occasion._id),
+                    }))
+                  }
+                />
+                {occasion.name}
+              </label>
+            ))}
+            {occasions.length === 0 && (
+              <p className="text-xs text-graphite">Сначала добавьте поводы в разделе «Поводы».</p>
+            )}
+          </div>
+          <p className="mt-2 text-xs text-graphite">Не обязательно — можно оставить пустым.</p>
         </Field>
 
         <div className="grid gap-5 sm:grid-cols-3">

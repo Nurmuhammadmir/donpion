@@ -7,6 +7,8 @@ import Products from "@/pages/Products";
 import ProductForm from "@/pages/ProductForm";
 import Categories from "@/pages/Categories";
 import Characters from "@/pages/Characters";
+import AddonCategories from "@/pages/AddonCategories";
+import Occasions from "@/pages/Occasions";
 import Orders from "@/pages/Orders";
 import Branches from "@/pages/Branches";
 import Settings from "@/pages/Settings";
@@ -29,6 +31,8 @@ export default function App() {
         <Route path="/products/:id" element={<ProductForm />} />
         <Route path="/categories" element={<Categories />} />
         <Route path="/characters" element={<Characters />} />
+        <Route path="/addon-categories" element={<AddonCategories />} />
+        <Route path="/occasions" element={<Occasions />} />
         <Route path="/orders" element={<Orders />} />
         <Route path="/branches" element={<Branches />} />
         <Route path="/settings" element={<Settings />} />

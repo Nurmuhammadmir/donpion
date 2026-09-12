@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getTranslations, setRequestLocale } from "next-intl/server";
-import { getAllProductsForSitemap, getProductBySlug } from "@/lib/api";
+import { getAddonCategories, getAllProductsForSitemap, getProductBySlug } from "@/lib/api";
 import AddToCartButton from "@/components/AddToCartButton";
 import BackLink from "@/components/BackLink";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import JsonLd from "@/components/JsonLd";
+import ProductAddons from "@/components/ProductAddons";
 import ProductCard from "@/components/ProductCard";
 import ProductGallery from "@/components/ProductGallery";
 import { formatUZS } from "@/lib/format";
@@ -53,7 +54,7 @@ export default async function ProductPage({ params: { locale, slug } }: PageProp
   const t = await getTranslations("Product");
   const tc = await getTranslations("Common");
 
-  const data = await getProductBySlug(slug);
+  const [data, addonCategories] = await Promise.all([getProductBySlug(slug), getAddonCategories()]);
   if (!data) notFound();
 
   const { product, related } = data;
@@ -130,6 +131,8 @@ export default async function ProductPage({ params: { locale, slug } }: PageProp
               image={resolveImageUrl(product.images[0])}
             />
           </div>
+
+          <ProductAddons categories={addonCategories} />
 
           {product.composition.length > 0 && (
             <div className="mt-12 border-t border-hairline pt-8">

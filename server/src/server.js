@@ -24,6 +24,8 @@ import uploadRoutes from "./routes/uploads.routes.js";
 import characterRoutes from "./routes/characters.routes.js";
 import settingsRoutes from "./routes/settings.routes.js";
 import branchRoutes from "./routes/branches.routes.js";
+import addonCategoryRoutes from "./routes/addonCategories.routes.js";
+import occasionRoutes from "./routes/occasions.routes.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -63,6 +65,8 @@ app.use("/api/uploads", uploadRoutes);
 app.use("/api/characters", characterRoutes);
 app.use("/api/settings", settingsRoutes);
 app.use("/api/branches", branchRoutes);
+app.use("/api/addon-categories", addonCategoryRoutes);
+app.use("/api/occasions", occasionRoutes);
 
 app.use(notFound);
 app.use(errorHandler);

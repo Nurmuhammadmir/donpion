@@ -10,6 +10,13 @@ const productSchema = new mongoose.Schema(
     // one, the server assigns a random active Character on save (see
     // products.controller.js) so every product still surfaces somewhere.
     characters: [{ type: mongoose.Schema.Types.ObjectId, ref: "Character" }],
+    // Upsell add-on categories this product belongs to (e.g. this product
+    // IS a vase/chocolate/toy — see AddonCategory) — shown as options on
+    // OTHER products' pages, never auto-assigned.
+    addonCategories: [{ type: mongoose.Schema.Types.ObjectId, ref: "AddonCategory" }],
+    // What occasion(s) this product suits (see Occasion) — powers the
+    // homepage "Свадебная флористика / Корпоративные заказы / ..." section.
+    occasions: [{ type: mongoose.Schema.Types.ObjectId, ref: "Occasion" }],
 
     price: { type: Number, required: true, min: 0 },
     oldPrice: { type: Number, min: 0, default: null },
@@ -39,6 +46,8 @@ const productSchema = new mongoose.Schema(
 
 productSchema.index({ isActive: 1, category: 1 });
 productSchema.index({ isActive: 1, characters: 1 });
+productSchema.index({ isActive: 1, addonCategories: 1 });
+productSchema.index({ isActive: 1, occasions: 1 });
 productSchema.index({ isFeatured: 1, isActive: 1 });
 productSchema.index({ name: "text", shortDescription: "text" });
 

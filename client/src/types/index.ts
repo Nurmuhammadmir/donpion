@@ -26,6 +26,23 @@ export interface Character {
   isActive: boolean;
 }
 
+export interface AddonCategory {
+  _id: string;
+  name: string;
+  slug: string;
+  sortOrder: number;
+  isActive: boolean;
+}
+
+export interface Occasion {
+  _id: string;
+  name: string;
+  slug: string;
+  description: string;
+  sortOrder: number;
+  isActive: boolean;
+}
+
 export interface Branch {
   _id: string;
   name: string;
@@ -49,6 +66,7 @@ export interface Product {
   name: string;
   slug: string;
   category: CategoryRef;
+  addonCategories?: CategoryRef[];
   price: number;
   oldPrice: number | null;
   currency: string;
