@@ -36,15 +36,23 @@ function createGeolocationDot(): HTMLDivElement {
 
 // Lets the customer drop a pin for the delivery address instead of typing
 // one — opens centered on Tashkent, a draggable marker reverse-geocodes to
-// a readable address via Mapbox's Geocoding API as it's moved.
+// a readable address via Mapbox's Geocoding API as it's moved. If the
+// visitor hasn't picked a spot yet, the pin starts at their own real
+// position instead of the generic Tashkent center whenever geolocation is
+// available — and keeps trying if permission is granted a moment late
+// (the browser prompt, or the visitor flipping it on in site settings)
+// rather than requiring a page refresh to notice.
 export default function AddressMapPicker({ value, onChange }: AddressMapPickerProps) {
   const locale = useLocale();
   const t = useTranslations("AddressMapPicker");
   const mapContainer = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const markerRef = useRef<mapboxgl.Marker | null>(null);
+  const userMovedPinRef = useRef(false);
+  const hadInitialValueRef = useRef(!!value);
   const [address, setAddress] = useState(value?.address ?? "");
   const [loadingAddress, setLoadingAddress] = useState(false);
+  const [locatingMe, setLocatingMe] = useState(false);
 
   const reverseGeocode = async (lat: number, lng: number) => {
     setLoadingAddress(true);
@@ -64,6 +72,26 @@ export default function AddressMapPicker({ value, onChange }: AddressMapPickerPr
     } finally {
       setLoadingAddress(false);
     }
+  };
+
+  // Moves the pin (and the map) to the visitor's real position right now —
+  // used both for the silent first-load attempt and the manual "Определить
+  // моё местоположение" link below the map.
+  const centerOnClient = () => {
+    if (!mapRef.current || !markerRef.current) return;
+    setLocatingMe(true);
+    navigator.geolocation?.getCurrentPosition(
+      (pos) => {
+        setLocatingMe(false);
+        if (!mapRef.current || !markerRef.current) return;
+        const { latitude: lat, longitude: lng } = pos.coords;
+        markerRef.current.setLngLat([lng, lat]);
+        mapRef.current.flyTo({ center: [lng, lat], zoom: 15, duration: 800 });
+        reverseGeocode(lat, lng);
+      },
+      () => setLocatingMe(false),
+      { enableHighAccuracy: true, timeout: 8000 }
+    );
   };
 
   useEffect(() => {
@@ -92,42 +120,82 @@ export default function AddressMapPicker({ value, onChange }: AddressMapPickerPr
     markerRef.current = marker;
 
     marker.on("dragend", () => {
+      userMovedPinRef.current = true;
       const { lat, lng } = marker.getLngLat();
       reverseGeocode(lat, lng);
     });
 
     map.on("click", (e) => {
+      userMovedPinRef.current = true;
       marker.setLngLat(e.lngLat);
       reverseGeocode(e.lngLat.lat, e.lngLat.lng);
     });
 
-    if (!value) {
-      // No saved pin yet — geocode the default center so the form starts
-      // with a real address string instead of raw coordinates.
-      reverseGeocode(DEFAULT_CENTER[1], DEFAULT_CENTER[0]);
+    if (value) {
+      // A saved pin already exists (editing a previous address) — just show
+      // a small "you are here" dot for orientation, never move the pin.
+      let cancelled = false;
+      navigator.geolocation?.getCurrentPosition(
+        (pos) => {
+          if (cancelled || !mapRef.current) return;
+          new mapboxgl.Marker({ element: createGeolocationDot() })
+            .setLngLat([pos.coords.longitude, pos.coords.latitude])
+            .addTo(map);
+        },
+        () => {},
+        { enableHighAccuracy: true, timeout: 8000 }
+      );
+      return () => {
+        cancelled = true;
+        map.remove();
+        mapRef.current = null;
+      };
     }
 
-    // Shows the visitor's own position as a small blue dot so they can see
-    // where they are relative to the delivery pin — silently does nothing
-    // if location access is denied or unavailable. getCurrentPosition is
-    // async and can resolve well after the component (and the map) is
-    // gone (e.g. the visitor already navigated away while the permission
-    // prompt was up) — `cancelled` guards against calling .addTo() on a
-    // map that .remove() has already torn down.
-    let cancelled = false;
+    // No saved pin yet — the delivery pin's starting point should be where
+    // the visitor is actually standing, not a generic Tashkent center.
+    // Silently asks for permission (same prompt the old "you are here" dot
+    // used) and falls back to the Tashkent-center reverse geocode if denied,
+    // unavailable, or the visitor already dragged/tapped the pin themselves
+    // while the request was pending.
     navigator.geolocation?.getCurrentPosition(
       (pos) => {
-        if (cancelled) return;
-        new mapboxgl.Marker({ element: createGeolocationDot() })
-          .setLngLat([pos.coords.longitude, pos.coords.latitude])
-          .addTo(map);
+        if (!mapRef.current || userMovedPinRef.current) return;
+        const { latitude: lat, longitude: lng } = pos.coords;
+        marker.setLngLat([lng, lat]);
+        map.flyTo({ center: [lng, lat], zoom: 15, duration: 600 });
+        reverseGeocode(lat, lng);
       },
-      () => {},
+      () => {
+        if (!userMovedPinRef.current) reverseGeocode(DEFAULT_CENTER[1], DEFAULT_CENTER[0]);
+      },
       { enableHighAccuracy: true, timeout: 8000 }
     );
 
+    // Chrome/Edge/Android report permission changes live — if the visitor
+    // had dismissed the prompt above and grants access a moment later (e.g.
+    // via the padlock menu) instead of reloading, this catches it and
+    // re-centers immediately. Safari has no "geolocation" entry in the
+    // Permissions API — the manual link below the map covers that case.
+    let permissionStatus: PermissionStatus | null = null;
+    const watchPermission = async () => {
+      try {
+        permissionStatus = await navigator.permissions?.query({ name: "geolocation" as PermissionName });
+        if (permissionStatus) {
+          permissionStatus.onchange = () => {
+            if (permissionStatus?.state === "granted" && !hadInitialValueRef.current && !userMovedPinRef.current) {
+              centerOnClient();
+            }
+          };
+        }
+      } catch {
+        // Permissions API (or the "geolocation" name) unsupported — ignore.
+      }
+    };
+    watchPermission();
+
     return () => {
-      cancelled = true;
+      if (permissionStatus) permissionStatus.onchange = null;
       map.remove();
       mapRef.current = null;
     };
@@ -141,9 +209,17 @@ export default function AddressMapPicker({ value, onChange }: AddressMapPickerPr
   return (
     <div>
       <div ref={mapContainer} className="h-64 w-full border border-hairline" />
-      <p className="mt-2 text-xs leading-relaxed text-graphite">
-        {loadingAddress ? t("locating") : address || t("tapToPick")}
-      </p>
+      <div className="mt-2 flex items-start justify-between gap-3">
+        <p className="text-xs leading-relaxed text-graphite">{loadingAddress ? t("locating") : address || t("tapToPick")}</p>
+        <button
+          type="button"
+          onClick={centerOnClient}
+          disabled={locatingMe}
+          className="flex-shrink-0 whitespace-nowrap text-[11px] font-medium uppercase tracking-wide2 text-hermes-500 underline underline-offset-2 transition-colors hover:text-hermes-600 disabled:opacity-50"
+        >
+          {locatingMe ? t("locating") : t("locateMe")}
+        </button>
+      </div>
     </div>
   );
 }

@@ -1,28 +1,31 @@
 import { useTranslations } from "next-intl";
+import Image from "next/image";
 import { Link } from "@/i18n/Link";
-import Logo from "@/components/Logo";
 import BranchesMapLazy from "@/components/BranchesMapLazy";
 import type { Branch, Category } from "@/types";
 
 const INSTAGRAM_URL = "https://www.instagram.com/donpion.uz/";
 const TELEGRAM_URL = "https://t.me/DONPIONUZ_BOT";
 
+// Bookends the page in the same deep navy as the header — a header on its
+// own read as an accident of one leftover dark bar; matching it here turns
+// it into a deliberate frame around the (light) body instead.
 export default function Footer({ categories, branches }: { categories: Category[]; branches: Branch[] }) {
   const t = useTranslations("Footer");
 
   return (
-    <footer className="border-t border-hairline bg-paper">
+    <footer className="border-t border-white/10 bg-navy">
       <div className="mx-auto grid max-w-6xl gap-14 px-6 py-24 lg:grid-cols-4 lg:px-10">
         <div>
-          <Logo className="text-lg font-semibold" />
-          <p className="mt-5 max-w-xs text-sm leading-relaxed text-graphite">{t("tagline")}</p>
+          <Image src="/nav-logo.png" alt="DonPion" width={1397} height={435} className="h-8 w-auto" />
+          <p className="mt-5 max-w-xs text-sm leading-relaxed text-white/60">{t("tagline")}</p>
           <div className="mt-6 flex items-center gap-4">
             <a
               href={INSTAGRAM_URL}
               target="_blank"
               rel="noopener noreferrer"
               aria-label="Instagram"
-              className="text-ink transition-colors hover:text-hermes-500"
+              className="text-white/70 transition-colors hover:text-hermes-500"
             >
               <InstagramIcon />
             </a>
@@ -31,7 +34,7 @@ export default function Footer({ categories, branches }: { categories: Category[
               target="_blank"
               rel="noopener noreferrer"
               aria-label="Telegram"
-              className="text-ink transition-colors hover:text-hermes-500"
+              className="text-white/70 transition-colors hover:text-hermes-500"
             >
               <TelegramIcon />
             </a>
@@ -43,7 +46,7 @@ export default function Footer({ categories, branches }: { categories: Category[
           <ul className="space-y-3.5">
             {categories.map((cat) => (
               <li key={cat._id}>
-                <Link href={`/catalog/${cat.slug}`} className="text-sm text-graphite hover:text-hermes-500">
+                <Link href={`/catalog/${cat.slug}`} className="text-sm text-white/60 hover:text-hermes-500">
                   {cat.name}
                 </Link>
               </li>
@@ -53,7 +56,7 @@ export default function Footer({ categories, branches }: { categories: Category[
 
         <div>
           <h3 className="eyebrow mb-6">{t("customersHeading")}</h3>
-          <ul className="space-y-3.5 text-sm text-graphite">
+          <ul className="space-y-3.5 text-sm text-white/60">
             <li>
               <Link href="/cart" className="hover:text-hermes-500">
                 {t("cart")}
@@ -71,7 +74,7 @@ export default function Footer({ categories, branches }: { categories: Category[
 
         <div>
           <h3 className="eyebrow mb-6">{t("contactsHeading")}</h3>
-          <ul className="space-y-3.5 text-sm text-graphite">
+          <ul className="space-y-3.5 text-sm text-white/60">
             <li>
               <a href="tel:+998878353508" className="hover:text-hermes-500">
                 +998 87 835-35-08
@@ -93,10 +96,10 @@ export default function Footer({ categories, branches }: { categories: Category[
         </div>
       </div>
 
-      <div className="border-t border-hairline px-6 py-6 text-center text-[11px] uppercase tracking-wide2 text-graphite lg:px-10">
+      <div className="border-t border-white/10 px-6 py-6 text-center text-[11px] uppercase tracking-wide2 text-white/40 lg:px-10">
         {t("copyright", { year: new Date().getFullYear() })}
-        <p className="mt-2 normal-case tracking-normal text-graphite">
-          Made with ❤️ by <span className="text-green-600">Orbita</span>Group
+        <p className="mt-2 normal-case tracking-normal text-white/40">
+          Made with ❤️ by <span className="text-hermes-500">Orbita</span>Group
         </p>
       </div>
     </footer>

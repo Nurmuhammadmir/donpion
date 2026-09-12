@@ -80,6 +80,11 @@
     "loading": "Yuklanmoqda…",
     "empty": "Bu toifada hozircha bo'sh — birozdan so'ng qayta tashrif buyuring."
   },
+  "Pions": {
+    "earn": "+{count} Pion",
+    "infoAria": "Pion nima?",
+    "infoText": "Pionlar — keshbek bonus ballari. Buyurtma to'langandan so'ng balansga qo'shiladi, keyingi xaridda esa summaning bir qismini shu ball bilan to'lash mumkin: 1 Pion = 1 so'm chegirma."
+  },
   "Product": {
     "compositionHeading": "Tarkibi",
     "careHeading": "Parvarish",
@@ -201,7 +206,8 @@
   "AddressMapPicker": {
     "tapToPick": "Yetkazib berish manzilini tanlash uchun xaritani bosing",
     "locating": "Manzil aniqlanmoqda…",
-    "missingToken": "Xarita vaqtincha mavjud emas"
+    "missingToken": "Xarita vaqtincha mavjud emas",
+    "locateMe": "Joylashuvimni aniqlash"
   },
   "BranchesMap": {
     "heading": "Bizning salonlarimiz",

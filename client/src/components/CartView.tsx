@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/Link";
@@ -9,11 +10,30 @@ import Button from "@/components/Button";
 import { resolveImageUrl } from "@/lib/images";
 import CartCurrentOrder from "@/components/CartCurrentOrder";
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4100/api";
+
 export default function CartView() {
   const { items, updateQuantity, removeItem, totalAmount } = useCart();
   const t = useTranslations("Cart");
   const tc = useTranslations("Common");
+  const tp = useTranslations("Pions");
   const locale = useLocale();
+  const [cashbackPercent, setCashbackPercent] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`${API_URL}/settings`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!cancelled && data) setCashbackPercent(data.cashbackPercent ?? 0);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const pointsEstimate = Math.floor((totalAmount * cashbackPercent) / 100);
 
   if (items.length === 0) {
     return (
@@ -47,7 +67,7 @@ export default function CartView() {
                   </Link>
                   <p className="font-display mt-1 text-xs text-graphite sm:mt-1.5 sm:text-sm">{formatUZS(item.price, locale)}</p>
                 </div>
-                <div className="font-display flex-shrink-0 text-sm text-ink sm:text-base">
+                <div key={item.quantity} className="amount-pulse font-display flex-shrink-0 text-sm text-ink sm:text-base">
                   {formatUZS(item.price * item.quantity, locale)}
                 </div>
               </div>
@@ -58,7 +78,7 @@ export default function CartView() {
                     type="button"
                     aria-label={t("decreaseAria")}
                     onClick={() => updateQuantity(item.productId, item.quantity - 1)}
-                    className="h-8 w-8 text-graphite hover:text-hermes-500 sm:h-9 sm:w-9"
+                    className="h-8 w-8 text-graphite transition-transform hover:text-hermes-500 active:scale-90 sm:h-9 sm:w-9"
                   >
                     −
                   </button>
@@ -67,7 +87,7 @@ export default function CartView() {
                     type="button"
                     aria-label={t("increaseAria")}
                     onClick={() => updateQuantity(item.productId, item.quantity + 1)}
-                    className="h-8 w-8 text-graphite hover:text-hermes-500 sm:h-9 sm:w-9"
+                    className="h-8 w-8 text-graphite transition-transform hover:text-hermes-500 active:scale-90 sm:h-9 sm:w-9"
                   >
                     +
                   </button>
@@ -89,8 +109,15 @@ export default function CartView() {
         <h2 className="font-display text-lg tracking-luxe text-ink">{t("summaryTitle")}</h2>
         <div className="mt-6 flex items-baseline justify-between text-sm text-graphite">
           <span>{t("items")}</span>
-          <span className="font-display text-base text-ink">{formatUZS(totalAmount, locale)}</span>
+          <span key={totalAmount} className="amount-pulse font-display text-base text-ink">
+            {formatUZS(totalAmount, locale)}
+          </span>
         </div>
+        {cashbackPercent > 0 && (
+          <p key={pointsEstimate} className="amount-pulse mt-2 text-xs text-hermes-600">
+            {tp("earn", { count: pointsEstimate })}
+          </p>
+        )}
         <p className="mt-2 text-xs leading-relaxed text-graphite">{t("deliveryNote")}</p>
         <div className="mt-8">
           <Button href="/checkout" className="w-full">

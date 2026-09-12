@@ -88,6 +88,14 @@
   .photo-fade-in {
     animation: photo-fade-in 0.9s ease-out both;
   }
+
+  /* Replays on any number that just changed (cart line totals, the cart
+     summary total, Pion estimates, tile quantities) — pair with
+     `key={value}` so React remounts the node and the animation restarts
+     instead of the figure just snapping to its new value. */
+  .amount-pulse {
+    animation: amount-pulse 0.35s ease-out both;
+  }
 }
 
 @keyframes page-fade-in {
@@ -110,9 +118,21 @@
   }
 }
 
+@keyframes amount-pulse {
+  from {
+    opacity: 0.35;
+    transform: translateY(3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .page-transition,
-  .photo-fade-in {
+  .photo-fade-in,
+  .amount-pulse {
     animation: none;
   }
 }
