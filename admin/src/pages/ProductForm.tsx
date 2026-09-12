@@ -175,8 +175,8 @@ export default function ProductForm() {
           <input required value={form.name} onChange={update("name")} className="input" />
         </Field>
 
-        <Field label="Категория" required>
-          <select required value={form.category} onChange={update("category")} className="input">
+        <Field label="Категория">
+          <select value={form.category} onChange={update("category")} className="input">
             <option value="">Выберите категорию</option>
             {categories.map((c) => (
               <option key={c._id} value={c._id}>
@@ -184,6 +184,10 @@ export default function ProductForm() {
               </option>
             ))}
           </select>
+          <p className="mt-2 text-xs text-graphite">
+            Не обязательно — если не выбрать, сервер сам отнесёт товар в категорию «Разное»; это
+            можно будет поменять здесь в любой момент.
+          </p>
         </Field>
 
         <Field label="Характер (для мини-квиза на главной)">

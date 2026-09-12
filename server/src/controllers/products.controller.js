@@ -21,6 +21,32 @@ async function ensureCharacters(characterIds) {
   return [pick._id];
 }
 
+// Category is required at the schema level (every product page, breadcrumb
+// and catalog filter assumes one exists) but the admin shouldn't be forced
+// to pick one before they can even save a draft — a product left
+// uncategorized falls back to a shared "Разное" category (created once,
+// reused after) instead of blocking the save.
+async function ensureCategory(categoryId) {
+  if (categoryId) return categoryId;
+
+  let fallback = await Category.findOne({ slug: "raznoe" });
+  if (!fallback) {
+    fallback = await Category.create({
+      name: "Разное",
+      slug: "raznoe",
+      shortDescription: "Товары и подарочные наборы, которые не относятся к отдельному виду цветов.",
+      introText:
+        "Здесь — то, что не сводится к одному виду цветов: сборные подарочные наборы, сертификаты и особые позиции.",
+      seoTitle: "Разное — купить с доставкой в Ташкенте | DonPion",
+      seoDescription: "Разные товары и подарочные наборы с доставкой по Ташкенту в день заказа.",
+      image: "https://images.unsplash.com/photo-1519378058457-4c29a0a2efac?auto=format&fit=crop&w=1200&q=80",
+      sortOrder: 999,
+      isActive: true,
+    });
+  }
+  return fallback._id;
+}
+
 // The admin only ever types a name and a short description — asking for a
 // separate SEO title/description on top of that was pure duplicate typing,
 // so both are derived here instead of being admin-entered fields.
@@ -157,10 +183,11 @@ export const createProduct = asyncHandler(async (req, res) => {
     throw new Error("Название товара обязательно");
   }
   const slug = body.slug ? slugifyRu(body.slug) : slugifyRu(body.name);
+  const category = await ensureCategory(body.category);
   const characters = await ensureCharacters(body.characters);
   const { seoTitle, seoDescription } = deriveSeoFields(body.name, body.shortDescription);
 
-  const product = await Product.create({ ...body, slug, characters, seoTitle, seoDescription });
+  const product = await Product.create({ ...body, slug, category, characters, seoTitle, seoDescription });
   notifyRevalidate();
   res.status(201).json(product);
 });
@@ -177,6 +204,9 @@ export const updateProduct = asyncHandler(async (req, res) => {
   if (body.slug) body.slug = slugifyRu(body.slug);
   if (body.characters !== undefined) {
     body.characters = await ensureCharacters(body.characters);
+  }
+  if (body.category !== undefined) {
+    body.category = await ensureCategory(body.category);
   }
 
   const derived = deriveSeoFields(body.name ?? product.name, body.shortDescription ?? product.shortDescription);
