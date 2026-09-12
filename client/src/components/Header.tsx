@@ -9,9 +9,17 @@ import AccountIcon from "@/components/AccountIcon";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import type { Category, Occasion } from "@/types";
 
+// The nav (desktop bar and mobile menu alike) is a short curated list, not
+// the full flower-type catalog — these three occasions plus the chocolate
+// category, in this exact order, nothing else.
+const NAV_OCCASION_SLUGS = ["svadebnaya-floristika", "korporativnye-zakazy", "gorshechnye-rasteniya"];
+
 export default function Header({ categories, occasions }: { categories: Category[]; occasions: Occasion[] }) {
   const t = useTranslations("Nav");
   const chocolateCategory = categories.find((c) => c.slug === "klubnika-v-shokolade");
+  const navOccasions = NAV_OCCASION_SLUGS.map((slug) => occasions.find((o) => o.slug === slug)).filter(
+    (o): o is Occasion => Boolean(o)
+  );
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   // Tucks the header away on a downward scroll and brings it straight back
@@ -86,15 +94,23 @@ export default function Header({ categories, occasions }: { categories: Category
         </Link>
 
         <nav className="flex items-center gap-9">
-          {categories.map((cat) => (
+          {navOccasions.map((occasion) => (
             <Link
-              key={cat._id}
-              href={`/catalog/${cat.slug}`}
+              key={occasion._id}
+              href={`/occasion/${occasion.slug}`}
               className="text-xs font-medium uppercase tracking-wide2 text-white/75 transition-colors hover:text-hermes-500"
             >
-              {cat.name}
+              {occasion.name}
             </Link>
           ))}
+          {chocolateCategory && (
+            <Link
+              href={`/catalog/${chocolateCategory.slug}`}
+              className="text-xs font-medium uppercase tracking-wide2 text-white/75 transition-colors hover:text-hermes-500"
+            >
+              {chocolateCategory.name}
+            </Link>
+          )}
         </nav>
 
         <div className="flex items-center gap-5">
@@ -134,9 +150,7 @@ export default function Header({ categories, occasions }: { categories: Category
         }`}
       >
         <div className="flex flex-col gap-1">
-          {/* Quick picks by occasion — surfaced here too, not just as a
-              scroll down the homepage, so they're reachable in one tap. */}
-          {occasions.map((occasion) => (
+          {navOccasions.map((occasion) => (
             <Link
               key={occasion._id}
               href={`/occasion/${occasion.slug}`}
@@ -155,16 +169,6 @@ export default function Header({ categories, occasions }: { categories: Category
               {chocolateCategory.name}
             </Link>
           )}
-          {categories.map((cat) => (
-            <Link
-              key={cat._id}
-              href={`/catalog/${cat.slug}`}
-              onClick={() => setMenuOpen(false)}
-              className="border-b border-hairline py-3 text-xs font-medium uppercase tracking-wide2 text-graphite last:border-0 hover:text-hermes-500"
-            >
-              {cat.name}
-            </Link>
-          ))}
           <Link
             href="/account"
             onClick={() => setMenuOpen(false)}
