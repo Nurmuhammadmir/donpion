@@ -21,7 +21,7 @@ export default async function HomePage({ params: { locale } }: PageProps) {
     getCharacters(),
     getOccasions(),
     getProducts({ featured: true, limit: 8 }),
-    getProducts({ addonCategory: "klubnika-v-shokolade", limit: 8 }),
+    getProducts({ addonCategory: "shokolad", limit: 8 }),
     getSiteSettings(),
   ]);
 
@@ -127,8 +127,10 @@ export default async function HomePage({ params: { locale } }: PageProps) {
       </section>
 
       {/* Right after Luxury Collection, before the quiz — a shelf of
-          whatever's tagged into the "Клубника в шоколаде" add-on category
-          (see AddonCategory / admin "Допы"), same shelf shape as above. */}
+          whatever's tagged into the "Шоколад" add-on category (see
+          AddonCategory / admin "Допы"), same shelf shape as above. Section
+          is branded "Клубника в шоколаде" for the homepage even though the
+          underlying tag is the general "Шоколад" category. */}
       <section className="border-y border-hairline bg-paper px-6 py-24 lg:px-10">
         <Reveal className="mx-auto max-w-6xl">
           <div className="mb-12 text-center">
@@ -137,7 +139,7 @@ export default async function HomePage({ params: { locale } }: PageProps) {
           </div>
           <ProductShelf
             products={chocolateItems}
-            seeAllHref="/addon/klubnika-v-shokolade"
+            seeAllHref="/addon/shokolad"
             seeAllLabel={tc("seeAll")}
             seeAllLine1={tc("seeAllLine1")}
             seeAllLine2={tc("seeAllLine2")}

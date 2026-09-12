@@ -13,7 +13,6 @@ import type { AddonCategory, ProductCardData } from "@/types";
 const ADDON_ICONS: Record<string, (props: { className?: string }) => React.JSX.Element> = {
   vazy: VaseIcon,
   shokolad: ChocolateIcon,
-  "klubnika-v-shokolade": StrawberryIcon,
   igrushki: ToyIcon,
   "yuvelirnye-izdeliya": GemIcon,
   "sertifikaty-partnerov": CertificateIcon,
@@ -232,25 +231,6 @@ function ChocolateIcon({ className }: { className?: string }) {
     <svg width="26" height="26" viewBox="0 0 24 24" fill="none" className={className} aria-hidden="true">
       <rect x="3" y="6" width="18" height="12" rx="1" stroke="currentColor" strokeWidth="1" />
       <path d="M9 6v12M15 6v12M3 12h18" stroke="currentColor" strokeWidth="1" />
-    </svg>
-  );
-}
-
-function StrawberryIcon({ className }: { className?: string }) {
-  return (
-    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" className={className} aria-hidden="true">
-      <path d="M8 4c1 1.2 2.4 1.6 4 1.6S15 5.2 16 4" stroke="currentColor" strokeWidth="1" strokeLinecap="round" />
-      <path
-        d="M12 6c4 0 6.5 3 6.5 6.5C18.5 16.5 15 21 12 21s-6.5-4.5-6.5-8.5C5.5 9 8 6 12 6z"
-        stroke="currentColor"
-        strokeWidth="1"
-        strokeLinejoin="round"
-      />
-      <circle cx="9.5" cy="11" r="0.6" fill="currentColor" />
-      <circle cx="14.5" cy="11" r="0.6" fill="currentColor" />
-      <circle cx="12" cy="14" r="0.6" fill="currentColor" />
-      <circle cx="9" cy="16" r="0.6" fill="currentColor" />
-      <circle cx="15" cy="16" r="0.6" fill="currentColor" />
     </svg>
   );
 }
