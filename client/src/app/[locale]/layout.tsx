@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import Script from "next/script";
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages, getTranslations, setRequestLocale } from "next-intl/server";
 import { Playfair_Display, Inter } from "next/font/google";
@@ -84,6 +85,17 @@ export default async function LocaleLayout({
   return (
     <html lang={locale} className={`${display.variable} ${sans.variable}`}>
       <body className="flex min-h-screen flex-col bg-paper font-sans text-ink">
+        {/* Google Analytics (gtag.js) — afterInteractive so it never
+            competes with the actual page content for the initial load. */}
+        <Script async src="https://www.googletagmanager.com/gtag/js?id=G-Q4E2EJS96M" strategy="afterInteractive" />
+        <Script id="gtag-init" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', 'G-Q4E2EJS96M');
+          `}
+        </Script>
         <JsonLd
           data={{
             "@context": "https://schema.org",
