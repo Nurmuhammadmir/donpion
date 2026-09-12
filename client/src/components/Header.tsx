@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/Link";
@@ -13,9 +13,20 @@ export default function Header({ categories }: { categories: Category[] }) {
   const t = useTranslations("Nav");
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  // Tucks the header away on a downward scroll and brings it straight back
+  // on the very next upward one — phone/tablet only (desktop stays pinned
+  // via the lg:translate-y-0 override below), so the navy bar doesn't sit
+  // permanently between the visitor and the page while they're reading.
+  const [hideHeader, setHideHeader] = useState(false);
+  const lastScrollY = useRef(0);
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 8);
+    const onScroll = () => {
+      const currentY = window.scrollY;
+      setScrolled(currentY > 8);
+      setHideHeader(currentY > lastScrollY.current && currentY > 80);
+      lastScrollY.current = currentY;
+    };
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
@@ -37,7 +48,11 @@ export default function Header({ categories }: { categories: Category[] }) {
   }, [menuOpen]);
 
   return (
-    <header className="sticky top-0 z-40 bg-navy">
+    <header
+      className={`sticky top-0 z-40 bg-navy transition-transform duration-300 ease-out lg:translate-y-0 ${
+        hideHeader && !menuOpen ? "-translate-y-full" : "translate-y-0"
+      }`}
+    >
       {/* Mobile & tablet: cart pinned left, wordmark centered, menu right */}
       <div className="grid grid-cols-3 items-center px-6 py-[13px] lg:hidden">
         <div className="flex justify-start">

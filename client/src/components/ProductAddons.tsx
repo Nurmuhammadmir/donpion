@@ -45,8 +45,9 @@ export default function ProductAddons({ categories }: { categories: AddonCategor
     <div className="mt-10 border-t border-hairline pt-8">
       <p className="eyebrow mb-5">{t("heading")}</p>
 
-      {/* Round photo avatars, not text chips — a row the visitor scans and
-          taps like a set of story highlights. Falls back to a line-art icon
+      {/* Small photo tiles, not text chips — a row the visitor scans and
+          taps. 3:4, the same ratio as every other product photo on the
+          site, not a cropped square/circle. Falls back to a line-art icon
           for any category the admin hasn't uploaded a photo for yet. */}
       <div className="flex gap-4 overflow-x-auto scroll-touch no-scrollbar pb-1">
         {categories.map((category) => {
@@ -57,10 +58,10 @@ export default function ProductAddons({ categories }: { categories: AddonCategor
               key={category._id}
               type="button"
               onClick={() => handleSelect(category)}
-              className="flex w-[72px] flex-shrink-0 flex-col items-center gap-2"
+              className="flex w-16 flex-shrink-0 flex-col items-center gap-2"
             >
               <span
-                className={`relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border-2 transition-colors duration-200 ${
+                className={`relative flex aspect-[3/4] w-full items-center justify-center overflow-hidden border-2 transition-colors duration-200 ${
                   isActive ? "border-hermes-500" : "border-hairline"
                 }`}
               >
@@ -127,7 +128,7 @@ function AddonTile({ product }: { product: ProductCardData }) {
 
   return (
     <div className="group border border-hairline p-3 text-center transition-colors duration-200 hover:border-ink/30">
-      <div className="relative aspect-square overflow-hidden bg-hermes-50/30">
+      <div className="relative aspect-[3/4] overflow-hidden bg-hermes-50/30">
         <Image
           src={resolveImageUrl(product.images[0])}
           alt={product.name}
