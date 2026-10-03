@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useState } from "react";
 import { api, ApiError } from "@/lib/api";
 import type { Order } from "@/lib/types";
-import { ORDER_STATUS_LABELS } from "@/lib/types";
+import { ORDER_STATUS_LABELS, PAYMENT_METHOD_LABELS, PAYMENT_STATUS_LABELS } from "@/lib/types";
 import OrderLocationMap from "@/components/OrderLocationMap";
 
 function formatUZS(amount: number) {
@@ -111,6 +111,18 @@ export default function Orders() {
                           {order.customer.comment && (
                             <p className="mt-1 text-sm text-graphite">Комментарий: {order.customer.comment}</p>
                           )}
+                          <p className="mt-3 text-xs font-medium uppercase tracking-wide text-graphite">Оплата</p>
+                          <p className="mt-1 text-sm text-ink">
+                            {PAYMENT_METHOD_LABELS[order.paymentMethod] || order.paymentMethod}
+                            {order.paymentMethod === "online" && (
+                              <span
+                                className={order.paymentStatus === "paid" ? "text-sapphire-600" : order.paymentStatus === "failed" ? "text-hermes-600" : "text-graphite"}
+                              >
+                                {" — "}
+                                {PAYMENT_STATUS_LABELS[order.paymentStatus] || order.paymentStatus}
+                              </span>
+                            )}
+                          </p>
                           {order.location && (
                             <div className="mt-3">
                               <OrderLocationMap lat={order.location.lat} lng={order.location.lng} />

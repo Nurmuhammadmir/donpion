@@ -23,6 +23,8 @@ const AddressMapPicker = dynamic(() => import("@/components/AddressMapPicker"), 
 });
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4100/api";
+const CLICK_SERVICE_ID = process.env.NEXT_PUBLIC_CLICK_SERVICE_ID;
+const CLICK_MERCHANT_ID = process.env.NEXT_PUBLIC_CLICK_MERCHANT_ID;
 
 type Status = "idle" | "submitting" | "success" | "error";
 
@@ -36,6 +38,55 @@ interface PlacedOrder {
   deliveryTime: string;
   address: string;
   paymentMethod: "cash" | "card" | "online";
+  paymentStatus: "pending" | "paid" | "failed";
+}
+
+interface ApiOrder {
+  orderNumber: string;
+  items: { name: string; price: number; quantity: number }[];
+  subtotal: number;
+  totalAmount: number;
+  pointsRedeemed: number;
+  pointsEarned: number;
+  deliveryDate?: string;
+  deliveryTime?: string;
+  customer?: { address?: string };
+  paymentMethod: "cash" | "card" | "online";
+  paymentStatus: "pending" | "paid" | "failed";
+}
+
+function toPlacedOrder(order: ApiOrder): PlacedOrder {
+  return {
+    items: order.items.map((i) => ({ name: i.name, price: i.price, quantity: i.quantity })),
+    subtotal: order.subtotal,
+    totalAmount: order.totalAmount,
+    pointsRedeemed: order.pointsRedeemed,
+    pointsEarned: order.pointsEarned,
+    deliveryDate: order.deliveryDate ?? "",
+    deliveryTime: order.deliveryTime ?? "",
+    address: order.customer?.address ?? "",
+    paymentMethod: order.paymentMethod,
+    paymentStatus: order.paymentStatus,
+  };
+}
+
+// Click's payment-redirect link (docs.click.uz/click-button) — null when the
+// env vars aren't configured yet so the caller can fall back to the normal
+// confirmation screen instead of sending the customer to a broken URL.
+function buildClickPayUrl(order: ApiOrder) {
+  if (!CLICK_SERVICE_ID || !CLICK_MERCHANT_ID) return null;
+
+  const returnUrl = new URL(window.location.href);
+  returnUrl.search = "";
+  returnUrl.searchParams.set("order", order.orderNumber);
+
+  const url = new URL("https://my.click.uz/services/pay");
+  url.searchParams.set("service_id", CLICK_SERVICE_ID);
+  url.searchParams.set("merchant_id", CLICK_MERCHANT_ID);
+  url.searchParams.set("amount", order.totalAmount.toFixed(2));
+  url.searchParams.set("transaction_param", order.orderNumber);
+  url.searchParams.set("return_url", returnUrl.toString());
+  return url.toString();
 }
 
 export default function CheckoutForm() {
@@ -50,6 +101,13 @@ export default function CheckoutForm() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [location, setLocation] = useState<PickedLocation | null>(null);
   const [redeemPoints, setRedeemPoints] = useState(false);
+  // True for exactly one render on the way back from Click (return_url
+  // carries ?order=...) while the lookup effect below is still running —
+  // without this, a customer whose cart was already cleared before the
+  // redirect would briefly flash "cart is empty" instead of their receipt.
+  const [checkingReturn, setCheckingReturn] = useState(
+    () => typeof window !== "undefined" && new URLSearchParams(window.location.search).has("order")
+  );
 
   // How much the "use points" toggle would actually take off this order —
   // capped by both the balance and the order total, same rule the server
@@ -85,6 +143,45 @@ export default function CheckoutForm() {
     }
   }, [customer]);
 
+  // Click sends the customer back to this same page (return_url, see
+  // buildClickPayUrl) with ?order=<orderNumber> — pick that up and show the
+  // same confirmation screen a cash/card order gets, plus the payment
+  // status Click's webhook has recorded by then (see CLICK_ERROR flow on
+  // the server). Reads window.location directly instead of
+  // next/navigation's useSearchParams so this doesn't force the page into a
+  // Suspense boundary just for this.
+  useEffect(() => {
+    if (!checkingReturn) return;
+    // Auth is still resolving — wait for it rather than treating "no
+    // customer yet" as "not logged in" and falling through to RegisterGate.
+    if (authLoading) return;
+    const returningOrderNumber = new URLSearchParams(window.location.search).get("order");
+    if (!customer || !returningOrderNumber) {
+      setCheckingReturn(false);
+      return;
+    }
+
+    let cancelled = false;
+    fetch(`${API_URL}/orders/mine`, { credentials: "include" })
+      .then((res) => (res.ok ? res.json() : []))
+      .then((orders: ApiOrder[]) => {
+        if (cancelled) return;
+        const found = orders.find((o) => o.orderNumber === returningOrderNumber);
+        if (found) {
+          setOrderNumber(found.orderNumber);
+          setPlacedOrder(toPlacedOrder(found));
+          setStatus("success");
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setCheckingReturn(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [checkingReturn, authLoading, customer]);
+
   const update = (field: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
     setForm((prev) => ({ ...prev, [field]: e.target.value }));
 
@@ -118,27 +215,26 @@ export default function CheckoutForm() {
 
       if (!res.ok) throw new Error(t("submitFailed"));
 
-      const order = await res.json();
+      const order: ApiOrder = await res.json();
+
+      if (order.paymentMethod === "online") {
+        const payUrl = buildClickPayUrl(order);
+        if (payUrl) {
+          clearCart();
+          window.location.href = payUrl;
+          return;
+        }
+        // Click isn't configured yet (no NEXT_PUBLIC_CLICK_* env vars) —
+        // fall through to the normal confirmation screen below instead of
+        // sending the customer to a dead link.
+      }
+
       setOrderNumber(order.orderNumber);
       // Read the confirmation straight from what the server actually priced
       // and saved — not from the client's cart snapshot, which can be stale
       // (e.g. a product's price changed between add-to-cart and checkout;
       // the server always re-prices from the DB, so it's the source of truth).
-      setPlacedOrder({
-        items: order.items.map((i: { name: string; price: number; quantity: number }) => ({
-          name: i.name,
-          price: i.price,
-          quantity: i.quantity,
-        })),
-        subtotal: order.subtotal,
-        totalAmount: order.totalAmount,
-        pointsRedeemed: order.pointsRedeemed,
-        pointsEarned: order.pointsEarned,
-        deliveryDate: order.deliveryDate ?? "",
-        deliveryTime: order.deliveryTime ?? "",
-        address: order.customer?.address ?? "",
-        paymentMethod: order.paymentMethod,
-      });
+      setPlacedOrder(toPlacedOrder(order));
       setStatus("success");
       clearCart();
       // The order may have just spent points off this customer's balance —
@@ -199,6 +295,28 @@ export default function CheckoutForm() {
                 <span className="text-graphite">{t("paymentLabel")}</span>
                 <span className="text-right text-ink">{paymentLabels[placedOrder.paymentMethod]}</span>
               </div>
+              {placedOrder.paymentMethod === "online" && (
+                <div className="flex justify-between gap-4">
+                  <span className="text-graphite">{t("paymentStatusLabel")}</span>
+                  <span
+                    className={`text-right ${
+                      placedOrder.paymentStatus === "paid"
+                        ? "text-ink"
+                        : placedOrder.paymentStatus === "failed"
+                          ? "text-hermes-600"
+                          : "text-graphite"
+                    }`}
+                  >
+                    {t(
+                      placedOrder.paymentStatus === "paid"
+                        ? "paymentStatusPaid"
+                        : placedOrder.paymentStatus === "failed"
+                          ? "paymentStatusFailed"
+                          : "paymentStatusPending"
+                    )}
+                  </span>
+                </div>
+              )}
             </div>
 
             {placedOrder.pointsRedeemed > 0 && (
@@ -232,6 +350,10 @@ export default function CheckoutForm() {
         </Link>
       </div>
     );
+  }
+
+  if (checkingReturn) {
+    return <p className="py-20 text-center text-sm text-graphite">{tc("loading")}</p>;
   }
 
   if (items.length === 0) {

@@ -110,9 +110,22 @@ export interface Order {
   pointsRedeemed: number;
   pointsEarned: number;
   status: "new" | "confirmed" | "delivering" | "completed" | "cancelled";
-  paymentMethod: string;
+  paymentMethod: "cash" | "card" | "online";
+  paymentStatus: "pending" | "paid" | "failed";
   createdAt: string;
 }
+
+export const PAYMENT_METHOD_LABELS: Record<Order["paymentMethod"], string> = {
+  cash: "Наличными курьеру",
+  card: "Картой курьеру",
+  online: "Онлайн (Click)",
+};
+
+export const PAYMENT_STATUS_LABELS: Record<Order["paymentStatus"], string> = {
+  pending: "Ожидает оплаты",
+  paid: "Оплачено",
+  failed: "Не прошла",
+};
 
 export const ORDER_STATUS_LABELS: Record<Order["status"], string> = {
   new: "Новый",

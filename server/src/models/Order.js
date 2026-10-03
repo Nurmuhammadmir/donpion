@@ -40,6 +40,19 @@ const orderSchema = new mongoose.Schema(
       enum: ["cash", "card", "online"],
       default: "cash",
     },
+    // Only meaningful when paymentMethod is "online" — tracks the Click Shop
+    // API Prepare/Complete handshake (see routes/click.routes.js). Order
+    // fulfilment (status above) still advances immediately on creation like
+    // cash/card orders; this is purely the payment-confirmation record.
+    paymentStatus: {
+      type: String,
+      enum: ["pending", "paid", "failed"],
+      default: "pending",
+    },
+    // click_trans_id Click assigned this payment at Prepare time — kept for
+    // support/reconciliation lookups in the Click merchant cabinet.
+    clickTransId: { type: String, default: "" },
+    paidAt: { type: Date },
     // Sum of items before any "Пионы" discount — totalAmount (what's
     // actually charged) is subtotal minus pointsRedeemed.
     subtotal: { type: Number, required: true, min: 0 },

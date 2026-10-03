@@ -28,6 +28,7 @@ import addonCategoryRoutes from "./routes/addonCategories.routes.js";
 import occasionRoutes from "./routes/occasions.routes.js";
 import warehouseRoutes from "./routes/warehouse.routes.js";
 import notifyRoutes from "./routes/notify.routes.js";
+import clickRoutes from "./routes/click.routes.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -71,6 +72,7 @@ app.use("/api/addon-categories", addonCategoryRoutes);
 app.use("/api/occasions", occasionRoutes);
 app.use("/api/warehouse", warehouseRoutes);
 app.use("/api/notify", notifyRoutes);
+app.use("/api/payments/click", clickRoutes);
 
 app.use(notFound);
 app.use(errorHandler);
