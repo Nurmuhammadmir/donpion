@@ -5,11 +5,14 @@ dotenv.config();
 // One-off operational script — channels have no equivalent of the private-chat
 // "menu button" (setChatMenuButton only applies to private chats with the bot,
 // see telegramBot.js). The closest thing a channel can show is a pinned post
-// with an inline button. Note: inline `web_app` buttons are rejected on
-// channel posts (Telegram restricts those to private bot chats), so this uses
-// a plain `url` button — it opens the site as a normal link, not as a Mini App.
+// with an inline button. Inline `web_app` buttons are rejected on channel
+// posts (Telegram restricts those to private bot chats), so this uses a plain
+// `url` button instead — but pointed at the bot's Mini App Direct Link
+// (registered once via @BotFather /newapp, short name "hi7h") rather than the
+// bare site URL, so Telegram still opens it as the native Mini App instead of
+// a browser tab.
 const token = process.env.TELEGRAM_BOT_TOKEN;
-const SITE_URL = "https://donpion.uz/";
+const SITE_URL = "https://t.me/DONPIONUZ_BOT/hi7h";
 
 const chatId = process.argv[2];
 if (!token) {
