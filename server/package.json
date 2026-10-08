@@ -8,7 +8,8 @@
     "dev": "node --watch src/server.js",
     "start": "node src/server.js",
     "seed": "node src/seed/seed.js",
-    "seed:destroy": "node src/seed/seed.js --destroy"
+    "seed:destroy": "node src/seed/seed.js --destroy",
+    "post-channel-button": "node src/scripts/postChannelButton.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
