@@ -14,6 +14,14 @@
 `client` и `admin` не подключаются к MongoDB напрямую — оба общаются только
 с `server` по HTTP.
 
+## Второй бренд — Valentino
+
+[`valentino/`](valentino/AGENTS.md) — точно такой же монорепозиторий
+(`server`/`client`/`admin`), но под бренд Valentino (палитра тиффани+белый),
+полностью независимый: своя MongoDB-база (`valentino-shop`, тот же
+mongod-инстанс), свои порты (4200/3001/5174), свой PM2-процесс и
+`ecosystem.config.js`. Детали — в `valentino/AGENTS.md`.
+
 ## Разработка
 
 Серверы (`server`, `client`, `admin`) уже запущены отдельными процессами в

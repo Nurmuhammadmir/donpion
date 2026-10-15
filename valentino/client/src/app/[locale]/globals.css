@@ -1,0 +1,144 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /* Deliberately NOT `scroll-behavior: smooth` globally — that also
+     animates the scroll-position reset Next.js does on every route change
+     and on browser back/forward, so instead of landing on a new page
+     instantly you'd visibly see it scroll there from wherever you'd
+     scrolled to on the previous page. Jarring, not smooth. Anchor links
+     (e.g. the hero's #quiz CTA) just jump now instead of gliding — a fair
+     trade for navigation never doing that again. */
+  body {
+    @apply bg-paper text-ink antialiased tabular-nums;
+    font-feature-settings: "liga" 1, "kern" 1;
+  }
+
+  ::selection {
+    @apply bg-hermes-100 text-ink;
+  }
+
+  h1,
+  h2,
+  h3 {
+    @apply font-display tracking-luxe;
+  }
+}
+
+@layer components {
+  /* Primary CTA — solid Hermès orange, square corners, uppercase. This is
+     the only filled, high-contrast control on the site; everything else
+     stays quiet ink-on-ivory. */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-none
+      border border-transparent bg-hermes-500 px-9 py-4 font-sans text-xs font-semibold uppercase tracking-wide2
+      text-white transition-colors duration-200
+      hover:border-hermes-500 hover:bg-paper hover:text-ink
+      disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  /* Secondary / quiet action — hairline ink border, no fill. Fills navy on
+     hover (not ink) — the one deliberate, contained reuse of the header's
+     navy elsewhere on the site. */
+  .btn-outline {
+    @apply inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-none
+      border border-ink px-9 py-4 font-sans text-xs font-semibold uppercase tracking-wide2
+      text-ink transition-colors duration-200 hover:border-navy hover:bg-navy hover:text-paper
+      disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .hermes-rule {
+    @apply h-px w-full bg-hermes-500 opacity-0 transition-opacity duration-300;
+  }
+
+  .eyebrow {
+    @apply text-xs font-semibold uppercase tracking-wide2 text-hermes-600;
+  }
+
+  /* Horizontal product strips (Luxury Collection, quiz results) — no
+     scroll-snap, so a swipe is pure native momentum scrolling with no
+     snapping interruptions, plus the old -webkit prefix for older iOS. */
+  .scroll-touch {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Hides the scrollbar track/thumb on the same strips — the swipe still
+     scrolls normally, there's just nothing drawn for it. */
+  .no-scrollbar {
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* old Edge/IE */
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, Chromium Edge */
+  }
+
+  .input {
+    @apply w-full rounded-none border border-hairline bg-paper px-4 py-3 text-sm text-ink outline-none transition-colors;
+  }
+
+  .input:focus {
+    @apply border-ink ring-1 ring-ink;
+  }
+
+  /* Page-enter transition — see app/template.tsx, which remounts (and so
+     replays this) on every navigation, giving link clicks a soft fade
+     instead of an instant hard cut. */
+  .page-transition {
+    animation: page-fade-in 0.45s ease-out both;
+  }
+
+  /* Gentle photo reveal — used on the hero image specifically. Pure
+     opacity, no movement, so a full-bleed photo doesn't visibly slide. */
+  .photo-fade-in {
+    animation: photo-fade-in 0.9s ease-out both;
+  }
+
+  /* Replays on any number that just changed (cart line totals, the cart
+     summary total, Pion estimates, tile quantities) — pair with
+     `key={value}` so React remounts the node and the animation restarts
+     instead of the figure just snapping to its new value. */
+  .amount-pulse {
+    animation: amount-pulse 0.35s ease-out both;
+  }
+}
+
+@keyframes page-fade-in {
+  /* Pure opacity — no translateY. A page (or popover) sliding up from
+     below on every navigation read as content flying in from the wrong
+     direction; it should just appear in place. */
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes photo-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes amount-pulse {
+  from {
+    opacity: 0.35;
+    transform: translateY(3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-transition,
+  .photo-fade-in,
+  .amount-pulse {
+    animation: none;
+  }
+}
