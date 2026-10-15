@@ -71,9 +71,12 @@ function toPlacedOrder(order: ApiOrder): PlacedOrder {
 }
 
 // Click's payment-redirect link (docs.click.uz/click-button) — null when the
-// env vars aren't configured yet so the caller can fall back to the normal
-// confirmation screen instead of sending the customer to a broken URL.
-function buildClickPayUrl(order: ApiOrder) {
+// env vars aren't configured yet so the caller can hide the pay button
+// instead of sending the customer to a broken URL. Takes just the two fields
+// it needs rather than a full ApiOrder so it can also be called from the
+// confirmation screen (orderNumber + placedOrder.totalAmount), not only
+// right after creation.
+function buildClickPayUrl(order: { orderNumber: string; totalAmount: number }) {
   if (!CLICK_SERVICE_ID || !CLICK_MERCHANT_ID) return null;
 
   const returnUrl = new URL(window.location.href);
@@ -217,18 +220,11 @@ export default function CheckoutForm() {
 
       const order: ApiOrder = await res.json();
 
-      if (order.paymentMethod === "online") {
-        const payUrl = buildClickPayUrl(order);
-        if (payUrl) {
-          clearCart();
-          window.location.href = payUrl;
-          return;
-        }
-        // Click isn't configured yet (no NEXT_PUBLIC_CLICK_* env vars) —
-        // fall through to the normal confirmation screen below instead of
-        // sending the customer to a dead link.
-      }
-
+      // Online orders get the same "order accepted" confirmation as
+      // cash/card instead of an immediate redirect — paying is a deliberate
+      // next step the customer takes from that screen (see the pay button
+      // below), not something sprung on them before they've even seen the
+      // order was placed.
       setOrderNumber(order.orderNumber);
       // Read the confirmation straight from what the server actually priced
       // and saved — not from the client's cart snapshot, which can be stale
@@ -342,6 +338,22 @@ export default function CheckoutForm() {
                 {t("pointsEarnedNote", { count: new Intl.NumberFormat("en-US").format(placedOrder.pointsEarned) })}
               </p>
             )}
+
+            {placedOrder.paymentMethod === "online" &&
+              placedOrder.paymentStatus !== "paid" &&
+              orderNumber &&
+              (() => {
+                const payUrl = buildClickPayUrl({ orderNumber, totalAmount: placedOrder.totalAmount });
+                if (!payUrl) return null;
+                return (
+                  <div className="mt-8 border-t border-hairline pt-6 text-center">
+                    <p className="text-sm text-graphite">{t("payOnlinePrompt")}</p>
+                    <Button onClick={() => (window.location.href = payUrl)} className="mt-4 w-full">
+                      {t("payWithClickButton")}
+                    </Button>
+                  </div>
+                );
+              })()}
           </div>
         )}
 

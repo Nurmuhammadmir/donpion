@@ -137,6 +137,8 @@
     "paymentStatusPaid": "Оплачено",
     "paymentStatusPending": "Ожидаем подтверждения оплаты",
     "paymentStatusFailed": "Оплата не прошла",
+    "payOnlinePrompt": "Оплатите онлайн, чтобы мы быстрее доставили ваш заказ",
+    "payWithClickButton": "Оплатить через Click",
     "commentLabel": "Комментарий к заказу",
     "commentPlaceholder": "Например: не звонить, только написать",
     "addressLabel": "Адрес доставки",
