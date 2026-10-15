@@ -3,10 +3,10 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -p 3001",
     "build": "next build",
     "postbuild": "cp -r public .next/standalone/public && cp -r .next/static .next/standalone/.next/static",
-    "start": "next start",
+    "start": "next start -p 3001",
     "start:standalone": "node .next/standalone/server.js",
     "lint": "next lint"
   },
