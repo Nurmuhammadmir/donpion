@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import dynamic from "next/dynamic";
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/Link";
@@ -348,9 +349,38 @@ export default function CheckoutForm() {
                 return (
                   <div className="mt-8 border-t border-hairline pt-6 text-center">
                     <p className="text-sm text-graphite">{t("payOnlinePrompt")}</p>
-                    <Button onClick={() => (window.location.href = payUrl)} className="mt-4 w-full">
-                      {t("payWithClickButton")}
-                    </Button>
+                    <div className="mt-4 space-y-3">
+                      <button
+                        type="button"
+                        onClick={() => (window.location.href = payUrl)}
+                        className="block w-full overflow-hidden rounded-xl transition-opacity hover:opacity-90"
+                      >
+                        <Image
+                          src="/pay-button-click.png"
+                          alt={t("payWithClickButton")}
+                          width={1774}
+                          height={887}
+                          className="h-auto w-full"
+                        />
+                      </button>
+
+                      {/* Payme isn't wired up yet — no merchant account or
+                          API details to redirect to. Shown dimmed with a
+                          "coming soon" badge instead of a dead/broken button;
+                          swap in a real onClick once that integration exists. */}
+                      <div className="relative w-full overflow-hidden rounded-xl opacity-60">
+                        <Image
+                          src="/pay-button-payme.png"
+                          alt={t("payWithPaymeButton")}
+                          width={1774}
+                          height={887}
+                          className="h-auto w-full"
+                        />
+                        <span className="absolute right-3 top-3 rounded-full bg-ink/80 px-3 py-1 text-[10px] font-medium uppercase tracking-wide2 text-white">
+                          {t("paymeComingSoon")}
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 );
               })()}

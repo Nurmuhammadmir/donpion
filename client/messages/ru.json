@@ -139,6 +139,8 @@
     "paymentStatusFailed": "Оплата не прошла",
     "payOnlinePrompt": "Оплатите онлайн, чтобы мы быстрее доставили ваш заказ",
     "payWithClickButton": "Оплатить через Click",
+    "payWithPaymeButton": "Оплатить через Payme",
+    "paymeComingSoon": "Скоро",
     "commentLabel": "Комментарий к заказу",
     "commentPlaceholder": "Например: не звонить, только написать",
     "addressLabel": "Адрес доставки",
