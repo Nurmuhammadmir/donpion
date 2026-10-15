@@ -5,6 +5,11 @@ import type { CartLine } from "@/types";
 
 interface CartContextValue {
   items: CartLine[];
+  // False for exactly one render on mount, while the localStorage read below
+  // is still pending — `items` starts at [] either way, so a consumer that
+  // treats `items.length === 0` as "cart is empty" without checking this
+  // first briefly shows the empty state even when storage has real items.
+  hydrated: boolean;
   addItem: (line: Omit<CartLine, "quantity">, quantity?: number) => void;
   removeItem: (productId: string) => void;
   updateQuantity: (productId: string, quantity: number) => void;
@@ -73,7 +78,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <CartContext.Provider
-      value={{ items, addItem, removeItem, updateQuantity, clearCart, totalCount, totalAmount }}
+      value={{ items, hydrated, addItem, removeItem, updateQuantity, clearCart, totalCount, totalAmount }}
     >
       {children}
     </CartContext.Provider>

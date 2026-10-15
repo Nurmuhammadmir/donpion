@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/Link";
 import { useCustomerAuth } from "@/components/CustomerAuthProvider";
 import { formatUZS } from "@/lib/format";
+import { buildClickPayUrl, buildPaymePayUrl } from "@/lib/payments";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4100/api";
 const ACTIVE_STATUSES = ["new", "confirmed", "delivering"];
@@ -23,6 +25,8 @@ interface OrderSummary {
   totalAmount: number;
   status: string;
   createdAt: string;
+  paymentMethod: "cash" | "card" | "online";
+  paymentStatus: "pending" | "paid" | "failed";
 }
 
 // Shown below the "cart is empty" message so a returning customer still
@@ -34,6 +38,7 @@ export default function CartCurrentOrder() {
   const t = useTranslations("Cart");
   const tc = useTranslations("Common");
   const th = useTranslations("OrderHistory");
+  const tCheckout = useTranslations("Checkout");
   const locale = useLocale();
 
   useEffect(() => {
@@ -98,6 +103,40 @@ export default function CartCurrentOrder() {
         <span className="text-graphite">{tc("total")}</span>
         <span className="font-display text-base text-ink/85">{formatUZS(order.totalAmount, locale)}</span>
       </div>
+
+      {order.paymentMethod === "online" &&
+        order.paymentStatus !== "paid" &&
+        order.status !== "cancelled" &&
+        (() => {
+          const clickUrl = buildClickPayUrl({ orderNumber: order.orderNumber, totalAmount: order.totalAmount }, locale);
+          const paymeUrl = buildPaymePayUrl({ orderNumber: order.orderNumber, totalAmount: order.totalAmount }, locale);
+          if (!clickUrl && !paymeUrl) return null;
+          return (
+            <div className="mt-4 border-t border-hairline pt-4 text-center">
+              <p className="text-xs text-graphite">{tCheckout("payOnlinePrompt")}</p>
+              <div className="mt-3 space-y-2">
+                {clickUrl && (
+                  <button
+                    type="button"
+                    onClick={() => (window.location.href = clickUrl)}
+                    className="block w-full overflow-hidden rounded-xl transition-opacity hover:opacity-90"
+                  >
+                    <Image src="/pay-button-click.png" alt={tCheckout("payWithClickButton")} width={1774} height={887} className="h-auto w-full" />
+                  </button>
+                )}
+                {paymeUrl && (
+                  <button
+                    type="button"
+                    onClick={() => (window.location.href = paymeUrl)}
+                    className="block w-full overflow-hidden rounded-xl transition-opacity hover:opacity-90"
+                  >
+                    <Image src="/pay-button-payme.png" alt={tCheckout("payWithPaymeButton")} width={1774} height={887} className="h-auto w-full" />
+                  </button>
+                )}
+              </div>
+            </div>
+          );
+        })()}
 
       <Link
         href="/account"
