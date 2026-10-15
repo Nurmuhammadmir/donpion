@@ -12,6 +12,8 @@ import DeliverySlotPicker from "@/components/DeliverySlotPicker";
 import type { PickedLocation } from "@/components/AddressMapPicker";
 import PhoneInput from "@/components/PhoneInput";
 import { formatUZS } from "@/lib/format";
+import { getBranches } from "@/lib/api";
+import type { Branch } from "@/types";
 import Button from "@/components/Button";
 
 // mapbox-gl is a large (~200KB+ gzipped) client-only library — deferring it
@@ -35,9 +37,11 @@ interface PlacedOrder {
   totalAmount: number;
   pointsRedeemed: number;
   pointsEarned: number;
+  fulfillmentMethod: "delivery" | "pickup";
   deliveryDate: string;
   deliveryTime: string;
   address: string;
+  pickupBranch?: { name: string; address: string };
   paymentMethod: "cash" | "card" | "online";
   paymentStatus: "pending" | "paid" | "failed";
 }
@@ -49,9 +53,11 @@ interface ApiOrder {
   totalAmount: number;
   pointsRedeemed: number;
   pointsEarned: number;
+  fulfillmentMethod?: "delivery" | "pickup";
   deliveryDate?: string;
   deliveryTime?: string;
   customer?: { address?: string };
+  pickupBranch?: { name?: string; address?: string };
   paymentMethod: "cash" | "card" | "online";
   paymentStatus: "pending" | "paid" | "failed";
 }
@@ -63,9 +69,14 @@ function toPlacedOrder(order: ApiOrder): PlacedOrder {
     totalAmount: order.totalAmount,
     pointsRedeemed: order.pointsRedeemed,
     pointsEarned: order.pointsEarned,
+    fulfillmentMethod: order.fulfillmentMethod ?? "delivery",
     deliveryDate: order.deliveryDate ?? "",
     deliveryTime: order.deliveryTime ?? "",
     address: order.customer?.address ?? "",
+    pickupBranch:
+      order.pickupBranch?.name && order.pickupBranch?.address
+        ? { name: order.pickupBranch.name, address: order.pickupBranch.address }
+        : undefined,
     paymentMethod: order.paymentMethod,
     paymentStatus: order.paymentStatus,
   };
@@ -133,10 +144,21 @@ export default function CheckoutForm() {
     name: "",
     phone: "+998",
     comment: "",
+    fulfillmentMethod: "delivery" as "delivery" | "pickup",
+    branchId: "",
     deliveryDate: "",
     deliveryTime: "",
-    paymentMethod: "cash" as "cash" | "card" | "online",
+    // Delivery is online-only, pickup is cash/card in person — these two
+    // defaults match what each fulfillment method forces/offers below.
+    paymentMethod: "online" as "cash" | "card" | "online",
   });
+
+  const [branches, setBranches] = useState<Branch[]>([]);
+  useEffect(() => {
+    getBranches()
+      .then(setBranches)
+      .catch(() => setBranches([]));
+  }, []);
 
   // Registration happens after these hooks are declared but before the form
   // itself can render (see the !customer branch below), so name/phone only
@@ -209,6 +231,8 @@ export default function CheckoutForm() {
             address: location?.address ?? "",
           },
           location: location ? { lat: location.lat, lng: location.lng } : undefined,
+          fulfillmentMethod: form.fulfillmentMethod,
+          branchId: form.fulfillmentMethod === "pickup" ? form.branchId : undefined,
           deliveryDate: form.deliveryDate,
           deliveryTime: form.deliveryTime,
           paymentMethod: form.paymentMethod,
@@ -275,18 +299,31 @@ export default function CheckoutForm() {
             <div className="mt-6 space-y-2 border-t border-hairline pt-6 text-sm">
               {placedOrder.deliveryDate && (
                 <div className="flex justify-between gap-4">
-                  <span className="text-graphite">{t("deliveryLabel")}</span>
+                  <span className="text-graphite">
+                    {t(placedOrder.fulfillmentMethod === "pickup" ? "pickupTimeLabel" : "deliveryLabel")}
+                  </span>
                   <span className="text-right text-ink">
                     {placedOrder.deliveryDate}
                     {placedOrder.deliveryTime ? `, ${placedOrder.deliveryTime}` : ""}
                   </span>
                 </div>
               )}
-              {placedOrder.address && (
-                <div className="flex justify-between gap-4">
-                  <span className="text-graphite">{t("addressLabel")}</span>
-                  <span className="text-right text-ink">{placedOrder.address}</span>
-                </div>
+              {placedOrder.fulfillmentMethod === "pickup" ? (
+                placedOrder.pickupBranch && (
+                  <div className="flex justify-between gap-4">
+                    <span className="text-graphite">{t("pickupFromLabel")}</span>
+                    <span className="text-right text-ink">
+                      {placedOrder.pickupBranch.name}, {placedOrder.pickupBranch.address}
+                    </span>
+                  </div>
+                )
+              ) : (
+                placedOrder.address && (
+                  <div className="flex justify-between gap-4">
+                    <span className="text-graphite">{t("addressLabel")}</span>
+                    <span className="text-right text-ink">{placedOrder.address}</span>
+                  </div>
+                )
               )}
               <div className="flex justify-between gap-4">
                 <span className="text-graphite">{t("paymentLabel")}</span>
@@ -429,36 +466,86 @@ export default function CheckoutForm() {
           </Field>
         </div>
 
+        <Field label={t("fulfillmentLabel")}>
+          <div className="grid grid-cols-2 gap-2">
+            {(["delivery", "pickup"] as const).map((method) => (
+              <button
+                key={method}
+                type="button"
+                onClick={() =>
+                  setForm((prev) => ({
+                    ...prev,
+                    fulfillmentMethod: method,
+                    // Which payment methods are even offered depends on
+                    // fulfillment (see the payment Field below) — reset to
+                    // that method's default so the two can't fall out of sync.
+                    paymentMethod: method === "delivery" ? "online" : "cash",
+                  }))
+                }
+                className={`border px-2 py-3 text-center text-sm transition-colors ${
+                  form.fulfillmentMethod === method
+                    ? "border-hermes-500 bg-hermes-500/25 text-white [text-shadow:0_1px_4px_rgba(0,0,0,0.7)]"
+                    : "border-hairline text-graphite hover:border-ink hover:text-ink"
+                }`}
+              >
+                {t(method === "delivery" ? "fulfillmentDelivery" : "fulfillmentPickup")}
+              </button>
+            ))}
+          </div>
+        </Field>
+
         <DeliverySlotPicker
           date={form.deliveryDate}
           time={form.deliveryTime}
           onChange={({ date, time }) => setForm((prev) => ({ ...prev, deliveryDate: date, deliveryTime: time }))}
         />
 
-        <div>
-          <span className="mb-2 block text-xs font-medium uppercase tracking-wide2 text-graphite">
-            {t("addressLabel")}
-          </span>
-          <AddressMapPicker value={location} onChange={setLocation} />
-        </div>
+        {form.fulfillmentMethod === "delivery" ? (
+          <div>
+            <span className="mb-2 block text-xs font-medium uppercase tracking-wide2 text-graphite">
+              {t("addressLabel")}
+            </span>
+            <AddressMapPicker value={location} onChange={setLocation} />
+          </div>
+        ) : (
+          <Field label={t("pickupBranchLabel")} required>
+            <select
+              required
+              value={form.branchId}
+              onChange={(e) => setForm((prev) => ({ ...prev, branchId: e.target.value }))}
+              className="input"
+            >
+              <option value="">{t("pickupBranchPlaceholder")}</option>
+              {branches.map((b) => (
+                <option key={b._id} value={b._id}>
+                  {b.name} — {b.address}
+                </option>
+              ))}
+            </select>
+          </Field>
+        )}
 
         <Field label={t("paymentLabel")}>
-          <div className="grid grid-cols-3 gap-2">
-            {(["cash", "card", "online"] as const).map((method) => (
-              <button
-                key={method}
-                type="button"
-                onClick={() => setForm((prev) => ({ ...prev, paymentMethod: method }))}
-                className={`border px-2 py-3 text-center text-sm transition-colors ${
-                  form.paymentMethod === method
-                    ? "border-hermes-500 bg-hermes-500/25 text-white [text-shadow:0_1px_4px_rgba(0,0,0,0.7)]"
-                    : "border-hairline text-graphite hover:border-ink hover:text-ink"
-                }`}
-              >
-                {t(method === "cash" ? "paymentCash" : method === "card" ? "paymentCard" : "paymentOnline")}
-              </button>
-            ))}
-          </div>
+          {form.fulfillmentMethod === "delivery" ? (
+            <p className="text-sm text-graphite">{t("onlinePaymentRequiredNote")}</p>
+          ) : (
+            <div className="grid grid-cols-2 gap-2">
+              {(["cash", "card"] as const).map((method) => (
+                <button
+                  key={method}
+                  type="button"
+                  onClick={() => setForm((prev) => ({ ...prev, paymentMethod: method }))}
+                  className={`border px-2 py-3 text-center text-sm transition-colors ${
+                    form.paymentMethod === method
+                      ? "border-hermes-500 bg-hermes-500/25 text-white [text-shadow:0_1px_4px_rgba(0,0,0,0.7)]"
+                      : "border-hairline text-graphite hover:border-ink hover:text-ink"
+                  }`}
+                >
+                  {t(method === "cash" ? "paymentCash" : "paymentCard")}
+                </button>
+              ))}
+            </div>
+          )}
         </Field>
 
         <Field label={t("commentLabel")}>

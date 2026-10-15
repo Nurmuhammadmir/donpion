@@ -97,16 +97,26 @@ export default function Orders() {
                     <td colSpan={7} className="bg-canvas">
                       <div className="grid gap-4 py-2 sm:grid-cols-2">
                         <div>
-                          <p className="text-xs font-medium uppercase tracking-wide text-graphite">Доставка</p>
+                          <p className="text-xs font-medium uppercase tracking-wide text-graphite">
+                            {order.fulfillmentMethod === "pickup" ? "Самовывоз" : "Доставка"}
+                          </p>
                           {(order.deliveryDate || order.deliveryTime) && (
                             <p className="mt-1 text-sm text-ink">
                               {order.deliveryDate} {order.deliveryTime}
                             </p>
                           )}
-                          {order.customer.address && (
-                            <p className="mt-1 text-sm text-ink">
-                              {order.customer.city}, {order.customer.address}
-                            </p>
+                          {order.fulfillmentMethod === "pickup" ? (
+                            order.pickupBranch?.name && (
+                              <p className="mt-1 text-sm text-ink">
+                                {order.pickupBranch.name}, {order.pickupBranch.address}
+                              </p>
+                            )
+                          ) : (
+                            order.customer.address && (
+                              <p className="mt-1 text-sm text-ink">
+                                {order.customer.city}, {order.customer.address}
+                              </p>
+                            )
                           )}
                           {order.customer.comment && (
                             <p className="mt-1 text-sm text-graphite">Комментарий: {order.customer.comment}</p>

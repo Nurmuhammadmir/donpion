@@ -103,6 +103,8 @@ export interface Order {
   };
   items: OrderItem[];
   location?: { lat: number; lng: number };
+  fulfillmentMethod?: "delivery" | "pickup";
+  pickupBranch?: { branchId?: string; name?: string; address?: string };
   deliveryDate?: string;
   deliveryTime?: string;
   subtotal: number;
@@ -116,8 +118,8 @@ export interface Order {
 }
 
 export const PAYMENT_METHOD_LABELS: Record<Order["paymentMethod"], string> = {
-  cash: "Наличными курьеру",
-  card: "Картой курьеру",
+  cash: "Наличными",
+  card: "Картой",
   online: "Онлайн (Click)",
 };
 

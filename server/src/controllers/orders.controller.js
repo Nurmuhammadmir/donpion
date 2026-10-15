@@ -4,9 +4,10 @@ import Product from "../models/Product.js";
 import Customer from "../models/Customer.js";
 import SiteSettings from "../models/SiteSettings.js";
 import StockEntry from "../models/StockEntry.js";
+import Branch from "../models/Branch.js";
 import { sendTelegramMessage } from "../utils/telegramBot.js";
 
-const PAYMENT_METHOD_LABELS = { cash: "Наличными курьеру", card: "Картой курьеру", online: "Онлайн" };
+const PAYMENT_METHOD_LABELS = { cash: "Наличными", card: "Картой", online: "Онлайн" };
 
 function buildOrderAlertText(order) {
   const itemsText = order.items.map((i) => `• ${i.name} × ${i.quantity} — ${(i.price * i.quantity).toLocaleString("ru-RU")} сум`).join("\n");
@@ -16,11 +17,17 @@ function buildOrderAlertText(order) {
     `Клиент: ${order.customer.name}`,
     `Телефон: ${order.customer.phone}`,
   ];
-  if (order.customer.address) lines.push(`Адрес: ${order.customer.address}`);
-  if (order.location?.lat && order.location?.lng) {
-    lines.push(`Карта: https://www.google.com/maps?q=${order.location.lat},${order.location.lng}`);
+  if (order.fulfillmentMethod === "pickup") {
+    if (order.pickupBranch?.name) lines.push(`Самовывоз: ${order.pickupBranch.name} (${order.pickupBranch.address})`);
+  } else {
+    if (order.customer.address) lines.push(`Адрес: ${order.customer.address}`);
+    if (order.location?.lat && order.location?.lng) {
+      lines.push(`Карта: https://www.google.com/maps?q=${order.location.lat},${order.location.lng}`);
+    }
   }
-  if (order.deliveryDate) lines.push(`Доставка: ${order.deliveryDate}${order.deliveryTime ? `, ${order.deliveryTime}` : ""}`);
+  if (order.deliveryDate) {
+    lines.push(`${order.fulfillmentMethod === "pickup" ? "Время самовывоза" : "Доставка"}: ${order.deliveryDate}${order.deliveryTime ? `, ${order.deliveryTime}` : ""}`);
+  }
   lines.push(`Оплата: ${PAYMENT_METHOD_LABELS[order.paymentMethod] || order.paymentMethod}`);
   lines.push("", itemsText, "");
   lines.push(`Сумма заказа: ${order.subtotal.toLocaleString("ru-RU")} сум`);
@@ -50,11 +57,31 @@ async function createOrderWithUniqueNumber(data, attempts = 5) {
 
 // POST /api/orders  (public — created from the checkout page)
 export const createOrder = asyncHandler(async (req, res) => {
-  const { customer, items, deliveryDate, deliveryTime, paymentMethod, location, redeemPoints } = req.body;
+  const { customer, items, deliveryDate, deliveryTime, paymentMethod, location, redeemPoints, branchId } = req.body;
+  const fulfillmentMethod = req.body.fulfillmentMethod === "pickup" ? "pickup" : "delivery";
 
   if (!items || items.length === 0) {
     res.status(400);
     throw new Error("Order must contain at least one item");
+  }
+
+  // Which payment methods are even possible is dictated by fulfillment, not
+  // customer choice — no courier ever collects cash/card, so delivery is
+  // online-only; pickup is paid in person, so online doesn't apply there.
+  // Enforced here rather than trusted from the client, same reason totals
+  // are re-priced server-side below instead of trusting the cart payload.
+  let pickupBranch;
+  let effectivePaymentMethod;
+  if (fulfillmentMethod === "pickup") {
+    effectivePaymentMethod = paymentMethod === "card" ? "card" : "cash";
+    const branch = branchId ? await Branch.findOne({ _id: branchId, isActive: true }) : null;
+    if (!branch) {
+      res.status(400);
+      throw new Error("Выберите пункт самовывоза");
+    }
+    pickupBranch = { branchId: branch._id, name: branch.name, address: branch.address };
+  } else {
+    effectivePaymentMethod = "online";
   }
 
   const cleanLocation =
@@ -132,9 +159,11 @@ export const createOrder = asyncHandler(async (req, res) => {
       customer,
       location: cleanLocation,
       items: orderItems,
+      fulfillmentMethod,
+      pickupBranch,
       deliveryDate,
       deliveryTime,
-      paymentMethod,
+      paymentMethod: effectivePaymentMethod,
       subtotal,
       pointsRedeemed,
       totalAmount,

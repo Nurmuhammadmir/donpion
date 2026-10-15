@@ -33,8 +33,28 @@ const orderSchema = new mongoose.Schema(
       lng: { type: Number },
     },
     items: { type: [orderItemSchema], required: true, validate: (v) => v.length > 0 },
+    // How the customer gets the flowers — drives which payment methods are
+    // even allowed (see orders.controller.js): "delivery" is online-only
+    // (no courier ever collects cash/card), "pickup" is cash/card paid in
+    // person at the branch below.
+    fulfillmentMethod: {
+      type: String,
+      enum: ["delivery", "pickup"],
+      default: "delivery",
+    },
     deliveryDate: { type: String, default: "" },
     deliveryTime: { type: String, default: "" },
+    // Only set when fulfillmentMethod is "pickup" — snapshot of the Branch
+    // at order time (name/address), same denormalization reason as
+    // orderItemSchema above: still reads correctly if the branch is later
+    // renamed, moved, or deactivated.
+    pickupBranch: {
+      branchId: { type: mongoose.Schema.Types.ObjectId, ref: "Branch" },
+      name: { type: String },
+      address: { type: String },
+    },
+    // "cash"/"card" now mean paid in person at pickup; "online" means paid
+    // through Click before a delivery order ships — see fulfillmentMethod.
     paymentMethod: {
       type: String,
       enum: ["cash", "card", "online"],
