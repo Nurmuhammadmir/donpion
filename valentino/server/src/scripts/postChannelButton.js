@@ -8,11 +8,12 @@ dotenv.config();
 // with an inline button. Inline `web_app` buttons are rejected on channel
 // posts (Telegram restricts those to private bot chats), so this uses a plain
 // `url` button instead — but pointed at the bot's Mini App Direct Link
-// (registered once via @BotFather /newapp, short name "hi7h") rather than the
-// bare site URL, so Telegram still opens it as the native Mini App instead of
-// a browser tab.
+// (register once via @BotFather /newapp on @valentinoflowersbot, then swap
+// REPLACE_MINIAPP_SHORTNAME below for the short name it gives you) rather
+// than the bare site URL, so Telegram still opens it as the native Mini App
+// instead of a browser tab.
 const token = process.env.TELEGRAM_BOT_TOKEN;
-const SITE_URL = "https://t.me/VALENTINOUZ_BOT/REPLACE_MINIAPP_SHORTNAME";
+const SITE_URL = "https://t.me/valentinoflowersbot/REPLACE_MINIAPP_SHORTNAME";
 
 const chatId = process.argv[2];
 if (!token) {
