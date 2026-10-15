@@ -6,8 +6,16 @@ import { sendTelegramMessage } from "../utils/telegramBot.js";
 // check below IS the auth) and always expects HTTP 200 with this JSON shape,
 // never a 4xx/5xx, so every branch replies through this helper instead of
 // throwing to the regular errorHandler.
+//
+// Click's integration group explicitly asks merchants to log requests/
+// responses at the Prepare/Complete endpoints so payment issues can be
+// diagnosed from the merchant side instead of only via Click support — the
+// body has no card data (Shop API never sends a PAN/CVV to the merchant),
+// just transaction ids/amounts, so logging it in full is safe.
 function reply(res, extra, error, note) {
-  res.json({ ...extra, error, error_note: note ?? CLICK_ERROR_NOTE[error] });
+  const payload = { ...extra, error, error_note: note ?? CLICK_ERROR_NOTE[error] };
+  console.log("[click] →", JSON.stringify(payload));
+  res.json(payload);
 }
 
 const REQUIRED_FIELDS = ["click_trans_id", "service_id", "merchant_trans_id", "amount", "action", "sign_time", "sign_string"];
@@ -22,6 +30,7 @@ function isMalformed(body, { requirePrepareId }) {
 export const clickPrepare = async (req, res) => {
   try {
     const b = req.body;
+    console.log("[click] ← prepare", JSON.stringify(b));
     if (isMalformed(b, { requirePrepareId: false })) return reply(res, {}, CLICK_ERROR.BAD_REQUEST);
 
     const base = { click_trans_id: b.click_trans_id, merchant_trans_id: b.merchant_trans_id };
@@ -62,6 +71,7 @@ export const clickPrepare = async (req, res) => {
 export const clickComplete = async (req, res) => {
   try {
     const b = req.body;
+    console.log("[click] ← complete", JSON.stringify(b));
     if (isMalformed(b, { requirePrepareId: true })) return reply(res, {}, CLICK_ERROR.BAD_REQUEST);
 
     const base = {
