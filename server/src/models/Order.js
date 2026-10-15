@@ -72,6 +72,20 @@ const orderSchema = new mongoose.Schema(
     // click_trans_id Click assigned this payment at Prepare time — kept for
     // support/reconciliation lookups in the Click merchant cabinet.
     clickTransId: { type: String, default: "" },
+    // Payme's own transaction id (params.id on every Merchant API call) —
+    // every call after CreateTransaction identifies the transaction by this,
+    // not by orderNumber, so it's the lookup key for Perform/Cancel/Check
+    // (see controllers/payme.controller.js). paymentStatus/paidAt above are
+    // shared with Click; these four are Payme-specific state Payme's own
+    // protocol requires the merchant to echo back consistently on retries.
+    paymeTransId: { type: String, default: "" },
+    paymeCreateTime: { type: Number },
+    paymeCancelTime: { type: Number },
+    paymeCancelReason: { type: Number },
+    // Which Payme state (-1 vs -2) a cancelled transaction keeps reporting —
+    // paymentStatus alone can't tell "cancelled before payment" from
+    // "cancelled after payment" once both have become "failed".
+    paymeCancelledAfterPaid: { type: Boolean, default: false },
     paidAt: { type: Date },
     // Sum of items before any "Пионы" discount — totalAmount (what's
     // actually charged) is subtotal minus pointsRedeemed.

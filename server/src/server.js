@@ -29,6 +29,7 @@ import occasionRoutes from "./routes/occasions.routes.js";
 import warehouseRoutes from "./routes/warehouse.routes.js";
 import notifyRoutes from "./routes/notify.routes.js";
 import clickRoutes from "./routes/click.routes.js";
+import paymeRoutes from "./routes/payme.routes.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -73,6 +74,7 @@ app.use("/api/occasions", occasionRoutes);
 app.use("/api/warehouse", warehouseRoutes);
 app.use("/api/notify", notifyRoutes);
 app.use("/api/payments/click", clickRoutes);
+app.use("/api/payments/payme", paymeRoutes);
 
 app.use(notFound);
 app.use(errorHandler);

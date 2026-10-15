@@ -28,6 +28,7 @@ const AddressMapPicker = dynamic(() => import("@/components/AddressMapPicker"), 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4100/api";
 const CLICK_SERVICE_ID = process.env.NEXT_PUBLIC_CLICK_SERVICE_ID;
 const CLICK_MERCHANT_ID = process.env.NEXT_PUBLIC_CLICK_MERCHANT_ID;
+const PAYME_MERCHANT_ID = process.env.NEXT_PUBLIC_PAYME_MERCHANT_ID;
 
 type Status = "idle" | "submitting" | "success" | "error";
 
@@ -102,6 +103,33 @@ function buildClickPayUrl(order: { orderNumber: string; totalAmount: number }) {
   url.searchParams.set("transaction_param", order.orderNumber);
   url.searchParams.set("return_url", returnUrl.toString());
   return url.toString();
+}
+
+// Payme's checkout link (docs.help.paycom.uz/initsializatsiya-platezhey) —
+// not a query string: params are joined as "key=value;key=value", then the
+// whole string is base64-encoded and appended to the checkout host. Each
+// value is URI-encoded first — the docs' own examples use plain ids/amounts
+// that never exercise this, but the return URL below contains "=" and ":"
+// which would otherwise collide with the ";"/"=" the format itself uses as
+// separators.
+function buildPaymePayUrl(order: { orderNumber: string; totalAmount: number }) {
+  if (!PAYME_MERCHANT_ID) return null;
+
+  const returnUrl = new URL(window.location.href);
+  returnUrl.search = "";
+  returnUrl.searchParams.set("order", order.orderNumber);
+
+  const amountTiyin = Math.round(order.totalAmount * 100);
+  // "ac.order_id" must match PAYME_ACCOUNT_FIELD in server/src/utils/payme.js
+  // and the Account parameter name configured in the Payme cabinet.
+  const params = [
+    `m=${PAYME_MERCHANT_ID}`,
+    `ac.order_id=${encodeURIComponent(order.orderNumber)}`,
+    `a=${amountTiyin}`,
+    `c=${encodeURIComponent(returnUrl.toString())}`,
+  ].join(";");
+
+  return `https://checkout.paycom.uz/${window.btoa(params)}`;
 }
 
 export default function CheckoutForm() {
@@ -381,42 +409,43 @@ export default function CheckoutForm() {
               placedOrder.paymentStatus !== "paid" &&
               orderNumber &&
               (() => {
-                const payUrl = buildClickPayUrl({ orderNumber, totalAmount: placedOrder.totalAmount });
-                if (!payUrl) return null;
+                const clickUrl = buildClickPayUrl({ orderNumber, totalAmount: placedOrder.totalAmount });
+                const paymeUrl = buildPaymePayUrl({ orderNumber, totalAmount: placedOrder.totalAmount });
+                if (!clickUrl && !paymeUrl) return null;
                 return (
                   <div className="mt-8 border-t border-hairline pt-6 text-center">
                     <p className="text-sm text-graphite">{t("payOnlinePrompt")}</p>
                     <div className="mt-4 space-y-3">
-                      <button
-                        type="button"
-                        onClick={() => (window.location.href = payUrl)}
-                        className="block w-full overflow-hidden rounded-xl transition-opacity hover:opacity-90"
-                      >
-                        <Image
-                          src="/pay-button-click.png"
-                          alt={t("payWithClickButton")}
-                          width={1774}
-                          height={887}
-                          className="h-auto w-full"
-                        />
-                      </button>
-
-                      {/* Payme isn't wired up yet — no merchant account or
-                          API details to redirect to. Shown dimmed with a
-                          "coming soon" badge instead of a dead/broken button;
-                          swap in a real onClick once that integration exists. */}
-                      <div className="relative w-full overflow-hidden rounded-xl opacity-60">
-                        <Image
-                          src="/pay-button-payme.png"
-                          alt={t("payWithPaymeButton")}
-                          width={1774}
-                          height={887}
-                          className="h-auto w-full"
-                        />
-                        <span className="absolute right-3 top-3 rounded-full bg-ink/80 px-3 py-1 text-[10px] font-medium uppercase tracking-wide2 text-white">
-                          {t("paymeComingSoon")}
-                        </span>
-                      </div>
+                      {clickUrl && (
+                        <button
+                          type="button"
+                          onClick={() => (window.location.href = clickUrl)}
+                          className="block w-full overflow-hidden rounded-xl transition-opacity hover:opacity-90"
+                        >
+                          <Image
+                            src="/pay-button-click.png"
+                            alt={t("payWithClickButton")}
+                            width={1774}
+                            height={887}
+                            className="h-auto w-full"
+                          />
+                        </button>
+                      )}
+                      {paymeUrl && (
+                        <button
+                          type="button"
+                          onClick={() => (window.location.href = paymeUrl)}
+                          className="block w-full overflow-hidden rounded-xl transition-opacity hover:opacity-90"
+                        >
+                          <Image
+                            src="/pay-button-payme.png"
+                            alt={t("payWithPaymeButton")}
+                            width={1774}
+                            height={887}
+                            className="h-auto w-full"
+                          />
+                        </button>
+                      )}
                     </div>
                   </div>
                 );
