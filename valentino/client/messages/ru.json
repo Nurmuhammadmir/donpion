@@ -7,8 +7,7 @@
   "Nav": {
     "account": "Аккаунт",
     "menu": "Меню",
-    "phone": "+998 50 204-13-31",
-    "cashbackBanner": "Кешбек <b>{percent}%</b> с каждой покупки"
+    "phone": "+998 50 204-13-31"
   },
   "Footer": {
     "tagline": "Букеты и комнатные растения с доставкой по Ташкенту. Собираем в день заказа.",
@@ -70,8 +69,6 @@
     "sourcingHollandText": "Тюльпаны и цветочный аукцион Aalsmeer",
     "sourcingKenyaTitle": "Кения",
     "sourcingKenyaText": "Розы премиум-класса круглый год",
-    "sourcingIsraelTitle": "Израиль",
-    "sourcingIsraelText": "Сезонные и редкие сорта",
     "chocolateEyebrow": "Сладкое дополнение",
     "chocolateHeading": "Клубника в шоколаде",
     "chocolateEmpty": "Клубника пока готовится — загляните чуть позже."
@@ -96,11 +93,6 @@
     "loading": "Загружаем…",
     "empty": "В этой категории пока пусто — загляните чуть позже.",
     "reset": "Выбрать другую категорию"
-  },
-  "Pions": {
-    "earn": "+{count} Пионов",
-    "infoAria": "Что такое Пионы?",
-    "infoText": "Пионы — бонусные баллы кешбека. Начисляются на баланс после оплаты заказа, а в следующий раз ими можно оплатить часть покупки: 1 Пион = 1 сум скидки."
   },
   "Product": {
     "compositionHeading": "Состав",
@@ -142,10 +134,6 @@
     "addressLabel": "Адрес доставки",
     "deliveryLabel": "Дата и время доставки",
     "orderSummaryTitle": "Ваш заказ",
-    "subtotalLabel": "Сумма заказа",
-    "usePointsLabel": "Списать Пионы (доступно {count})",
-    "pointsDiscountLabel": "Скидка Пионами",
-    "pointsEarnedNote": "{count} Пионов поступят на баланс после оплаты заказа",
     "submitting": "Оформляем…",
     "submit": "Подтвердить заказ",
     "genericError": "Ошибка оформления заказа",
@@ -163,10 +151,7 @@
     "title": "Аккаунт",
     "profileEyebrow": "Ваш профиль",
     "logout": "Выйти",
-    "logoutConfirm": "Вы уверены, что хотите выйти?",
-    "pointsBalance": "Баланс Пионов",
-    "pointsNote": "1 Пион = 1 сум скидки на следующий заказ",
-    "cashbackNote": "Кешбек {percent}% Пионами с каждой покупки"
+    "logoutConfirm": "Вы уверены, что хотите выйти?"
   },
   "OrderHistory": {
     "title": "История заказов",

@@ -16,20 +16,12 @@ export const getSettings = asyncHandler(async (req, res) => {
 
 // PUT /api/settings  (admin)
 export const updateSettings = asyncHandler(async (req, res) => {
-  const { heroImage, heroImageTablet, heroImageMobile, cashbackPercent, lowStockThreshold } = req.body;
+  const { heroImage, heroImageTablet, heroImageMobile, lowStockThreshold } = req.body;
 
   const update = {};
   if (heroImage !== undefined) update.heroImage = heroImage;
   if (heroImageTablet !== undefined) update.heroImageTablet = heroImageTablet;
   if (heroImageMobile !== undefined) update.heroImageMobile = heroImageMobile;
-  if (cashbackPercent !== undefined) {
-    const percent = Number(cashbackPercent);
-    if (!Number.isFinite(percent) || percent < 0 || percent > 100) {
-      res.status(400);
-      throw new Error("Кешбек должен быть от 0 до 100");
-    }
-    update.cashbackPercent = percent;
-  }
   if (lowStockThreshold !== undefined) {
     const threshold = Number(lowStockThreshold);
     if (!Number.isFinite(threshold) || threshold < 0) {

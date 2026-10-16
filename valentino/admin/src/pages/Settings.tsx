@@ -10,7 +10,6 @@ type HeroFields = {
 
 export default function Settings() {
   const [hero, setHero] = useState<HeroFields>({ heroImage: "", heroImageTablet: "", heroImageMobile: "" });
-  const [cashbackPercent, setCashbackPercent] = useState("10");
   const [lowStockThreshold, setLowStockThreshold] = useState("5");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -25,7 +24,6 @@ export default function Settings() {
           heroImageTablet: s.heroImageTablet ?? "",
           heroImageMobile: s.heroImageMobile ?? "",
         });
-        setCashbackPercent(String(s.cashbackPercent ?? 0));
         setLowStockThreshold(String(s.lowStockThreshold ?? 5));
       })
       .catch((err) => setError(err instanceof ApiError ? err.message : "Не удалось загрузить настройки"))
@@ -42,7 +40,6 @@ export default function Settings() {
           heroImage: hero.heroImage,
           heroImageTablet: hero.heroImageTablet || null,
           heroImageMobile: hero.heroImageMobile || null,
-          cashbackPercent: Number(cashbackPercent) || 0,
           lowStockThreshold: Number(lowStockThreshold) || 0,
         }),
       });
@@ -94,31 +91,6 @@ export default function Settings() {
       </p>
 
       <div className="mt-10 max-w-sm border-t border-hairline pt-6">
-        <h2 className="font-serif text-lg font-semibold text-ink">Кешбек «Пионы»</h2>
-        <p className="mt-1 text-sm text-graphite">
-          Процент от суммы каждого оплаченного заказа, который клиент получает на баланс
-          «Пионов» после того, как заказ отмечен завершённым. Пионы можно списать как скидку на
-          следующий заказ (1 Пион = 1 сум). Поставьте 0, чтобы полностью отключить — начисление
-          новых Пионов остановится, но уже накопленный баланс клиентов не изменится.
-        </p>
-        <label className="mt-4 block">
-          <span className="mb-2 block text-xs font-medium uppercase tracking-wide text-graphite">Процент кешбека</span>
-          <div className="flex items-center gap-2">
-            <input
-              type="number"
-              min={0}
-              max={100}
-              step={1}
-              value={cashbackPercent}
-              onChange={(e) => setCashbackPercent(e.target.value)}
-              className="input w-24"
-            />
-            <span className="text-sm text-graphite">%</span>
-          </div>
-        </label>
-      </div>
-
-      <div className="mt-8 max-w-sm border-t border-hairline pt-6">
         <h2 className="font-serif text-lg font-semibold text-ink">Склад</h2>
         <p className="mt-1 text-sm text-graphite">
           Если остаток товара опускается до этого числа или ниже, страница «Склад» и обзор

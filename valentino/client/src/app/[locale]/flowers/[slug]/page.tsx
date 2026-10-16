@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getTranslations, setRequestLocale } from "next-intl/server";
-import { getAddonCategories, getAllProductsForSitemap, getProductBySlug, getSiteSettings } from "@/lib/api";
+import { getAddonCategories, getAllProductsForSitemap, getProductBySlug } from "@/lib/api";
 import AddToCartButton from "@/components/AddToCartButton";
 import BackLink from "@/components/BackLink";
 import Breadcrumbs from "@/components/Breadcrumbs";
@@ -55,11 +55,7 @@ export default async function ProductPage({ params: { locale, slug } }: PageProp
   const t = await getTranslations("Product");
   const tc = await getTranslations("Common");
 
-  const [data, addonCategories, settings] = await Promise.all([
-    getProductBySlug(slug),
-    getAddonCategories(),
-    getSiteSettings(),
-  ]);
+  const [data, addonCategories] = await Promise.all([getProductBySlug(slug), getAddonCategories()]);
   if (!data) notFound();
 
   const { product, related } = data;
@@ -134,7 +130,6 @@ export default async function ProductPage({ params: { locale, slug } }: PageProp
               name={product.name}
               price={product.price}
               image={resolveImageUrl(product.images[0])}
-              cashbackPercent={settings.cashbackPercent}
             />
           </div>
 

@@ -25,10 +25,10 @@ export default function AdminLayout() {
 
   return (
     <div className="flex min-h-screen">
-      <aside className="flex w-60 flex-col border-r border-hairline bg-paper px-4 py-6">
-        <div className="mb-8 px-2 font-serif text-lg font-semibold text-ink">
+      <aside className="flex w-60 flex-col bg-hermes-500 px-4 py-6">
+        <div className="mb-8 px-2 font-serif text-lg font-semibold text-white">
           Valentino
-          <span className="ml-1 text-xs font-normal text-graphite">админ</span>
+          <span className="ml-1 text-xs font-normal text-white/70">админ</span>
         </div>
         <nav className="flex flex-1 flex-col gap-1">
           {NAV.map((item) => (
@@ -38,7 +38,7 @@ export default function AdminLayout() {
               end={item.end}
               className={({ isActive }) =>
                 `rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
-                  isActive ? "bg-sapphire-50 text-sapphire-700" : "text-graphite hover:bg-hermes-50 hover:text-ink"
+                  isActive ? "bg-white text-hermes-700" : "text-white/80 hover:bg-white/10 hover:text-white"
                 }`
               }
             >
@@ -46,9 +46,9 @@ export default function AdminLayout() {
             </NavLink>
           ))}
         </nav>
-        <div className="border-t border-hairline pt-4">
-          <p className="px-2 text-xs text-graphite">{admin?.email}</p>
-          <button type="button" onClick={handleLogout} className="mt-2 w-full rounded-lg px-3 py-2 text-left text-sm text-graphite hover:bg-hermes-50 hover:text-ink">
+        <div className="border-t border-white/20 pt-4">
+          <p className="px-2 text-xs text-white/70">{admin?.email}</p>
+          <button type="button" onClick={handleLogout} className="mt-2 w-full rounded-lg px-3 py-2 text-left text-sm text-white/80 hover:bg-white/10 hover:text-white">
             Выйти
           </button>
         </div>

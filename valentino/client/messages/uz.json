@@ -7,8 +7,7 @@
   "Nav": {
     "account": "Kabinet",
     "menu": "Menyu",
-    "phone": "+998 50 204-13-31",
-    "cashbackBanner": "Har xaridda <b>{percent}%</b> keshbek"
+    "phone": "+998 50 204-13-31"
   },
   "Footer": {
     "tagline": "Toshkent bo'ylab yetkazib beriladigan guldastalar va uy o'simliklari. Buyurtma kuni tayyorlaymiz.",
@@ -70,8 +69,6 @@
     "sourcingHollandText": "Lolalar va Aalsmeer gul auksioni",
     "sourcingKenyaTitle": "Keniya",
     "sourcingKenyaText": "Yil bo'yi premium darajadagi atirgullar",
-    "sourcingIsraelTitle": "Isroil",
-    "sourcingIsraelText": "Mavsumiy va noyob navlar",
     "chocolateEyebrow": "Shirin qo'shimcha",
     "chocolateHeading": "Shokoladli qulupnay",
     "chocolateEmpty": "Hozircha tayyorlanmoqda — birozdan so'ng qayta tashrif buyuring."
@@ -96,11 +93,6 @@
     "loading": "Yuklanmoqda…",
     "empty": "Bu toifada hozircha bo'sh — birozdan so'ng qayta tashrif buyuring.",
     "reset": "Boshqa toifani tanlash"
-  },
-  "Pions": {
-    "earn": "+{count} Pion",
-    "infoAria": "Pion nima?",
-    "infoText": "Pionlar — keshbek bonus ballari. Buyurtma to'langandan so'ng balansga qo'shiladi, keyingi xaridda esa summaning bir qismini shu ball bilan to'lash mumkin: 1 Pion = 1 so'm chegirma."
   },
   "Product": {
     "compositionHeading": "Tarkibi",
@@ -142,10 +134,6 @@
     "addressLabel": "Yetkazib berish manzili",
     "deliveryLabel": "Yetkazib berish sanasi va vaqti",
     "orderSummaryTitle": "Sizning buyurtmangiz",
-    "subtotalLabel": "Buyurtma summasi",
-    "usePointsLabel": "Pionlarni ishlatish (mavjud {count})",
-    "pointsDiscountLabel": "Pion chegirmasi",
-    "pointsEarnedNote": "Buyurtma to'lovidan so'ng balansga {count} Pion qo'shiladi",
     "submitting": "Rasmiylashtirilmoqda…",
     "submit": "Buyurtmani tasdiqlash",
     "genericError": "Buyurtmani rasmiylashtirishda xatolik",
@@ -163,10 +151,7 @@
     "title": "Kabinet",
     "profileEyebrow": "Sizning profilingiz",
     "logout": "Chiqish",
-    "logoutConfirm": "Chiqishni xohlaysizmi?",
-    "pointsBalance": "Pion balansi",
-    "pointsNote": "1 Pion = keyingi buyurtmada 1 so'm chegirma",
-    "cashbackNote": "Har xaridda {percent}% Pion keshbek"
+    "logoutConfirm": "Chiqishni xohlaysizmi?"
   },
   "OrderHistory": {
     "title": "Buyurtmalar tarixi",

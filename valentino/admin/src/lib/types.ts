@@ -53,7 +53,6 @@ export interface SiteSettings {
   heroImage: string;
   heroImageTablet?: string | null;
   heroImageMobile?: string | null;
-  cashbackPercent: number;
   lowStockThreshold: number;
 }
 
@@ -105,10 +104,7 @@ export interface Order {
   location?: { lat: number; lng: number };
   deliveryDate?: string;
   deliveryTime?: string;
-  subtotal: number;
   totalAmount: number;
-  pointsRedeemed: number;
-  pointsEarned: number;
   status: "new" | "confirmed" | "delivering" | "completed" | "cancelled";
   paymentMethod: "cash" | "card" | "online";
   paymentStatus: "pending" | "paid" | "failed";

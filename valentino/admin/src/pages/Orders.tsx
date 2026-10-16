@@ -138,24 +138,6 @@ export default function Orders() {
                               </li>
                             ))}
                           </ul>
-                          {(order.pointsRedeemed > 0 || order.pointsEarned > 0) && (
-                            <div className="mt-3 border-t border-hairline pt-3 text-sm text-graphite">
-                              {order.pointsRedeemed > 0 && (
-                                <p>
-                                  Списано Пионов: <span className="text-ink">{formatUZS(order.pointsRedeemed)}</span>
-                                </p>
-                              )}
-                              {order.pointsEarned > 0 && (
-                                <p>
-                                  Начислится Пионов:{" "}
-                                  <span className="text-ink">
-                                    {order.pointsEarned}
-                                    {order.status === "completed" ? " (начислено)" : " (после завершения)"}
-                                  </span>
-                                </p>
-                              )}
-                            </div>
-                          )}
                         </div>
                       </div>
                     </td>

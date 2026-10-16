@@ -8,7 +8,6 @@ interface Customer {
   id: string;
   name: string;
   phone: string;
-  pointsBalance: number;
 }
 
 interface CustomerAuthContextValue {

@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Image from "next/image";
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/Link";
@@ -10,30 +9,11 @@ import Button from "@/components/Button";
 import { resolveImageUrl } from "@/lib/images";
 import CartCurrentOrder from "@/components/CartCurrentOrder";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4100/api";
-
 export default function CartView() {
   const { items, updateQuantity, removeItem, totalAmount } = useCart();
   const t = useTranslations("Cart");
   const tc = useTranslations("Common");
-  const tp = useTranslations("Pions");
   const locale = useLocale();
-  const [cashbackPercent, setCashbackPercent] = useState(0);
-
-  useEffect(() => {
-    let cancelled = false;
-    fetch(`${API_URL}/settings`)
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (!cancelled && data) setCashbackPercent(data.cashbackPercent ?? 0);
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const pointsEstimate = Math.floor((totalAmount * cashbackPercent) / 100);
 
   if (items.length === 0) {
     return (
@@ -113,11 +93,6 @@ export default function CartView() {
             {formatUZS(totalAmount, locale)}
           </span>
         </div>
-        {cashbackPercent > 0 && (
-          <p key={pointsEstimate} className="amount-pulse mt-2 text-xs text-hermes-600">
-            {tp("earn", { count: new Intl.NumberFormat("en-US").format(pointsEstimate) })}
-          </p>
-        )}
         <p className="mt-2 text-xs leading-relaxed text-graphite">{t("deliveryNote")}</p>
         <div className="mt-8">
           <Button href="/checkout" className="w-full">

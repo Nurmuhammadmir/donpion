@@ -30,10 +30,7 @@ type Status = "idle" | "submitting" | "success" | "error";
 
 interface PlacedOrder {
   items: { name: string; price: number; quantity: number }[];
-  subtotal: number;
   totalAmount: number;
-  pointsRedeemed: number;
-  pointsEarned: number;
   deliveryDate: string;
   deliveryTime: string;
   address: string;
@@ -44,10 +41,7 @@ interface PlacedOrder {
 interface ApiOrder {
   orderNumber: string;
   items: { name: string; price: number; quantity: number }[];
-  subtotal: number;
   totalAmount: number;
-  pointsRedeemed: number;
-  pointsEarned: number;
   deliveryDate?: string;
   deliveryTime?: string;
   customer?: { address?: string };
@@ -58,10 +52,7 @@ interface ApiOrder {
 function toPlacedOrder(order: ApiOrder): PlacedOrder {
   return {
     items: order.items.map((i) => ({ name: i.name, price: i.price, quantity: i.quantity })),
-    subtotal: order.subtotal,
     totalAmount: order.totalAmount,
-    pointsRedeemed: order.pointsRedeemed,
-    pointsEarned: order.pointsEarned,
     deliveryDate: order.deliveryDate ?? "",
     deliveryTime: order.deliveryTime ?? "",
     address: order.customer?.address ?? "",
@@ -91,7 +82,7 @@ function buildClickPayUrl(order: ApiOrder) {
 
 export default function CheckoutForm() {
   const { items, totalAmount, clearCart } = useCart();
-  const { customer, loading: authLoading, refresh: refreshCustomer } = useCustomerAuth();
+  const { customer, loading: authLoading } = useCustomerAuth();
   const t = useTranslations("Checkout");
   const tc = useTranslations("Common");
   const locale = useLocale();
@@ -100,7 +91,6 @@ export default function CheckoutForm() {
   const [placedOrder, setPlacedOrder] = useState<PlacedOrder | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [location, setLocation] = useState<PickedLocation | null>(null);
-  const [redeemPoints, setRedeemPoints] = useState(false);
   // True for exactly one render on the way back from Click (return_url
   // carries ?order=...) while the lookup effect below is still running —
   // without this, a customer whose cart was already cleared before the
@@ -108,13 +98,6 @@ export default function CheckoutForm() {
   const [checkingReturn, setCheckingReturn] = useState(
     () => typeof window !== "undefined" && new URLSearchParams(window.location.search).has("order")
   );
-
-  // How much the "use points" toggle would actually take off this order —
-  // capped by both the balance and the order total, same rule the server
-  // applies for real when the order is placed.
-  const pointsAvailable = customer?.pointsBalance ?? 0;
-  const pointsDiscount = redeemPoints ? Math.min(pointsAvailable, totalAmount) : 0;
-  const payableAmount = totalAmount - pointsDiscount;
 
   // The order confirmation view is much shorter than the form above it —
   // without this the page keeps whatever scroll position the form had,
@@ -209,7 +192,6 @@ export default function CheckoutForm() {
           deliveryTime: form.deliveryTime,
           paymentMethod: form.paymentMethod,
           items: items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
-          redeemPoints,
         }),
       });
 
@@ -237,10 +219,6 @@ export default function CheckoutForm() {
       setPlacedOrder(toPlacedOrder(order));
       setStatus("success");
       clearCart();
-      // The order may have just spent points off this customer's balance —
-      // refresh the cached balance so it's correct everywhere (account
-      // page, this form if they place another order) without a reload.
-      refreshCustomer();
     } catch (err) {
       setStatus("error");
       setErrorMessage(err instanceof Error ? err.message : t("genericError"));
@@ -319,29 +297,10 @@ export default function CheckoutForm() {
               )}
             </div>
 
-            {placedOrder.pointsRedeemed > 0 && (
-              <div className="mt-6 space-y-2 border-t border-hairline pt-6 text-sm">
-                <div className="flex justify-between gap-4">
-                  <span className="text-graphite">{t("subtotalLabel")}</span>
-                  <span className="text-right text-ink">{formatUZS(placedOrder.subtotal, locale)}</span>
-                </div>
-                <div className="flex justify-between gap-4">
-                  <span className="text-graphite">{t("pointsDiscountLabel")}</span>
-                  <span className="text-right text-hermes-500">−{formatUZS(placedOrder.pointsRedeemed, locale)}</span>
-                </div>
-              </div>
-            )}
-
             <div className="mt-6 flex items-baseline justify-between border-t border-hairline pt-6 text-sm">
               <span>{tc("total")}</span>
               <span className="font-display text-base text-ink">{formatUZS(placedOrder.totalAmount, locale)}</span>
             </div>
-
-            {placedOrder.pointsEarned > 0 && (
-              <p className="mt-4 text-xs text-graphite">
-                {t("pointsEarnedNote", { count: new Intl.NumberFormat("en-US").format(placedOrder.pointsEarned) })}
-              </p>
-            )}
           </div>
         )}
 
@@ -438,30 +397,9 @@ export default function CheckoutForm() {
             </li>
           ))}
         </ul>
-        {pointsAvailable > 0 && (
-          <label className="mt-6 flex items-start gap-3 border-t border-hairline pt-6 text-sm">
-            <input
-              type="checkbox"
-              checked={redeemPoints}
-              onChange={(e) => setRedeemPoints(e.target.checked)}
-              className="mt-0.5"
-            />
-            <span className="text-graphite">
-              {t("usePointsLabel", { count: new Intl.NumberFormat("en-US").format(pointsAvailable) })}
-            </span>
-          </label>
-        )}
-
-        {pointsDiscount > 0 && (
-          <div className="mt-4 flex items-baseline justify-between text-sm">
-            <span className="text-graphite">{t("pointsDiscountLabel")}</span>
-            <span className="text-hermes-500">−{formatUZS(pointsDiscount, locale)}</span>
-          </div>
-        )}
-
         <div className="mt-6 flex items-baseline justify-between border-t border-hairline pt-6 text-sm">
           <span>{tc("total")}</span>
-          <span className="font-display text-base text-ink">{formatUZS(payableAmount, locale)}</span>
+          <span className="font-display text-base text-ink">{formatUZS(totalAmount, locale)}</span>
         </div>
         <div className="mt-8">
           <Button type="submit" disabled={status === "submitting"} className="w-full disabled:opacity-60">

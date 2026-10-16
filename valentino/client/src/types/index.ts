@@ -59,7 +59,6 @@ export interface SiteSettings {
   heroImage: string;
   heroImageTablet?: string | null;
   heroImageMobile?: string | null;
-  cashbackPercent: number;
 }
 
 export interface Product {

@@ -53,26 +53,11 @@ const orderSchema = new mongoose.Schema(
     // support/reconciliation lookups in the Click merchant cabinet.
     clickTransId: { type: String, default: "" },
     paidAt: { type: Date },
-    // Sum of items before any "Пионы" discount — totalAmount (what's
-    // actually charged) is subtotal minus pointsRedeemed.
-    subtotal: { type: Number, required: true, min: 0 },
     totalAmount: { type: Number, required: true, min: 0 },
-    // "Пионы" cashback (see Customer.pointsBalance). Both amounts are
-    // locked in at order-creation time — pointsRedeemed is spent from the
-    // customer's balance immediately, pointsEarned is computed from that
-    // era's cashback rate but only actually credited once the order
-    // reaches "completed". The two *Credited/*Refunded flags are one-shot
-    // guards so a status changed twice (or two racing requests) can never
-    // double-credit or double-refund.
-    pointsRedeemed: { type: Number, default: 0, min: 0 },
-    pointsEarned: { type: Number, default: 0, min: 0 },
-    pointsEarnedCredited: { type: Boolean, default: false },
-    pointsRedeemedRefunded: { type: Boolean, default: false },
     // Warehouse stock — deducted once, right after the order is created
     // (see createOrder); restored once, the first time the order reaches
-    // "cancelled" (see updateOrderStatus). Same one-shot-flag pattern as
-    // the points fields above, for the same reason: a double status change
-    // must never double-restore stock.
+    // "cancelled" (see updateOrderStatus). The flags are a one-shot guard:
+    // a double status change must never double-restore stock.
     stockDeducted: { type: Boolean, default: false },
     stockRestored: { type: Boolean, default: false },
     status: {
