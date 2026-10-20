@@ -81,7 +81,7 @@ export default function Header({ categories, occasions }: { categories: Category
 
   return (
     <header
-      className={`sticky top-0 z-40 bg-navy transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+      className={`sticky top-0 z-40 bg-hermes-500 transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
         hideHeader && !menuOpen ? "max-lg:-translate-y-full" : "max-lg:translate-y-0"
       }`}
     >
@@ -91,7 +91,7 @@ export default function Header({ categories, occasions }: { categories: Category
           <CartIcon className="text-white" />
         </div>
         <Link href="/" className="flex justify-center">
-          <Image src="/nav-logo.png" alt="Valentino" width={1397} height={435} className="h-8 w-auto" priority />
+          <Image src="/nav-logo-white.png" alt="Valentino" width={1397} height={435} className="h-8 w-auto" priority />
         </Link>
         <div className="flex justify-end">
           <button
@@ -99,7 +99,7 @@ export default function Header({ categories, occasions }: { categories: Category
             type="button"
             aria-label={t("menu")}
             onClick={() => setMenuOpen((v) => !v)}
-            className="flex h-10 w-10 items-center justify-center text-white transition-colors hover:text-hermes-500"
+            className="flex h-10 w-10 items-center justify-center text-white transition-colors hover:text-white/70"
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" strokeWidth="1" strokeLinecap="round" />
@@ -111,7 +111,7 @@ export default function Header({ categories, occasions }: { categories: Category
       {/* Desktop */}
       <div className="mx-auto hidden max-w-6xl items-center justify-between gap-8 px-10 py-[17px] lg:flex">
         <Link href="/" className="flex-shrink-0">
-          <Image src="/nav-logo.png" alt="Valentino" width={1397} height={435} className="h-10 w-auto" priority />
+          <Image src="/nav-logo-white.png" alt="Valentino" width={1397} height={435} className="h-10 w-auto" priority />
         </Link>
 
         {/* min-w-0 is what actually lets this shrink below its content's
@@ -123,7 +123,7 @@ export default function Header({ categories, occasions }: { categories: Category
             <Link
               key={occasion._id}
               href={`/occasion/${occasion.slug}`}
-              className="flex-shrink-0 whitespace-nowrap text-xs font-medium uppercase tracking-wide2 text-white/75 transition-colors hover:text-hermes-500"
+              className="flex-shrink-0 whitespace-nowrap text-xs font-medium uppercase tracking-wide2 text-white/75 transition-colors hover:text-white"
             >
               {occasion.name}
             </Link>
@@ -133,20 +133,20 @@ export default function Header({ categories, occasions }: { categories: Category
         <div className="flex flex-shrink-0 items-center gap-5">
           <a
             href="tel:+998502041331"
-            className="flex flex-shrink-0 items-center gap-2 whitespace-nowrap text-xs font-medium uppercase tracking-wide2 text-white transition-colors hover:text-hermes-500"
+            className="flex flex-shrink-0 items-center gap-2 whitespace-nowrap text-xs font-medium uppercase tracking-wide2 text-white transition-colors hover:text-white/70"
           >
-            <span className="text-hermes-500">●</span>
+            <span className="text-white">●</span>
             {t("phone")}
           </a>
-          <LanguageSwitcher className="text-xs font-medium uppercase tracking-wide2 text-white/75 transition-colors hover:text-hermes-500" />
+          <LanguageSwitcher className="text-xs font-medium uppercase tracking-wide2 text-white/75 transition-colors hover:text-white" />
           <AccountIcon className="text-white" />
           <CartIcon className="text-white" />
         </div>
       </div>
 
-      {/* Thin Hermes-orange line — the only accent that appears while scrolling */}
+      {/* Thin white line — the only accent that appears while scrolling */}
       <div
-        className="h-px w-full bg-hermes-500 transition-opacity duration-300"
+        className="h-px w-full bg-white transition-opacity duration-300"
         style={{ opacity: scrolled ? 1 : 0 }}
       />
       <div className="h-px w-full bg-white/10" />
