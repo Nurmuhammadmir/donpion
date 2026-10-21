@@ -81,7 +81,7 @@ export default function Header({ categories, occasions }: { categories: Category
 
   return (
     <header
-      className={`sticky top-0 z-40 bg-hermes-500 transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+      className={`sticky top-0 z-40 bg-navy transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
         hideHeader && !menuOpen ? "max-lg:-translate-y-full" : "max-lg:translate-y-0"
       }`}
     >

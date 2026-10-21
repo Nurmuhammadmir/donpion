@@ -60,10 +60,10 @@ export default async function HomePage({ params: { locale } }: PageProps) {
             className="photo-fade-in absolute inset-0 h-full w-full object-cover"
           />
         </picture>
-        {/* A soft tiffany-to-transparent fade at the very top — bridges the
-            solid tiffany header into the photo instead of a hard edge where
+        {/* A soft navy-to-transparent fade at the very top — bridges the
+            solid navy header into the photo instead of a hard edge where
             the two meet. */}
-        <div className="absolute inset-x-0 top-0 z-10 h-28 bg-gradient-to-b from-hermes-500/60 to-transparent lg:h-40" />
+        <div className="absolute inset-x-0 top-0 z-10 h-28 bg-gradient-to-b from-navy/60 to-transparent lg:h-40" />
         {/* Same idea at the bottom, mobile only — that's where the photo's
             bottom edge meets the page directly (desktop/tablet instead
             overlay the headline there with the scrim below, so a white fade
