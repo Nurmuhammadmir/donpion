@@ -32,6 +32,10 @@ import flowerRoutes from "./routes/flowers.routes.js";
 import notifyRoutes from "./routes/notify.routes.js";
 import clickRoutes from "./routes/click.routes.js";
 import paymeRoutes from "./routes/payme.routes.js";
+// Side-effect only: starts @donpionadminbot's own long-poll loop (separate
+// bot/token from utils/telegramBot.js's customer-facing one) — no routes,
+// no exports anything else needs.
+import "./utils/adminTelegramBot.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
