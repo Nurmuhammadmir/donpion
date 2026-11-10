@@ -779,22 +779,20 @@ function FlowerPicker({ onPick }: { onPick: (flower: Flower) => void }) {
   const [creatingName, setCreatingName] = useState<string | null>(null);
   const [createError, setCreateError] = useState<string | null>(null);
 
+  // Fetches as soon as the field is focused, even with an empty query — so
+  // clicking in immediately offers a scrollable list instead of a blank
+  // box that only reacts once you start typing a name.
   useEffect(() => {
-    const term = query.trim();
-    if (!term) {
-      setResults([]);
-      setSearching(false);
-      return;
-    }
+    if (!open) return;
     setSearching(true);
     const handle = setTimeout(() => {
-      getFlowers(term)
+      getFlowers(query.trim())
         .then((res) => setResults(res as Flower[]))
         .catch(() => setResults([]))
         .finally(() => setSearching(false));
     }, 300);
     return () => clearTimeout(handle);
-  }, [query]);
+  }, [query, open]);
 
   const pick = (flower: Flower) => {
     onPick(flower);
@@ -832,11 +830,11 @@ function FlowerPicker({ onPick }: { onPick: (flower: Flower) => void }) {
           className="input !pl-10"
         />
       </div>
-      {open && query.trim() && (
-        <div className="absolute inset-x-0 top-full z-20 mt-1 max-h-60 overflow-y-auto border border-hairline bg-paper">
+      {open && (
+        <div className="absolute inset-x-0 top-full z-20 mt-1 max-h-36 overflow-y-auto border border-hairline bg-paper">
           {searching ? (
             <p className="p-3 text-sm text-graphite">Ищем…</p>
-          ) : results.length === 0 ? (
+          ) : results.length === 0 && query.trim() ? (
             <div className="p-3">
               <p className="text-sm text-graphite">Ничего не найдено</p>
               <button
@@ -850,6 +848,8 @@ function FlowerPicker({ onPick }: { onPick: (flower: Flower) => void }) {
               </button>
               {createError && <p className="mt-1 text-xs text-hermes-600">{createError}</p>}
             </div>
+          ) : results.length === 0 ? (
+            <p className="p-3 text-sm text-graphite">Нет цветов на складе</p>
           ) : (
             results.map((flower) => (
               <button

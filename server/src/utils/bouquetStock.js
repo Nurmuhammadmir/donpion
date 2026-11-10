@@ -1,6 +1,7 @@
 import Product from "../models/Product.js";
 import Flower from "../models/Flower.js";
 import StockEntry from "../models/StockEntry.js";
+import { notifyRevalidate } from "./notifyRevalidate.js";
 
 // Recomputes one bouquet's costPrice/category/stock/composition from its
 // current recipe and the live state of its flowers. A no-op for addon
@@ -40,6 +41,12 @@ export async function recomputeBouquet(product) {
   product.composition = compositionLines;
 
   await product.save();
+  // Every caller here (a flower edit, a batch import, a sale, a
+  // cancellation) just changed what this bouquet's own price/stock/
+  // composition look like live — without this, the storefront's ISR cache
+  // wouldn't know until its normal window expires, same gap this already
+  // closes for a direct product edit (see products.controller.js).
+  notifyRevalidate();
   return product;
 }
 

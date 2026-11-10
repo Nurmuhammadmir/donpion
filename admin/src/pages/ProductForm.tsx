@@ -531,33 +531,34 @@ function FlowerRow({
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Flower[]>([]);
   const [searching, setSearching] = useState(false);
+  const [open, setOpen] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [createName, setCreateName] = useState("");
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
 
+  // Fetches as soon as the field is focused, even with an empty query —
+  // getFlowers() with no term returns the whole list, so clicking in
+  // immediately offers something to scroll through instead of a blank box
+  // that only reacts once you start typing a name.
   useEffect(() => {
-    if (row.flowerId) return;
-    const term = query.trim();
-    if (!term) {
-      setResults([]);
-      return;
-    }
+    if (row.flowerId || !open) return;
     setSearching(true);
     const handle = setTimeout(() => {
-      getFlowers(term)
+      getFlowers(query.trim())
         .then((flowers) => setResults(flowers as Flower[]))
         .catch(() => setResults([]))
         .finally(() => setSearching(false));
     }, 300);
     return () => clearTimeout(handle);
-  }, [query, row.flowerId]);
+  }, [query, row.flowerId, open]);
 
   const selectFlower = (f: Flower) => {
     onChange({ ...row, flowerId: f._id, name: f.name, unit: f.unit, costPrice: f.costPrice, stock: f.stock });
     setQuery("");
     setResults([]);
     setShowCreate(false);
+    setOpen(false);
   };
 
   const clearSelection = () => {
@@ -568,6 +569,7 @@ function FlowerRow({
     setCreateName(query.trim());
     setCreateError(null);
     setShowCreate(true);
+    setOpen(false);
   };
 
   const handleCreateFlower = async () => {
@@ -605,35 +607,38 @@ function FlowerRow({
               setQuery(e.target.value);
               setShowCreate(false);
             }}
+            onFocus={() => setOpen(true)}
+            onBlur={() => setOpen(false)}
             placeholder="Название цветка…"
             className="input"
           />
-          {query.trim() && (
-            <div className="absolute inset-x-0 top-full z-10 mt-1 max-h-56 overflow-y-auto rounded-xl border border-hairline bg-paper shadow-sm">
+          {open && (
+            <div className="absolute inset-x-0 top-full z-10 mt-1 max-h-32 overflow-y-auto rounded-xl border border-hairline bg-paper shadow-sm">
               {searching ? (
                 <p className="p-3 text-sm text-graphite">Ищем…</p>
+              ) : results.length > 0 ? (
+                results.map((f) => (
+                  <button
+                    key={f._id}
+                    type="button"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => selectFlower(f)}
+                    className="block w-full px-3.5 py-2.5 text-left text-sm text-ink hover:bg-canvas"
+                  >
+                    {f.name} <span className="text-xs text-graphite">· остаток {f.stock} {f.unit}</span>
+                  </button>
+                ))
+              ) : query.trim() ? (
+                <button
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={openCreate}
+                  className="block w-full px-3.5 py-2.5 text-left text-sm font-medium text-hermes-600 hover:bg-canvas"
+                >
+                  + Создать «{query.trim()}»
+                </button>
               ) : (
-                <>
-                  {results.map((f) => (
-                    <button
-                      key={f._id}
-                      type="button"
-                      onClick={() => selectFlower(f)}
-                      className="block w-full px-3.5 py-2.5 text-left text-sm text-ink hover:bg-canvas"
-                    >
-                      {f.name} <span className="text-xs text-graphite">· остаток {f.stock} {f.unit}</span>
-                    </button>
-                  ))}
-                  {results.length === 0 && (
-                    <button
-                      type="button"
-                      onClick={openCreate}
-                      className="block w-full px-3.5 py-2.5 text-left text-sm font-medium text-hermes-600 hover:bg-canvas"
-                    >
-                      + Создать «{query.trim()}»
-                    </button>
-                  )}
-                </>
+                <p className="p-3 text-sm text-graphite">Нет цветов на складе</p>
               )}
             </div>
           )}
