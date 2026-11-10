@@ -23,6 +23,11 @@ const productSchema = new mongoose.Schema(
     currency: { type: String, default: "UZS" },
 
     stock: { type: Number, required: true, default: 0, min: 0 },
+    // Себестоимость — weighted-average import cost per unit, always in UZS
+    // regardless of what currency a given purchase batch was priced in.
+    // Recalculated on every warehouse receipt (see PurchaseBatch); read by
+    // the Finance module to compute COGS/margin, never shown to customers.
+    costPrice: { type: Number, default: 0, min: 0 },
 
     images: { type: [String], required: true, validate: (v) => v.length > 0 },
 

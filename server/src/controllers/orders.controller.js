@@ -161,6 +161,10 @@ export const createOrder = asyncHandler(async (req, res) => {
       items: orderItems,
       fulfillmentMethod,
       pickupBranch,
+      // Online orders are attributed to the pickup branch when there is
+      // one; delivery orders stay unattributed (null) since no single
+      // branch fulfils them — see Order.branch.
+      branch: pickupBranch?.branchId ?? null,
       deliveryDate,
       deliveryTime,
       paymentMethod: effectivePaymentMethod,
@@ -199,6 +203,8 @@ export const createOrder = asyncHandler(async (req, res) => {
           quantity: -item.quantity,
           reason: "sale",
           order: order._id,
+          branch: order.branch,
+          unitCost: productMap.get(String(item.product))?.costPrice ?? 0,
           note: `Заказ ${order.orderNumber}`,
         }),
       ])
@@ -221,11 +227,100 @@ export const getMyOrders = asyncHandler(async (req, res) => {
   res.json(orders);
 });
 
+// POST /api/orders/pos  (admin) — a walk-in sale rung up in person at a
+// branch till. Mirrors createOrder's re-pricing/stock-deduction above but
+// skips the customer-OTP flow entirely (staff is already authenticated)
+// and settles immediately: no "new → confirmed → delivering" pipeline,
+// no online payment handshake, no Пионы redemption — a sale either
+// happened at the register or it didn't.
+export const createPosOrder = asyncHandler(async (req, res) => {
+  const { items, paymentMethod, branchId, customerName, customerPhone } = req.body;
+
+  if (!items || items.length === 0) {
+    res.status(400);
+    throw new Error("Добавьте хотя бы один товар");
+  }
+  if (!branchId) {
+    res.status(400);
+    throw new Error("Укажите филиал продажи");
+  }
+  const branch = await Branch.findById(branchId);
+  if (!branch) {
+    res.status(404);
+    throw new Error("Филиал не найден");
+  }
+
+  const productIds = items.map((i) => i.productId);
+  const products = await Product.find({ _id: { $in: productIds } });
+  const productMap = new Map(products.map((p) => [String(p._id), p]));
+
+  let subtotal = 0;
+  const orderItems = items.map((i) => {
+    const product = productMap.get(String(i.productId));
+    if (!product) {
+      res.status(400);
+      throw new Error(`Товар ${i.productId} не найден`);
+    }
+    const quantity = Math.max(1, Number(i.quantity) || 1);
+    subtotal += product.price * quantity;
+    return {
+      product: product._id,
+      name: product.name,
+      slug: product.slug,
+      image: product.images[0],
+      price: product.price,
+      quantity,
+    };
+  });
+
+  const order = await createOrderWithUniqueNumber({
+    customer: {
+      name: customerName?.trim() || "Розничный покупатель",
+      phone: customerPhone?.trim() || "-",
+      city: "Tashkent",
+    },
+    items: orderItems,
+    fulfillmentMethod: "in_store",
+    source: "pos",
+    branch: branch._id,
+    paymentMethod: paymentMethod === "card" ? "card" : "cash",
+    paymentStatus: "paid",
+    paidAt: new Date(),
+    subtotal,
+    totalAmount: subtotal,
+    status: "completed",
+  });
+
+  console.log(`[stock] deducting items for POS sale ${order.orderNumber} at ${branch.name}`);
+  await Promise.all(
+    orderItems.map((item) =>
+      Promise.all([
+        Product.findByIdAndUpdate(item.product, { $inc: { stock: -item.quantity } }),
+        StockEntry.create({
+          product: item.product,
+          quantity: -item.quantity,
+          reason: "sale",
+          order: order._id,
+          branch: branch._id,
+          unitCost: productMap.get(String(item.product))?.costPrice ?? 0,
+          note: `Продажа ${order.orderNumber}`,
+        }),
+      ])
+    )
+  );
+  order.stockDeducted = true;
+  await order.save();
+
+  res.status(201).json(order);
+});
+
 // GET /api/admin/orders  (admin)
 export const getOrders = asyncHandler(async (req, res) => {
-  const { status, page = 1, limit = 30 } = req.query;
+  const { status, branch, source, page = 1, limit = 30 } = req.query;
   const filter = {};
   if (status) filter.status = status;
+  if (branch) filter.branch = branch;
+  if (source) filter.source = source;
 
   const skip = (Number(page) - 1) * Number(limit);
   const [items, total] = await Promise.all([
@@ -328,21 +423,28 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
 // today. Aggregated server-side rather than shipping every order to the
 // client just to sum a few numbers.
 export const getOrderStats = asyncHandler(async (req, res) => {
+  const { branch } = req.query;
   const now = new Date();
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+  const branchFilter = branch ? { branch } : {};
 
-  const [revenueAgg, ordersToday] = await Promise.all([
+  const [revenueAgg, ordersToday, todayAgg] = await Promise.all([
     Order.aggregate([
-      { $match: { createdAt: { $gte: thirtyDaysAgo }, status: { $ne: "cancelled" } } },
+      { $match: { ...branchFilter, createdAt: { $gte: thirtyDaysAgo }, status: { $ne: "cancelled" } } },
       { $group: { _id: null, revenue: { $sum: "$totalAmount" }, count: { $sum: 1 } } },
     ]),
-    Order.countDocuments({ createdAt: { $gte: startOfToday } }),
+    Order.countDocuments({ ...branchFilter, createdAt: { $gte: startOfToday } }),
+    Order.aggregate([
+      { $match: { ...branchFilter, createdAt: { $gte: startOfToday }, status: { $ne: "cancelled" } } },
+      { $group: { _id: null, revenue: { $sum: "$totalAmount" } } },
+    ]),
   ]);
 
   res.json({
     revenue30d: revenueAgg[0]?.revenue ?? 0,
     orders30d: revenueAgg[0]?.count ?? 0,
     ordersToday,
+    revenueToday: todayAgg[0]?.revenue ?? 0,
   });
 });

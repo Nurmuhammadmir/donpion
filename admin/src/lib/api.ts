@@ -67,6 +67,40 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
   return res.json() as Promise<T>;
 }
 
+// ---- Typed convenience wrappers for the CRM modules --------------------
+// Thin, non-magic wrappers around api<T>() — purely so every module page
+// builds the same request shape instead of each one re-deriving it.
+
+export function createPosOrder(payload: {
+  items: { productId: string; quantity: number }[];
+  paymentMethod: "cash" | "card";
+  branchId: string;
+  customerName?: string;
+  customerPhone?: string;
+}) {
+  return api("/orders/pos", { method: "POST", body: JSON.stringify(payload) });
+}
+
+export function getFinanceSummary(params: { branch?: string | null; from?: string; to?: string }) {
+  const qs = new URLSearchParams();
+  if (params.branch) qs.set("branch", params.branch);
+  if (params.from) qs.set("from", params.from);
+  if (params.to) qs.set("to", params.to);
+  const query = qs.toString();
+  return api(`/finance/summary${query ? `?${query}` : ""}`);
+}
+
+export function createPurchaseBatch(payload: {
+  branchId: string;
+  supplierId?: string | null;
+  invoiceNumber?: string;
+  date?: string;
+  notes?: string;
+  items: { productId: string; quantity: number; unitCost: number; currency: "UZS" | "USD"; exchangeRate?: number }[];
+}) {
+  return api("/warehouse/batches", { method: "POST", body: JSON.stringify(payload) });
+}
+
 // File uploads use multipart/form-data — deliberately bypasses the JSON
 // helper above so the browser can set its own multipart boundary header.
 export async function uploadProductImages(files: File[], nameHint: string): Promise<string[]> {

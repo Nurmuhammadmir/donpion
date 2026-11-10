@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, ApiError } from "@/lib/api";
 import type { Character } from "@/lib/types";
+import ShowcaseTabs from "@/components/ShowcaseTabs";
 
 const emptyForm = {
   name: "",
@@ -105,9 +106,10 @@ export default function Characters() {
 
   return (
     <div>
+      <ShowcaseTabs />
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="font-serif text-2xl font-semibold text-ink">Характеры</h1>
+          <h1 className="font-display text-2xl text-ink">Характеры</h1>
           <p className="mt-1 text-sm text-graphite">
             Варианты ответа в мини-квизе на главной странице («Какой она человек?»). Каждый товар
             можно привязать к одному или нескольким характерам в его карточке.
@@ -171,7 +173,7 @@ export default function Characters() {
                 <td className="text-graphite">/{character.slug}</td>
                 <td>{character.isActive ? "Активен" : "Скрыт"}</td>
                 <td className="text-right">
-                  <button type="button" onClick={() => startEdit(character)} className="mr-2 text-sm text-sapphire-600 hover:underline">
+                  <button type="button" onClick={() => startEdit(character)} className="mr-2 text-sm text-hermes-600 hover:underline">
                     Изменить
                   </button>
                   <button type="button" onClick={() => handleDelete(character._id)} className="btn-danger">

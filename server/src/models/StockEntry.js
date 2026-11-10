@@ -18,6 +18,17 @@ const stockEntrySchema = new mongoose.Schema(
     },
     note: { type: String, default: "" },
     order: { type: mongoose.Schema.Types.ObjectId, ref: "Order" },
+    // Which branch this movement is attributed to (POS sale, pickup order,
+    // or a purchase batch received there) — null for online delivery
+    // orders, which aren't tied to any physical location.
+    branch: { type: mongoose.Schema.Types.ObjectId, ref: "Branch", default: null },
+    // Set on "receipt" entries created from a PurchaseBatch, so a batch's
+    // ledger lines can be traced back to the invoice that created them.
+    batch: { type: mongoose.Schema.Types.ObjectId, ref: "PurchaseBatch", default: null },
+    // Snapshot of Product.costPrice at the moment of this entry — kept
+    // alongside the ledger line so Finance can compute historically
+    // accurate COGS even after later purchases change the running average.
+    unitCost: { type: Number, default: null },
   },
   { timestamps: true }
 );

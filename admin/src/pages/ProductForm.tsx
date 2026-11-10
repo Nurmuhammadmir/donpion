@@ -2,6 +2,11 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { api, ApiError, resolveImageUrl, uploadProductImages } from "@/lib/api";
 import type { AddonCategory, Category, Character, Occasion, Product } from "@/lib/types";
+import ShowcaseTabs from "@/components/ShowcaseTabs";
+
+function formatUZS(amount: number) {
+  return `${new Intl.NumberFormat("ru-RU").format(amount)} сум`;
+}
 
 const emptyForm = {
   name: "",
@@ -32,6 +37,9 @@ export default function ProductForm() {
   const [addonCategories, setAddonCategories] = useState<AddonCategory[]>([]);
   const [occasions, setOccasions] = useState<Occasion[]>([]);
   const [form, setForm] = useState(emptyForm);
+  // Weighted-average import cost, computed server-side from warehouse
+  // purchase batches — display-only, never part of the save payload.
+  const [costPrice, setCostPrice] = useState<number | null>(null);
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -67,6 +75,7 @@ export default function ProductForm() {
           isFeatured: p.isFeatured,
           isActive: p.isActive,
         });
+        setCostPrice(p.costPrice);
       })
       .catch((err) => {
         // Without this, a failed load (product deleted elsewhere, network
@@ -143,7 +152,7 @@ export default function ProductForm() {
       } else {
         await api(`/products/${id}`, { method: "PUT", body: JSON.stringify(payload) });
       }
-      navigate("/products");
+      navigate("/showcase");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Не удалось сохранить товар");
     } finally {
@@ -151,22 +160,32 @@ export default function ProductForm() {
     }
   };
 
-  if (loading) return <p className="text-graphite">Загрузка…</p>;
+  if (loading)
+    return (
+      <div>
+        <ShowcaseTabs />
+        <p className="text-graphite">Загрузка…</p>
+      </div>
+    );
 
   if (loadError) {
     return (
-      <div className="space-y-4">
-        <p className="text-sm text-hermes-600">{loadError}</p>
-        <button type="button" onClick={() => navigate("/products")} className="btn-secondary">
-          Назад к товарам
-        </button>
+      <div>
+        <ShowcaseTabs />
+        <div className="space-y-4">
+          <p className="text-sm text-hermes-600">{loadError}</p>
+          <button type="button" onClick={() => navigate("/showcase")} className="btn-secondary">
+            Назад к товарам
+          </button>
+        </div>
       </div>
     );
   }
 
   return (
     <div>
-      <h1 className="font-serif text-2xl font-semibold text-ink">
+      <ShowcaseTabs />
+      <h1 className="font-display text-2xl text-ink">
         {isNew ? "Новый товар" : "Редактировать товар"}
       </h1>
 
@@ -286,10 +305,19 @@ export default function ProductForm() {
           </Field>
         </div>
 
+        {!isNew && (
+          <div className="flex items-center justify-between border border-hairline bg-canvas px-4 py-3">
+            <span className="text-xs font-medium uppercase tracking-wide text-graphite">Себестоимость (авто)</span>
+            <span className="font-display text-base text-ink">
+              {costPrice !== null ? formatUZS(costPrice) : "—"}
+            </span>
+          </div>
+        )}
+
         <Field label="Фото товара" required>
           <div className="flex flex-wrap gap-3">
             {form.images.map((url) => (
-              <div key={url} className="group relative h-24 w-24 overflow-hidden rounded-lg border border-hairline">
+              <div key={url} className="group relative h-24 w-24 overflow-hidden rounded-md border border-hairline">
                 <img src={resolveImageUrl(url)} alt="" className="h-full w-full object-cover" />
                 <button
                   type="button"
@@ -305,7 +333,7 @@ export default function ProductForm() {
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={uploading}
-              className="flex h-24 w-24 flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-hairline text-graphite hover:border-sapphire-500 hover:text-sapphire-600 disabled:opacity-50"
+              className="flex h-24 w-24 flex-col items-center justify-center gap-1 rounded-md border border-dashed border-hairline text-graphite hover:border-hermes-500 hover:text-hermes-600 disabled:opacity-50"
             >
               <span className="text-xl leading-none">{uploading ? "…" : "+"}</span>
               <span className="text-[10px] uppercase tracking-wide">{uploading ? "Грузим" : "Добавить"}</span>
@@ -359,7 +387,7 @@ export default function ProductForm() {
           <button type="submit" disabled={saving || uploading || form.images.length === 0} className="btn-primary">
             {saving ? "Сохраняем…" : "Сохранить"}
           </button>
-          <button type="button" onClick={() => navigate("/products")} className="btn-secondary">
+          <button type="button" onClick={() => navigate("/showcase")} className="btn-secondary">
             Отмена
           </button>
         </div>

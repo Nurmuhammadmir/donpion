@@ -47,6 +47,7 @@ export interface Branch {
   phone: string;
   workingHours: string;
   isActive: boolean;
+  isMain: boolean;
 }
 
 export interface SiteSettings {
@@ -68,6 +69,7 @@ export interface Product {
   price: number;
   oldPrice: number | null;
   stock: number;
+  costPrice: number;
   availability: "InStock" | "OutOfStock";
   images: string[];
   shortDescription: string;
@@ -103,8 +105,12 @@ export interface Order {
   };
   items: OrderItem[];
   location?: { lat: number; lng: number };
-  fulfillmentMethod?: "delivery" | "pickup";
+  fulfillmentMethod?: "delivery" | "pickup" | "in_store";
   pickupBranch?: { branchId?: string; name?: string; address?: string };
+  // "online" = placed on the storefront; "pos" = rung up by staff at a
+  // till — see createPosOrder in orders.controller.js.
+  source: "online" | "pos";
+  branch?: string | { _id: string; name: string } | null;
   deliveryDate?: string;
   deliveryTime?: string;
   subtotal: number;
@@ -116,6 +122,11 @@ export interface Order {
   paymentStatus: "pending" | "paid" | "failed";
   createdAt: string;
 }
+
+export const ORDER_SOURCE_LABELS: Record<Order["source"], string> = {
+  online: "Сайт",
+  pos: "Магазин",
+};
 
 export const PAYMENT_METHOD_LABELS: Record<Order["paymentMethod"], string> = {
   cash: "Наличными",
@@ -143,6 +154,7 @@ export interface WarehouseItem {
   slug: string;
   category: { _id: string; name: string } | null;
   stock: number;
+  costPrice: number;
   isActive: boolean;
   image: string;
   lowStock: boolean;
@@ -150,6 +162,7 @@ export interface WarehouseItem {
 
 export interface WarehouseOverview {
   threshold: number;
+  totalValue: number;
   items: WarehouseItem[];
 }
 
@@ -159,6 +172,9 @@ export interface StockEntry {
   quantity: number;
   reason: "receipt" | "sale" | "cancel_restock" | "adjustment";
   note: string;
+  branch?: string | { _id: string; name: string } | null;
+  batch?: string | null;
+  unitCost?: number | null;
   createdAt: string;
 }
 
@@ -173,4 +189,74 @@ export interface OrderStats {
   revenue30d: number;
   orders30d: number;
   ordersToday: number;
+  revenueToday: number;
+}
+
+// ---- Поставщики и партии закупки ---------------------------------------
+
+export interface Supplier {
+  _id: string;
+  name: string;
+  country: string;
+  contactPerson: string;
+  phone: string;
+  notes: string;
+  isActive: boolean;
+}
+
+export interface PurchaseBatchItem {
+  product: { _id: string; name: string; slug: string; images?: string[] } | string;
+  quantity: number;
+  unitCost: number;
+  currency: "UZS" | "USD";
+  exchangeRate: number;
+}
+
+export interface PurchaseBatch {
+  _id: string;
+  branch: { _id: string; name: string } | string;
+  supplier: { _id: string; name: string; country: string } | string | null;
+  invoiceNumber: string;
+  date: string;
+  items: PurchaseBatchItem[];
+  totalCostUZS: number;
+  notes: string;
+  createdAt: string;
+}
+
+// ---- Расходы и финансы ---------------------------------------------------
+
+export type ExpenseCategory = "packaging" | "salary" | "rent" | "utilities" | "marketing" | "delivery" | "other";
+
+export const EXPENSE_CATEGORY_LABELS: Record<ExpenseCategory, string> = {
+  packaging: "Упаковка (коробки, лента)",
+  salary: "Зарплата (флорист и т.п.)",
+  rent: "Аренда",
+  utilities: "Коммунальные услуги",
+  marketing: "Маркетинг",
+  delivery: "Доставка",
+  other: "Другое",
+};
+
+export interface Expense {
+  _id: string;
+  branch: { _id: string; name: string } | string;
+  category: ExpenseCategory;
+  amount: number;
+  date: string;
+  description: string;
+  isRecurring: boolean;
+  createdAt: string;
+}
+
+export interface FinanceSummary {
+  range: { from: string; to: string };
+  revenue: number;
+  orderCount: number;
+  cogs: number;
+  grossProfit: number;
+  expensesByCategory: Partial<Record<ExpenseCategory, number>>;
+  expensesTotal: number;
+  netProfit: number;
+  inventoryValue: number;
 }

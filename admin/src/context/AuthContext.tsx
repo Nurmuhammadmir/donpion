@@ -6,6 +6,9 @@ interface AdminUser {
   name: string;
   email: string;
   role: string;
+  // null = CEO/head-office account — sees every branch and can switch
+  // between them (see BranchContext). Set = pinned to that one branch.
+  branch: string | null;
 }
 
 interface AuthContextValue {

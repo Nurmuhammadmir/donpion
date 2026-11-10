@@ -11,6 +11,7 @@ const emptyForm = {
   phone: "",
   workingHours: "",
   isActive: true,
+  isMain: false,
 };
 
 // "Филиалы" (branches) — physical shop locations shown as pins on the
@@ -54,6 +55,7 @@ export default function Branches() {
       phone: branch.phone,
       workingHours: branch.workingHours,
       isActive: branch.isActive,
+      isMain: branch.isMain,
     });
     setShowForm(true);
     setError(null);
@@ -82,6 +84,7 @@ export default function Branches() {
       phone: form.phone,
       workingHours: form.workingHours,
       isActive: form.isActive,
+      isMain: form.isMain,
     };
 
     try {
@@ -114,7 +117,7 @@ export default function Branches() {
     <div>
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="font-serif text-2xl font-semibold text-ink">Филиалы</h1>
+          <h1 className="font-display text-2xl font-semibold text-ink">Филиалы</h1>
           <p className="mt-1 text-sm text-graphite">
             Точки на карте в подвале сайта — клиенты видят их местоположение и могут открыть
             маршрут в Google или Яндекс Картах.
@@ -172,6 +175,15 @@ export default function Branches() {
             Активен (виден на сайте)
           </label>
 
+          <label className="flex items-center gap-2 text-sm text-ink">
+            <input
+              type="checkbox"
+              checked={form.isMain}
+              onChange={(e) => setForm((prev) => ({ ...prev, isMain: e.target.checked }))}
+            />
+            Основной филиал (куда по умолчанию относятся онлайн-заказы с доставкой)
+          </label>
+
           {error && <p className="text-sm text-hermes-600">{error}</p>}
 
           <div className="flex gap-3">
@@ -198,7 +210,10 @@ export default function Branches() {
           <tbody>
             {branches.map((branch) => (
               <tr key={branch._id}>
-                <td>{branch.name}</td>
+                <td>
+                  {branch.name}
+                  {branch.isMain && <span className="ml-2 text-xs text-hermes-600">основной</span>}
+                </td>
                 <td className="text-graphite">{branch.address}</td>
                 <td>{branch.isActive ? "Активен" : "Скрыт"}</td>
                 <td className="text-right">

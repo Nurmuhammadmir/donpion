@@ -1,112 +1,621 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { api } from "@/lib/api";
-import type { Category, Order, OrderStats, WarehouseOverview } from "@/lib/types";
-import { ORDER_STATUS_LABELS } from "@/lib/types";
+import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import {
+  AlertTriangle,
+  Banknote,
+  Check,
+  CreditCard,
+  Globe,
+  Minus,
+  Plus,
+  Search,
+  ShoppingBag,
+  X,
+  Zap,
+} from "lucide-react";
+import { api, ApiError, createPosOrder, resolveImageUrl } from "@/lib/api";
+import { useBranch } from "@/context/BranchContext";
+import type { Branch, Order, OrderStats, Product, WarehouseOverview } from "@/lib/types";
+import { ORDER_SOURCE_LABELS, ORDER_STATUS_LABELS } from "@/lib/types";
 
 function formatUZS(amount: number) {
-  return `${new Intl.NumberFormat("en-US").format(amount)} сум`;
+  return `${new Intl.NumberFormat("ru-RU").format(amount)} сум`;
+}
+
+function formatCompact(n: number): string {
+  if (n >= 1_000_000) {
+    const v = n / 1_000_000;
+    return `${v % 1 === 0 ? v.toFixed(0) : v.toFixed(1)}М`;
+  }
+  if (n >= 1_000) return `${Math.round(n / 1000)}К`;
+  return String(n);
+}
+
+function formatDateTime(iso: string) {
+  return new Date(iso).toLocaleString("ru-RU", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+}
+
+// ---- 14-day revenue trend, bucketed client-side from /orders (no daily-
+// history endpoint exists) — keyed on local calendar date, not
+// toISOString(), so a UTC+5 "today" doesn't silently shift a day.
+interface TrendPoint {
+  key: string;
+  label: string;
+  fullLabel: string;
+  revenue: number;
+}
+
+function dayKey(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function buildTrend(orders: Order[], days: number): TrendPoint[] {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const points: TrendPoint[] = [];
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(d.getDate() - i);
+    points.push({
+      key: dayKey(d),
+      label: d.toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit" }),
+      fullLabel: d.toLocaleDateString("ru-RU", { weekday: "short", day: "numeric", month: "short" }),
+      revenue: 0,
+    });
+  }
+  const byKey = new Map(points.map((p) => [p.key, p]));
+
+  for (const order of orders) {
+    if (order.status === "cancelled") continue;
+    const bucket = byKey.get(dayKey(new Date(order.createdAt)));
+    if (bucket) bucket.revenue += order.totalAmount;
+  }
+  return points;
+}
+
+function TrendTooltip({ active, payload }: { active?: boolean; payload?: Array<{ payload: TrendPoint }> }) {
+  if (!active || !payload?.length) return null;
+  const point = payload[0].payload;
+  return (
+    <div className="border border-hairline bg-paper px-3 py-2 text-xs">
+      <p className="capitalize text-graphite">{point.fullLabel}</p>
+      <p className="mt-0.5 text-sm font-semibold text-ink">{formatUZS(point.revenue)}</p>
+    </div>
+  );
 }
 
 export default function Dashboard() {
-  const [stats, setStats] = useState<{ products: number; categories: number; orders: number } | null>(null);
+  const { branches, isCEO, activeBranchId, activeBranch } = useBranch();
+
   const [orderStats, setOrderStats] = useState<OrderStats | null>(null);
   const [lowStockCount, setLowStockCount] = useState<number | null>(null);
   const [recentOrders, setRecentOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+  const [saleOpen, setSaleOpen] = useState(false);
 
-  useEffect(() => {
+  const load = () => {
+    setLoading(true);
+    const branchQS = activeBranchId ? `?branch=${activeBranchId}` : "";
+    const ordersQS = activeBranchId ? `?branch=${activeBranchId}&limit=200` : "?limit=200";
     Promise.all([
-      api<{ total: number }>("/products/admin/all?limit=1"),
-      api<Category[]>("/categories/admin/all"),
-      api<{ total: number; items: Order[] }>("/orders?limit=6"),
-      api<OrderStats>("/orders/stats"),
-      api<WarehouseOverview>("/warehouse/overview"),
+      api<OrderStats>(`/orders/stats${branchQS}`),
+      api<WarehouseOverview>(`/warehouse/overview${branchQS}`),
+      api<{ items: Order[] }>(`/orders${ordersQS}`),
     ])
-      .then(([products, categories, orders, os, warehouse]) => {
-        setStats({ products: products.total, categories: categories.length, orders: orders.total });
-        setRecentOrders(orders.items);
+      .then(([os, wh, orders]) => {
         setOrderStats(os);
-        setLowStockCount(warehouse.items.filter((i) => i.lowStock).length);
+        setLowStockCount(wh.items.filter((i) => i.lowStock).length);
+        setRecentOrders(orders.items);
       })
       .catch(() => {
-        setStats(null);
-        setRecentOrders([]);
         setOrderStats(null);
         setLowStockCount(null);
+        setRecentOrders([]);
       })
       .finally(() => setLoading(false));
-  }, []);
+  };
+
+  useEffect(load, [activeBranchId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const trend = useMemo(() => buildTrend(recentOrders, 14), [recentOrders]);
+  const feed = useMemo(() => recentOrders.slice(0, 7), [recentOrders]);
+  const hasLowStock = (lowStockCount ?? 0) > 0;
 
   return (
     <div>
-      <h1 className="font-serif text-2xl font-semibold text-ink">Обзор</h1>
-
-      <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <StatCard label="Товаров" value={stats?.products} loading={loading} />
-        <StatCard label="Категорий" value={stats?.categories} loading={loading} />
-        <StatCard label="Заказов" value={stats?.orders} loading={loading} />
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="eyebrow">{isCEO ? activeBranch?.name ?? "Все филиалы" : activeBranch?.name ?? "Филиал"}</p>
+          <h1 className="font-display text-2xl font-semibold text-ink sm:text-3xl">Дашборд</h1>
+        </div>
+        <button type="button" onClick={() => setSaleOpen(true)} className="btn-primary w-full sm:w-auto">
+          <Zap className="h-4 w-4" />
+          Быстрая продажа
+        </button>
       </div>
 
-      <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <div className="card">
-          <p className="text-xs font-medium uppercase tracking-wide text-graphite">Продажи за 30 дней</p>
-          <p className="mt-2 text-3xl font-semibold text-ink">
-            {loading ? "—" : formatUZS(orderStats?.revenue30d ?? 0)}
-          </p>
-          <p className="mt-1 text-xs text-graphite">{loading ? "" : `${orderStats?.orders30d ?? 0} заказов`}</p>
-        </div>
-        <StatCard label="Заказов сегодня" value={orderStats?.ordersToday} loading={loading} />
-        <Link to="/warehouse" className="card block transition-colors hover:bg-hermes-50">
-          <p className="text-xs font-medium uppercase tracking-wide text-graphite">Мало на складе</p>
-          <p className={`mt-2 text-3xl font-semibold ${lowStockCount ? "text-hermes-600" : "text-ink"}`}>
+      <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
+        <StatTile label="Выручка сегодня" value={loading ? null : formatUZS(orderStats?.revenueToday ?? 0)} />
+        <StatTile label="Заказов сегодня" value={loading ? null : String(orderStats?.ordersToday ?? 0)} />
+        <StatTile
+          label="Выручка за 30 дней"
+          value={loading ? null : formatUZS(orderStats?.revenue30d ?? 0)}
+          sub={loading ? undefined : `${orderStats?.orders30d ?? 0} заказов`}
+        />
+        <Link
+          to="/warehouse"
+          className="rounded-md border border-hairline bg-paper p-4 transition-colors hover:border-ink sm:p-5"
+        >
+          <p className="text-[11px] font-semibold uppercase tracking-wide2 text-graphite">Мало на складе</p>
+          <p className={`mt-2 text-2xl font-semibold sm:text-3xl ${hasLowStock ? "text-hermes-600" : "text-ink"}`}>
             {loading ? "—" : lowStockCount ?? 0}
           </p>
+          {!loading && hasLowStock && (
+            <p className="mt-1 flex items-center gap-1 text-xs text-hermes-600">
+              <AlertTriangle className="h-3 w-3" /> Нужно пополнить
+            </p>
+          )}
         </Link>
       </div>
 
-      <div className="card mt-8">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="font-medium text-ink">Последние заказы</h2>
-          <Link to="/orders" className="text-sm text-sapphire-600 hover:underline">
+      <div className="card mt-4">
+        <div className="mb-4">
+          <p className="eyebrow">Динамика</p>
+          <h2 className="font-display text-lg font-semibold text-ink">Выручка за 14 дней</h2>
+        </div>
+        <div className="h-48 sm:h-64">
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={trend} margin={{ top: 8, right: 4, left: -16, bottom: 0 }}>
+              <defs>
+                <linearGradient id="revenueFill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#F9511D" stopOpacity={0.16} />
+                  <stop offset="100%" stopColor="#F9511D" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid vertical={false} stroke="#E7E1D6" />
+              <XAxis
+                dataKey="label"
+                tick={{ fontSize: 11, fill: "#5A564F" }}
+                axisLine={{ stroke: "#E7E1D6" }}
+                tickLine={false}
+                interval={1}
+              />
+              <YAxis
+                tick={{ fontSize: 11, fill: "#5A564F" }}
+                axisLine={false}
+                tickLine={false}
+                width={44}
+                domain={[0, "auto"]}
+                tickFormatter={formatCompact}
+              />
+              <Tooltip content={<TrendTooltip />} cursor={{ stroke: "#1A1A1A", strokeOpacity: 0.12 }} />
+              <Area
+                type="monotone"
+                dataKey="revenue"
+                stroke="#F9511D"
+                strokeWidth={2}
+                fill="url(#revenueFill)"
+                dot={false}
+                activeDot={{ r: 5, strokeWidth: 2, stroke: "#fff", fill: "#F9511D" }}
+                isAnimationActive={false}
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      <div className="card mt-4 p-0">
+        <div className="flex items-center justify-between border-b border-hairline px-5 py-4">
+          <h2 className="font-display text-lg font-semibold text-ink">Последние заказы</h2>
+          <Link to="/orders" className="text-sm font-medium text-hermes-600 hover:underline">
             Все заказы →
           </Link>
         </div>
 
-        {recentOrders.length === 0 ? (
-          <p className="text-sm text-graphite">{loading ? "Загрузка…" : "Заказов пока нет."}</p>
+        {feed.length === 0 ? (
+          <p className="px-5 py-6 text-sm text-graphite">{loading ? "Загрузка…" : "Заказов пока нет."}</p>
         ) : (
-          <table className="admin-table w-full">
-            <thead>
-              <tr>
-                <th>№ заказа</th>
-                <th>Клиент</th>
-                <th>Сумма</th>
-                <th>Статус</th>
-              </tr>
-            </thead>
-            <tbody>
-              {recentOrders.map((order) => (
-                <tr key={order._id}>
-                  <td>{order.orderNumber}</td>
-                  <td>{order.customer.name}</td>
-                  <td>{formatUZS(order.totalAmount)}</td>
-                  <td>{ORDER_STATUS_LABELS[order.status]}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <ul className="divide-y divide-hairline">
+            {feed.map((order) => (
+              <li key={order._id} className="flex items-center gap-3 px-5 py-3">
+                <span className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-canvas text-graphite">
+                  {order.source === "pos" ? <ShoppingBag className="h-4 w-4" /> : <Globe className="h-4 w-4" />}
+                </span>
+                <div className="flex-1 overflow-hidden">
+                  <p className="truncate text-sm font-medium text-ink">
+                    {order.customer.name} <span className="text-graphite">· {order.orderNumber}</span>
+                  </p>
+                  <p className="text-xs text-graphite">
+                    {formatDateTime(order.createdAt)} · {ORDER_SOURCE_LABELS[order.source]}
+                  </p>
+                </div>
+                <div className="flex-none text-right">
+                  <p className="text-sm font-semibold text-ink">{formatUZS(order.totalAmount)}</p>
+                  <p className="text-xs text-graphite">{ORDER_STATUS_LABELS[order.status]}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      {saleOpen && (
+        <QuickSaleModal
+          branches={branches}
+          activeBranchId={activeBranchId}
+          activeBranch={activeBranch}
+          isCEO={isCEO}
+          onClose={() => setSaleOpen(false)}
+          onSuccess={load}
+        />
+      )}
+    </div>
+  );
+}
+
+function StatTile({ label, value, sub }: { label: string; value: string | null; sub?: string }) {
+  return (
+    <div className="rounded-md border border-hairline bg-paper p-4 sm:p-5">
+      <p className="text-[11px] font-semibold uppercase tracking-wide2 text-graphite">{label}</p>
+      <p className="mt-2 text-2xl font-semibold text-ink sm:text-3xl">{value ?? "—"}</p>
+      {sub && <p className="mt-1 text-xs text-graphite">{sub}</p>}
+    </div>
+  );
+}
+
+// ---- "Быстрая продажа" — the headline feature: a lightweight POS so staff
+// can ring up a walk-in sale without leaving the dashboard. ----------------
+
+interface CartLine {
+  product: Product;
+  quantity: number;
+}
+
+function QuickSaleModal({
+  branches,
+  activeBranchId,
+  activeBranch,
+  isCEO,
+  onClose,
+  onSuccess,
+}: {
+  branches: Branch[];
+  activeBranchId: string | null;
+  activeBranch: Branch | null;
+  isCEO: boolean;
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  const [branchId, setBranchId] = useState<string | null>(
+    () => activeBranchId ?? branches.find((b) => b.isMain)?._id ?? branches[0]?._id ?? null
+  );
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<Product[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [cart, setCart] = useState<CartLine[]>([]);
+  const [paymentMethod, setPaymentMethod] = useState<"cash" | "card">("cash");
+  const [customerName, setCustomerName] = useState("");
+  const [customerPhone, setCustomerPhone] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [successOrder, setSuccessOrder] = useState<Order | null>(null);
+
+  const needsBranchPicker = isCEO && activeBranchId === null;
+
+  useEffect(() => {
+    setSearching(true);
+    const handle = setTimeout(() => {
+      const qs = query.trim() ? `?search=${encodeURIComponent(query.trim())}&limit=20` : "?limit=20";
+      api<{ items: Product[] }>(`/products/admin/all${qs}`)
+        .then((res) => setResults(res.items.filter((p) => p.isActive)))
+        .catch(() => setResults([]))
+        .finally(() => setSearching(false));
+    }, 300);
+    return () => clearTimeout(handle);
+  }, [query]);
+
+  const total = cart.reduce((sum, line) => sum + line.product.price * line.quantity, 0);
+  const totalItems = cart.reduce((sum, line) => sum + line.quantity, 0);
+
+  const addToCart = (product: Product) => {
+    setCart((prev) => {
+      const idx = prev.findIndex((l) => l.product._id === product._id);
+      if (idx >= 0) {
+        const next = [...prev];
+        next[idx] = { ...next[idx], quantity: next[idx].quantity + 1 };
+        return next;
+      }
+      return [...prev, { product, quantity: 1 }];
+    });
+  };
+
+  const changeQty = (productId: string, delta: number) => {
+    setCart((prev) =>
+      prev
+        .map((l) => (l.product._id === productId ? { ...l, quantity: l.quantity + delta } : l))
+        .filter((l) => l.quantity > 0)
+    );
+  };
+
+  const removeLine = (productId: string) => setCart((prev) => prev.filter((l) => l.product._id !== productId));
+
+  const resetForNewSale = () => {
+    setCart([]);
+    setCustomerName("");
+    setCustomerPhone("");
+    setPaymentMethod("cash");
+    setQuery("");
+    setSuccessOrder(null);
+    setError(null);
+  };
+
+  const handleSubmit = async () => {
+    if (cart.length === 0) {
+      setError("Добавьте хотя бы один товар");
+      return;
+    }
+    if (!branchId) {
+      setError("Выберите филиал продажи");
+      return;
+    }
+    setSubmitting(true);
+    setError(null);
+    try {
+      const order = (await createPosOrder({
+        items: cart.map((l) => ({ productId: l.product._id, quantity: l.quantity })),
+        paymentMethod,
+        branchId,
+        customerName: customerName.trim() || undefined,
+        customerPhone: customerPhone.trim() || undefined,
+      })) as Order;
+      setSuccessOrder(order);
+      onSuccess();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Не удалось оформить продажу");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex flex-col bg-paper sm:items-center sm:justify-center sm:bg-ink/40 sm:p-4"
+      onClick={onClose}
+    >
+      <div
+        className="flex h-full w-full flex-col bg-paper sm:h-auto sm:max-h-[90vh] sm:max-w-3xl sm:border sm:border-hairline"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between border-b border-hairline px-4 py-3 sm:px-6">
+          <h2 className="font-display text-lg font-semibold text-ink">Быстрая продажа</h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-md p-1.5 text-graphite transition-colors hover:bg-canvas hover:text-ink"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        {successOrder ? (
+          <SaleConfirmation order={successOrder} onNewSale={resetForNewSale} onDone={onClose} />
+        ) : (
+          <>
+            <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6">
+              {needsBranchPicker ? (
+                branches.length === 0 ? (
+                  <p className="mb-4 text-sm text-graphite">Загрузка филиалов…</p>
+                ) : (
+                  <div className="mb-4">
+                    <label className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-graphite">
+                      Филиал продажи
+                    </label>
+                    <select value={branchId ?? ""} onChange={(e) => setBranchId(e.target.value)} className="input">
+                      {branches.map((b) => (
+                        <option key={b._id} value={b._id}>
+                          {b.name}
+                          {b.isMain ? " (основной)" : ""}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )
+              ) : (
+                <p className="mb-4 text-xs text-graphite">
+                  Филиал: <span className="font-medium text-ink">{activeBranch?.name ?? "—"}</span>
+                </p>
+              )}
+
+              <div className="relative mb-3">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-graphite" />
+                <input
+                  autoFocus
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Поиск товара…"
+                  className="input pl-9"
+                />
+              </div>
+
+              <div className="max-h-56 space-y-2 overflow-y-auto sm:max-h-64">
+                {searching && results.length === 0 ? (
+                  <p className="px-1 py-2 text-sm text-graphite">Поиск…</p>
+                ) : results.length === 0 ? (
+                  <p className="px-1 py-2 text-sm text-graphite">Ничего не найдено.</p>
+                ) : (
+                  results.map((p) => (
+                    <button
+                      key={p._id}
+                      type="button"
+                      onClick={() => addToCart(p)}
+                      className="flex w-full items-center gap-3 border border-hairline bg-paper p-2.5 text-left transition-colors hover:border-hermes-500"
+                    >
+                      <img src={resolveImageUrl(p.images[0])} alt="" className="h-11 w-11 flex-none rounded-md object-cover" />
+                      <span className="flex-1 overflow-hidden">
+                        <span className="block truncate text-sm font-medium text-ink">{p.name}</span>
+                        <span className="block text-xs text-graphite">
+                          {formatUZS(p.price)} · остаток {p.stock}
+                        </span>
+                      </span>
+                      <Plus className="h-4 w-4 flex-none text-hermes-600" />
+                    </button>
+                  ))
+                )}
+              </div>
+
+              <div className="mt-5">
+                <p className="eyebrow mb-2">Корзина{totalItems > 0 ? ` · ${totalItems}` : ""}</p>
+                {cart.length === 0 ? (
+                  <p className="border border-dashed border-hairline p-4 text-center text-sm text-graphite">
+                    Добавьте товары из поиска выше
+                  </p>
+                ) : (
+                  <ul className="divide-y divide-hairline border border-hairline">
+                    {cart.map((line) => (
+                      <li key={line.product._id} className="flex items-center gap-3 p-2.5">
+                        <img
+                          src={resolveImageUrl(line.product.images[0])}
+                          alt=""
+                          className="h-10 w-10 flex-none rounded-md object-cover"
+                        />
+                        <span className="flex-1 overflow-hidden">
+                          <span className="block truncate text-sm font-medium text-ink">{line.product.name}</span>
+                          <span className="block text-xs text-graphite">{formatUZS(line.product.price)}</span>
+                        </span>
+                        <div className="flex flex-none items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => changeQty(line.product._id, -1)}
+                            className="flex h-7 w-7 items-center justify-center border border-hairline text-graphite transition-colors hover:border-ink hover:text-ink"
+                          >
+                            <Minus className="h-3.5 w-3.5" />
+                          </button>
+                          <span className="w-6 text-center text-sm font-medium text-ink">{line.quantity}</span>
+                          <button
+                            type="button"
+                            onClick={() => changeQty(line.product._id, 1)}
+                            className="flex h-7 w-7 items-center justify-center border border-hairline text-graphite transition-colors hover:border-ink hover:text-ink"
+                          >
+                            <Plus className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                        <span className="w-24 flex-none text-right text-sm font-semibold text-ink">
+                          {formatUZS(line.product.price * line.quantity)}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => removeLine(line.product._id)}
+                          className="flex-none text-graphite transition-colors hover:text-hermes-600"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+
+              <div className="mt-5">
+                <p className="eyebrow mb-2">Оплата</p>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod("cash")}
+                    className="pill"
+                    data-active={paymentMethod === "cash"}
+                  >
+                    <Banknote className="h-3.5 w-3.5" /> Наличными
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod("card")}
+                    className="pill"
+                    data-active={paymentMethod === "card"}
+                  >
+                    <CreditCard className="h-3.5 w-3.5" /> Картой
+                  </button>
+                </div>
+              </div>
+
+              <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-graphite">
+                    Клиент (необязательно)
+                  </label>
+                  <input
+                    value={customerName}
+                    onChange={(e) => setCustomerName(e.target.value)}
+                    placeholder="Имя"
+                    className="input"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-graphite">
+                    Телефон (необязательно)
+                  </label>
+                  <input
+                    value={customerPhone}
+                    onChange={(e) => setCustomerPhone(e.target.value)}
+                    placeholder="+998 __ ___-__-__"
+                    className="input"
+                  />
+                </div>
+              </div>
+
+              {error && <p className="mt-4 text-sm text-hermes-600">{error}</p>}
+            </div>
+
+            <div
+              className="border-t border-hairline bg-paper px-4 py-3 sm:px-6"
+              style={{ paddingBottom: "calc(0.75rem + var(--safe-bottom))" }}
+            >
+              <div className="mb-3 flex items-center justify-between">
+                <span className="text-sm text-graphite">Итого</span>
+                <span className="font-display text-xl font-semibold text-ink">{formatUZS(total)}</span>
+              </div>
+              <button
+                type="button"
+                onClick={handleSubmit}
+                disabled={submitting || cart.length === 0 || !branchId}
+                className="btn-primary w-full"
+              >
+                {submitting ? "Оформляем…" : "Оформить продажу"}
+              </button>
+            </div>
+          </>
         )}
       </div>
     </div>
   );
 }
 
-function StatCard({ label, value, loading }: { label: string; value?: number; loading: boolean }) {
+function SaleConfirmation({
+  order,
+  onNewSale,
+  onDone,
+}: {
+  order: Order;
+  onNewSale: () => void;
+  onDone: () => void;
+}) {
   return (
-    <div className="card">
-      <p className="text-xs font-medium uppercase tracking-wide text-graphite">{label}</p>
-      <p className="mt-2 text-3xl font-semibold text-ink">{loading ? "—" : value}</p>
+    <div className="flex flex-1 flex-col items-center justify-center px-6 py-10 text-center">
+      <span className="flex h-14 w-14 items-center justify-center rounded-full bg-hermes-50 text-hermes-600">
+        <Check className="h-7 w-7" />
+      </span>
+      <h3 className="mt-4 font-display text-xl font-semibold text-ink">Продажа оформлена</h3>
+      <p className="mt-1 text-sm text-graphite">Заказ {order.orderNumber}</p>
+      <p className="mt-3 text-3xl font-semibold text-ink">{formatUZS(order.totalAmount)}</p>
+      <div className="mt-8 flex w-full max-w-xs flex-col gap-2">
+        <button type="button" onClick={onNewSale} className="btn-primary">
+          Новая продажа
+        </button>
+        <button type="button" onClick={onDone} className="btn-secondary">
+          Готово
+        </button>
+      </div>
     </div>
   );
 }

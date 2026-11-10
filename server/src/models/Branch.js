@@ -11,6 +11,10 @@ const branchSchema = new mongoose.Schema(
     phone: { type: String, default: "" },
     workingHours: { type: String, default: "" },
     isActive: { type: Boolean, default: true },
+    // The default branch new records (orders, expenses, purchase batches)
+    // are attributed to when no branch is explicitly chosen — e.g. online
+    // delivery orders, which aren't tied to any physical pickup point.
+    isMain: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

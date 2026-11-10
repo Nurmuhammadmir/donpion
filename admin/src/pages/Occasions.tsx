@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, ApiError } from "@/lib/api";
 import type { Occasion } from "@/lib/types";
+import ShowcaseTabs from "@/components/ShowcaseTabs";
 
 const emptyForm = {
   name: "",
@@ -98,9 +99,10 @@ export default function Occasions() {
 
   return (
     <div>
+      <ShowcaseTabs />
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="font-serif text-2xl font-semibold text-ink">Поводы</h1>
+          <h1 className="font-display text-2xl text-ink">Поводы</h1>
           <p className="mt-1 text-sm text-graphite">
             Раздел на главной странице сразу после мини-квиза («Свадебная флористика»,
             «Корпоративные заказы»…). Отметьте в карточке товара, для каких поводов он подходит.
@@ -164,7 +166,7 @@ export default function Occasions() {
                 <td className="text-graphite">/{occasion.slug}</td>
                 <td>{occasion.isActive ? "Активен" : "Скрыт"}</td>
                 <td className="text-right">
-                  <button type="button" onClick={() => startEdit(occasion)} className="mr-2 text-sm text-sapphire-600 hover:underline">
+                  <button type="button" onClick={() => startEdit(occasion)} className="mr-2 text-sm text-hermes-600 hover:underline">
                     Изменить
                   </button>
                   <button type="button" onClick={() => handleDelete(occasion._id)} className="btn-danger">

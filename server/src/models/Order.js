@@ -39,9 +39,20 @@ const orderSchema = new mongoose.Schema(
     // person at the branch below.
     fulfillmentMethod: {
       type: String,
-      enum: ["delivery", "pickup"],
+      enum: ["delivery", "pickup", "in_store"],
       default: "delivery",
     },
+    // "online" = placed by a customer on the storefront (delivery/pickup);
+    // "pos" = rung up by staff at the register for a walk-in buyer — see
+    // createPosOrder in orders.controller.js. Lets Finance/Dashboard split
+    // website sales from physical-shop sales without inferring it from
+    // fulfillmentMethod.
+    source: { type: String, enum: ["online", "pos"], default: "online" },
+    // Which physical branch this sale is attributed to — the pickup branch
+    // for pickup orders, the till's branch for POS sales, null for online
+    // delivery (not tied to one location). Drives the CEO branch switcher's
+    // per-branch order/finance views.
+    branch: { type: mongoose.Schema.Types.ObjectId, ref: "Branch", default: null },
     deliveryDate: { type: String, default: "" },
     deliveryTime: { type: String, default: "" },
     // Only set when fulfillmentMethod is "pickup" — snapshot of the Branch

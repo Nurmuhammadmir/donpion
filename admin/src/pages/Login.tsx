@@ -28,7 +28,7 @@ export default function Login() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-canvas px-4">
       <form onSubmit={handleSubmit} className="card w-full max-w-sm">
-        <div className="mb-6 font-serif text-xl font-semibold text-ink">
+        <div className="mb-6 font-display text-xl font-semibold text-ink">
           DonPion
           <span className="ml-1 text-sm font-normal text-graphite">админ</span>
         </div>

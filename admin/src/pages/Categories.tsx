@@ -1,6 +1,7 @@
 import { useRef, useEffect, useState } from "react";
 import { api, ApiError, resolveImageUrl, uploadProductImages } from "@/lib/api";
 import type { Category } from "@/lib/types";
+import ShowcaseTabs from "@/components/ShowcaseTabs";
 
 const emptyForm = {
   name: "",
@@ -132,8 +133,9 @@ export default function Categories() {
 
   return (
     <div>
+      <ShowcaseTabs />
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="font-serif text-2xl font-semibold text-ink">Категории</h1>
+        <h1 className="font-display text-2xl text-ink">Категории</h1>
         <button type="button" onClick={startCreate} className="btn-primary">
           + Добавить категорию
         </button>
@@ -168,7 +170,7 @@ export default function Categories() {
           <Field label="Фото категории" required>
             <div className="flex items-center gap-3">
               {form.image && (
-                <img src={resolveImageUrl(form.image)} alt="" className="h-16 w-16 rounded-lg border border-hairline object-cover" />
+                <img src={resolveImageUrl(form.image)} alt="" className="h-16 w-16 rounded-md border border-hairline object-cover" />
               )}
               <button
                 type="button"
@@ -229,7 +231,7 @@ export default function Categories() {
                 <td className="text-graphite">/{cat.slug}</td>
                 <td>{cat.isActive ? "Активна" : "Скрыта"}</td>
                 <td className="text-right">
-                  <button type="button" onClick={() => startEdit(cat)} className="mr-2 text-sm text-sapphire-600 hover:underline">
+                  <button type="button" onClick={() => startEdit(cat)} className="mr-2 text-sm text-hermes-600 hover:underline">
                     Изменить
                   </button>
                   <button type="button" onClick={() => handleDelete(cat._id)} className="btn-danger">

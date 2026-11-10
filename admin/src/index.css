@@ -2,36 +2,79 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  /* iOS safe-area inset, used by the mobile bottom tab bar so it never
+     sits under the home-indicator gesture area. */
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
 body {
   @apply bg-canvas text-ink antialiased;
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+}
+
+h1,
+h2,
+h3,
+.font-display {
+  font-family: "Playfair Display", serif;
 }
 
 .input {
-  @apply w-full rounded-lg border border-hairline bg-paper px-3.5 py-2.5 text-sm text-ink outline-none transition-colors;
+  @apply w-full rounded-md border border-hairline bg-paper px-3.5 py-2.5 text-sm text-ink outline-none transition-colors;
 }
 .input:focus {
-  @apply border-sapphire-500 ring-2 ring-sapphire-100;
+  @apply border-hermes-500 ring-2 ring-hermes-50;
 }
 
 .btn-primary {
-  @apply inline-flex items-center justify-center gap-2 rounded-lg bg-sapphire-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-sapphire-700 disabled:cursor-not-allowed disabled:opacity-50;
+  @apply inline-flex items-center justify-center gap-2 rounded-md bg-hermes-500 px-4 py-2.5 text-sm font-medium uppercase tracking-wide2 text-white transition-colors hover:bg-hermes-600 disabled:cursor-not-allowed disabled:opacity-50;
 }
 
 .btn-secondary {
-  @apply inline-flex items-center justify-center gap-2 rounded-lg border border-hairline bg-paper px-4 py-2.5 text-sm font-medium text-ink transition-colors hover:bg-hermes-50;
+  @apply inline-flex items-center justify-center gap-2 rounded-md border border-hairline bg-paper px-4 py-2.5 text-sm font-medium text-ink transition-colors hover:border-ink;
 }
 
 .btn-danger {
-  @apply inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-hermes-600 transition-colors hover:bg-hermes-50;
+  @apply inline-flex items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-hermes-600 transition-colors hover:bg-hermes-50;
 }
 
 .card {
-  @apply rounded-2xl border border-hairline bg-paper p-6 shadow-sm;
+  @apply rounded-md border border-hairline bg-paper p-6;
+}
+
+.eyebrow {
+  @apply text-xs font-semibold uppercase tracking-wide2 text-hermes-600;
+}
+
+.pill {
+  @apply inline-flex items-center gap-1.5 rounded-full border border-hairline px-3 py-1 text-xs font-medium text-graphite transition-colors;
+}
+.pill[data-active="true"] {
+  @apply border-ink bg-ink text-white;
 }
 
 table.admin-table th {
-  @apply border-b border-hairline px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-graphite;
+  @apply border-b border-hairline px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide2 text-graphite;
 }
 table.admin-table td {
   @apply border-b border-hairline px-4 py-3 text-sm text-ink;
+}
+
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* The bottom tab bar is ~64px of actual content plus the unsafe gesture
+   strip below it; .mobile-nav-height adds just that strip as padding
+   under the bar's own content, while .mobile-nav-spacer reserves the
+   full 64px + strip on every page so content never hides behind it. */
+.mobile-nav-height {
+  padding-bottom: var(--safe-bottom);
+}
+.mobile-nav-spacer {
+  padding-bottom: calc(64px + var(--safe-bottom));
 }

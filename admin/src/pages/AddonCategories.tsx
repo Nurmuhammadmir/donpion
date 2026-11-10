@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { api, ApiError, resolveImageUrl, uploadProductImages } from "@/lib/api";
 import type { AddonCategory } from "@/lib/types";
+import ShowcaseTabs from "@/components/ShowcaseTabs";
 
 const emptyForm = {
   name: "",
@@ -117,9 +118,10 @@ export default function AddonCategories() {
 
   return (
     <div>
+      <ShowcaseTabs />
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="font-serif text-2xl font-semibold text-ink">Допы (доп. товары)</h1>
+          <h1 className="font-display text-2xl text-ink">Допы (доп. товары)</h1>
           <p className="mt-1 text-sm text-graphite">
             Категории допродаж на карточке товара («Вазы», «Шоколад», «Игрушки»…). Отметьте в
             карточке товара, в какую категорию он входит — он будет предлагаться под ДРУГИМИ
@@ -206,7 +208,7 @@ export default function AddonCategories() {
                 <td className="text-graphite">/{category.slug}</td>
                 <td>{category.isActive ? "Активна" : "Скрыта"}</td>
                 <td className="text-right">
-                  <button type="button" onClick={() => startEdit(category)} className="mr-2 text-sm text-sapphire-600 hover:underline">
+                  <button type="button" onClick={() => startEdit(category)} className="mr-2 text-sm text-hermes-600 hover:underline">
                     Изменить
                   </button>
                   <button type="button" onClick={() => handleDelete(category._id)} className="btn-danger">
