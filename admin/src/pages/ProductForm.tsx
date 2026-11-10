@@ -1,17 +1,24 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { api, ApiError, resolveImageUrl, uploadProductImages } from "@/lib/api";
-import type { AddonCategory, Category, Character, Occasion, Product } from "@/lib/types";
+import { Plus, Trash2 } from "lucide-react";
+import { api, ApiError, createFlower, getFlowers, resolveImageUrl, uploadProductImages } from "@/lib/api";
+import type { AddonCategory, Category, Flower, Occasion, Product } from "@/lib/types";
 import ShowcaseTabs from "@/components/ShowcaseTabs";
 
 function formatUZS(amount: number) {
   return `${new Intl.NumberFormat("ru-RU").format(amount)} сум`;
 }
 
+type Kind = "bouquet" | "addon";
+
+const KIND_LABELS: Record<Kind, string> = {
+  bouquet: "Цветы",
+  addon: "Доп. товар",
+};
+
 const emptyForm = {
   name: "",
   category: "",
-  characters: [] as string[],
   addonCategories: [] as string[],
   occasions: [] as string[],
   price: "",
@@ -26,20 +33,41 @@ const emptyForm = {
   isActive: true,
 };
 
+// A recipe row carries the flower's own current name/unit/cost/stock
+// alongside its id — purely so the preview below can be computed instantly
+// as the admin edits, without a round trip. Only flowerId + quantity are
+// ever sent to the server (see handleSubmit).
+interface RecipeRow {
+  key: string;
+  flowerId: string;
+  name: string;
+  unit: string;
+  costPrice: number;
+  stock: number;
+  quantity: string;
+}
+
 export default function ProductForm() {
   const { id } = useParams();
   const isNew = !id || id === "new";
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const nextRowKey = useRef(0);
+
+  // New product: ask which kind before showing any fields (set below by
+  // the chooser screen). Editing: kind comes from the loaded product and
+  // never changes — migrating an existing product's cost/stock tracking
+  // between kinds is out of scope.
+  const [kind, setKind] = useState<Kind | null>(isNew ? null : "bouquet");
 
   const [categories, setCategories] = useState<Category[]>([]);
-  const [characters, setCharacters] = useState<Character[]>([]);
   const [addonCategories, setAddonCategories] = useState<AddonCategory[]>([]);
   const [occasions, setOccasions] = useState<Occasion[]>([]);
   const [form, setForm] = useState(emptyForm);
-  // Weighted-average import cost, computed server-side from warehouse
-  // purchase batches — display-only, never part of the save payload.
-  const [costPrice, setCostPrice] = useState<number | null>(null);
+  const [recipe, setRecipe] = useState<RecipeRow[]>([]);
+  // Addon only — weighted-average import cost from warehouse receipts,
+  // display-only, never part of the save payload.
+  const [savedCostPrice, setSavedCostPrice] = useState<number | null>(null);
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -48,20 +76,29 @@ export default function ProductForm() {
   const [uploadError, setUploadError] = useState<string | null>(null);
 
   useEffect(() => {
-    api<Category[]>("/categories/admin/all").then(setCategories).catch(() => setCategories([]));
-    api<Character[]>("/characters/admin/all").then(setCharacters).catch(() => setCharacters([]));
-    api<AddonCategory[]>("/addon-categories/admin/all").then(setAddonCategories).catch(() => setAddonCategories([]));
-    api<Occasion[]>("/occasions/admin/all").then(setOccasions).catch(() => setOccasions([]));
+    api<Category[]>("/categories").then(setCategories).catch(() => setCategories([]));
+    api<AddonCategory[]>("/addon-categories").then(setAddonCategories).catch(() => setAddonCategories([]));
+    api<Occasion[]>("/occasions").then(setOccasions).catch(() => setOccasions([]));
   }, []);
+
+  function newRecipeRow(): RecipeRow {
+    nextRowKey.current += 1;
+    return { key: `row-${nextRowKey.current}`, flowerId: "", name: "", unit: "шт", costPrice: 0, stock: 0, quantity: "" };
+  }
 
   useEffect(() => {
     if (isNew) return;
-    api<Product>(`/products/admin/id/${id}`)
-      .then((p) => {
+    // recipe.flower only ever comes back as a bare id (getProductByIdAdmin
+    // doesn't populate it) — a flower list resolves each id to the name/
+    // unit/cost/stock the preview needs. Its own failure shouldn't block
+    // loading the product itself, just degrade the hydration.
+    Promise.all([api<Product>(`/products/admin/id/${id}`), api<Flower[]>("/flowers?limit=500").catch(() => [] as Flower[])])
+      .then(([p, flowers]) => {
+        setKind(p.kind);
+        const flowerById = new Map(flowers.map((f) => [f._id, f]));
         setForm({
           name: p.name,
           category: p.category?._id ?? "",
-          characters: p.characters?.map((c) => c._id) ?? [],
           addonCategories: p.addonCategories?.map((c) => c._id) ?? [],
           occasions: p.occasions?.map((o) => o._id) ?? [],
           price: String(p.price),
@@ -75,7 +112,23 @@ export default function ProductForm() {
           isFeatured: p.isFeatured,
           isActive: p.isActive,
         });
-        setCostPrice(p.costPrice);
+        setRecipe(
+          (p.recipe ?? []).map((line) => {
+            const flowerId = typeof line.flower === "string" ? line.flower : line.flower._id;
+            const known = flowerById.get(flowerId);
+            nextRowKey.current += 1;
+            return {
+              key: `row-${nextRowKey.current}`,
+              flowerId,
+              name: known?.name ?? "Цветок удалён",
+              unit: known?.unit ?? "шт",
+              costPrice: known?.costPrice ?? 0,
+              stock: known?.stock ?? 0,
+              quantity: String(line.quantity),
+            };
+          })
+        );
+        setSavedCostPrice(p.costPrice);
       })
       .catch((err) => {
         // Without this, a failed load (product deleted elsewhere, network
@@ -117,23 +170,29 @@ export default function ProductForm() {
     setForm((prev) => ({ ...prev, images: prev.images.filter((i) => i !== url) }));
   };
 
+  const validRecipeRows = recipe.filter((r) => r.flowerId && Number(r.quantity) > 0);
+  const recipeIsValid = recipe.length > 0 && validRecipeRows.length === recipe.length;
+  const previewCost = validRecipeRows.reduce((sum, r) => sum + r.costPrice * Number(r.quantity), 0);
+  const previewAvailability =
+    validRecipeRows.length === 0
+      ? 0
+      : Math.max(0, Math.floor(Math.min(...validRecipeRows.map((r) => r.stock / Number(r.quantity)))));
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!kind) return;
     setSaving(true);
     setError(null);
 
     // Slug is intentionally not sent — the server always derives it from
-    // the name (server/src/utils/slugify.js), so it stays consistent and
-    // no admin ever has to think about URLs.
-    const payload = {
+    // the name. For a bouquet, category/characters/SEO/isFeatured/stock/
+    // costPrice are all server-computed from `recipe` and overwritten if
+    // sent anyway, so they're simply left out below.
+    const shared = {
       name: form.name,
-      category: form.category,
-      characters: form.characters,
-      addonCategories: form.addonCategories,
-      occasions: form.occasions,
+      kind,
       price: Number(form.price),
       oldPrice: form.oldPrice ? Number(form.oldPrice) : null,
-      stock: Number(form.stock),
       images: form.images,
       shortDescription: form.shortDescription,
       story: form.story,
@@ -142,9 +201,23 @@ export default function ProductForm() {
         .map((s) => s.trim())
         .filter(Boolean),
       careInstructions: form.careInstructions,
-      isFeatured: form.isFeatured,
       isActive: form.isActive,
     };
+
+    const payload =
+      kind === "bouquet"
+        ? {
+            ...shared,
+            occasions: form.occasions,
+            recipe: validRecipeRows.map((r) => ({ flower: r.flowerId, quantity: Number(r.quantity) })),
+          }
+        : {
+            ...shared,
+            category: form.category,
+            addonCategories: form.addonCategories,
+            stock: Number(form.stock),
+            isFeatured: form.isFeatured,
+          };
 
     try {
       if (isNew) {
@@ -182,142 +255,54 @@ export default function ProductForm() {
     );
   }
 
+  if (kind === null) {
+    return (
+      <div>
+        <ShowcaseTabs />
+        <h1 className="font-display text-2xl text-ink">Новый товар</h1>
+        <div className="mt-6 grid max-w-xl gap-3 sm:grid-cols-2">
+          <button
+            type="button"
+            onClick={() => setKind("bouquet")}
+            className="card flex flex-col items-start gap-1 text-left transition-all hover:shadow active:scale-[0.98]"
+          >
+            <span className="text-base font-medium text-ink">Цветы</span>
+            <span className="text-xs text-graphite">Букет из состава со склада</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setKind("addon")}
+            className="card flex flex-col items-start gap-1 text-left transition-all hover:shadow active:scale-[0.98]"
+          >
+            <span className="text-base font-medium text-ink">Доп. товар</span>
+            <span className="text-xs text-graphite">Ваза, шоколад, сертификат и т.п.</span>
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div>
       <ShowcaseTabs />
-      <h1 className="font-display text-2xl text-ink">
-        {isNew ? "Новый товар" : "Редактировать товар"}
-      </h1>
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="font-display text-2xl text-ink">{isNew ? "Новый товар" : "Редактировать товар"}</h1>
+        {isNew ? (
+          <button type="button" onClick={() => setKind(null)} className="text-xs font-medium text-graphite hover:text-ink">
+            Изменить тип
+          </button>
+        ) : (
+          <span className="pill" data-active="true">
+            {KIND_LABELS[kind]}
+          </span>
+        )}
+      </div>
 
       <form onSubmit={handleSubmit} className="card mt-6 max-w-3xl space-y-5">
-        <Field label="Название" required>
-          <input required value={form.name} onChange={update("name")} className="input" />
-        </Field>
-
-        <Field label="Категория">
-          <select value={form.category} onChange={update("category")} className="input">
-            <option value="">Выберите категорию</option>
-            {categories.map((c) => (
-              <option key={c._id} value={c._id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-          <p className="mt-2 text-xs text-graphite">
-            Не обязательно — если не выбрать, сервер сам отнесёт товар в категорию «Разное»; это
-            можно будет поменять здесь в любой момент.
-          </p>
-        </Field>
-
-        <Field label="Характер (для мини-квиза на главной)">
-          <div className="flex flex-wrap gap-x-5 gap-y-2">
-            {characters.map((character) => (
-              <label key={character._id} className="flex items-center gap-2 text-sm text-ink">
-                <input
-                  type="checkbox"
-                  checked={form.characters.includes(character._id)}
-                  onChange={(e) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      characters: e.target.checked
-                        ? [...prev.characters, character._id]
-                        : prev.characters.filter((id) => id !== character._id),
-                    }))
-                  }
-                />
-                {character.name}
-              </label>
-            ))}
-            {characters.length === 0 && (
-              <p className="text-xs text-graphite">Сначала добавьте характеры в разделе «Характеры».</p>
-            )}
-          </div>
-          <p className="mt-2 text-xs text-graphite">
-            Если не выбрать ни одного, сервер сам случайно привяжет один характер при сохранении —
-            это можно будет изменить здесь в любой момент.
-          </p>
-        </Field>
-
-        <Field label="Допы (этот товар — сам доп. товар, предлагается под другими)">
-          <div className="flex flex-wrap gap-x-5 gap-y-2">
-            {addonCategories.map((category) => (
-              <label key={category._id} className="flex items-center gap-2 text-sm text-ink">
-                <input
-                  type="checkbox"
-                  checked={form.addonCategories.includes(category._id)}
-                  onChange={(e) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      addonCategories: e.target.checked
-                        ? [...prev.addonCategories, category._id]
-                        : prev.addonCategories.filter((id) => id !== category._id),
-                    }))
-                  }
-                />
-                {category.name}
-              </label>
-            ))}
-            {addonCategories.length === 0 && (
-              <p className="text-xs text-graphite">Сначала добавьте категории в разделе «Допы».</p>
-            )}
-          </div>
-          <p className="mt-2 text-xs text-graphite">
-            Не обязательно — оставьте пустым, если это обычный букет, а не доп. товар (ваза,
-            шоколад, игрушка и т.п.).
-          </p>
-        </Field>
-
-        <Field label="Поводы (для раздела на главной странице)">
-          <div className="flex flex-wrap gap-x-5 gap-y-2">
-            {occasions.map((occasion) => (
-              <label key={occasion._id} className="flex items-center gap-2 text-sm text-ink">
-                <input
-                  type="checkbox"
-                  checked={form.occasions.includes(occasion._id)}
-                  onChange={(e) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      occasions: e.target.checked
-                        ? [...prev.occasions, occasion._id]
-                        : prev.occasions.filter((id) => id !== occasion._id),
-                    }))
-                  }
-                />
-                {occasion.name}
-              </label>
-            ))}
-            {occasions.length === 0 && (
-              <p className="text-xs text-graphite">Сначала добавьте поводы в разделе «Поводы».</p>
-            )}
-          </div>
-          <p className="mt-2 text-xs text-graphite">Не обязательно — можно оставить пустым.</p>
-        </Field>
-
-        <div className="grid gap-5 sm:grid-cols-3">
-          <Field label="Цена, сум" required>
-            <input required type="number" min={0} value={form.price} onChange={update("price")} className="input" />
-          </Field>
-          <Field label="Старая цена (для скидки)">
-            <input type="number" min={0} value={form.oldPrice} onChange={update("oldPrice")} className="input" />
-          </Field>
-          <Field label="Остаток на складе" required>
-            <input required type="number" min={0} value={form.stock} onChange={update("stock")} className="input" />
-          </Field>
-        </div>
-
-        {!isNew && (
-          <div className="flex items-center justify-between border border-hairline bg-canvas px-4 py-3">
-            <span className="text-xs font-medium uppercase tracking-wide text-graphite">Себестоимость (авто)</span>
-            <span className="font-display text-base text-ink">
-              {costPrice !== null ? formatUZS(costPrice) : "—"}
-            </span>
-          </div>
-        )}
-
         <Field label="Фото товара" required>
           <div className="flex flex-wrap gap-3">
             {form.images.map((url) => (
-              <div key={url} className="group relative h-24 w-24 overflow-hidden rounded-md border border-hairline">
+              <div key={url} className="group relative h-24 w-24 overflow-hidden rounded-xl border border-hairline">
                 <img src={resolveImageUrl(url)} alt="" className="h-full w-full object-cover" />
                 <button
                   type="button"
@@ -333,7 +318,7 @@ export default function ProductForm() {
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={uploading}
-              className="flex h-24 w-24 flex-col items-center justify-center gap-1 rounded-md border border-dashed border-hairline text-graphite hover:border-hermes-500 hover:text-hermes-600 disabled:opacity-50"
+              className="flex h-24 w-24 flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-hairline text-graphite hover:border-hermes-500 hover:text-hermes-600 disabled:opacity-50"
             >
               <span className="text-xl leading-none">{uploading ? "…" : "+"}</span>
               <span className="text-[10px] uppercase tracking-wide">{uploading ? "Грузим" : "Добавить"}</span>
@@ -347,16 +332,135 @@ export default function ProductForm() {
             onChange={handleFilesSelected}
             className="hidden"
           />
-          <p className="mt-2 text-xs text-graphite">
-            Загружается прямо с устройства — сервер сам сожмёт фото и переведёт в WebP.
-          </p>
           {uploadError && <p className="mt-1 text-xs text-hermes-600">{uploadError}</p>}
           {form.images.length === 0 && <p className="mt-1 text-xs text-hermes-600">Добавьте хотя бы одно фото.</p>}
         </Field>
 
-        <Field label="Короткое описание (для карточки товара)" required>
+        <Field label="Название" required>
+          <input required value={form.name} onChange={update("name")} className="input" />
+        </Field>
+
+        <div className={`grid gap-5 ${kind === "addon" ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
+          <Field label="Цена, сум" required>
+            <input required type="number" min={0} value={form.price} onChange={update("price")} className="input" />
+          </Field>
+          <Field label="Старая цена (для скидки)">
+            <input type="number" min={0} value={form.oldPrice} onChange={update("oldPrice")} className="input" />
+          </Field>
+          {kind === "addon" && (
+            <Field label="Остаток на складе" required>
+              <input required type="number" min={0} value={form.stock} onChange={update("stock")} className="input" />
+            </Field>
+          )}
+        </div>
+
+        <Field label="Короткое описание (для карточки и SEO)" required>
           <input required value={form.shortDescription} onChange={update("shortDescription")} className="input" />
         </Field>
+
+        {kind === "bouquet" ? (
+          <>
+            <Field label="Повод">
+              <div className="flex flex-wrap gap-x-5 gap-y-2">
+                {occasions.map((occasion) => (
+                  <label key={occasion._id} className="flex items-center gap-2 text-sm text-ink">
+                    <input
+                      type="checkbox"
+                      checked={form.occasions.includes(occasion._id)}
+                      onChange={(e) =>
+                        setForm((prev) => ({
+                          ...prev,
+                          occasions: e.target.checked
+                            ? [...prev.occasions, occasion._id]
+                            : prev.occasions.filter((oid) => oid !== occasion._id),
+                        }))
+                      }
+                    />
+                    {occasion.name}
+                  </label>
+                ))}
+              </div>
+            </Field>
+
+            <div>
+              <span className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-graphite">
+                Состав букета
+                <span className="text-hermes-500"> *</span>
+              </span>
+              <div className="space-y-3">
+                {recipe.map((row) => (
+                  <FlowerRow
+                    key={row.key}
+                    row={row}
+                    categories={categories}
+                    onChange={(next) => setRecipe((prev) => prev.map((r) => (r.key === row.key ? next : r)))}
+                    onRemove={() => setRecipe((prev) => prev.filter((r) => r.key !== row.key))}
+                  />
+                ))}
+              </div>
+              <button type="button" onClick={() => setRecipe((prev) => [...prev, newRecipeRow()])} className="btn-secondary mt-3">
+                <Plus className="h-4 w-4" /> Добавить цветок
+              </button>
+              {!recipeIsValid && <p className="mt-2 text-xs text-hermes-600">Добавьте цветок и укажите количество для каждой позиции.</p>}
+
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                <div className="flex items-center justify-between rounded-xl border border-hairline bg-canvas px-4 py-3">
+                  <span className="text-xs font-medium uppercase tracking-wide text-graphite">Себестоимость (авто)</span>
+                  <span className="font-display text-base text-ink">{formatUZS(previewCost)}</span>
+                </div>
+                <div className="flex items-center justify-between rounded-xl border border-hairline bg-canvas px-4 py-3">
+                  <span className="text-xs font-medium uppercase tracking-wide text-graphite">Можно собрать (авто)</span>
+                  <span className="font-display text-base text-ink">{previewAvailability} шт.</span>
+                </div>
+              </div>
+            </div>
+          </>
+        ) : (
+          <>
+            <Field label="Допы (этот товар — сам доп. товар, предлагается под другими)">
+              <div className="flex flex-wrap gap-x-5 gap-y-2">
+                {addonCategories.map((category) => (
+                  <label key={category._id} className="flex items-center gap-2 text-sm text-ink">
+                    <input
+                      type="checkbox"
+                      checked={form.addonCategories.includes(category._id)}
+                      onChange={(e) =>
+                        setForm((prev) => ({
+                          ...prev,
+                          addonCategories: e.target.checked
+                            ? [...prev.addonCategories, category._id]
+                            : prev.addonCategories.filter((cid) => cid !== category._id),
+                        }))
+                      }
+                    />
+                    {category.name}
+                  </label>
+                ))}
+                {addonCategories.length === 0 && (
+                  <p className="text-xs text-graphite">Сначала добавьте категории в разделе «Допы».</p>
+                )}
+              </div>
+            </Field>
+
+            <Field label="Категория">
+              <select value={form.category} onChange={update("category")} className="input">
+                <option value="">Выберите категорию</option>
+                {categories.map((c) => (
+                  <option key={c._id} value={c._id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+
+            {!isNew && savedCostPrice !== null && (
+              <div className="flex items-center justify-between rounded-xl border border-hairline bg-canvas px-4 py-3">
+                <span className="text-xs font-medium uppercase tracking-wide text-graphite">Себестоимость (авто)</span>
+                <span className="font-display text-base text-ink">{formatUZS(savedCostPrice)}</span>
+              </div>
+            )}
+          </>
+        )}
 
         <Field label="Подробный рассказ о товаре (уникальный текст для SEO)" required>
           <textarea required value={form.story} onChange={update("story")} className="input min-h-32" />
@@ -371,10 +475,12 @@ export default function ProductForm() {
         </Field>
 
         <div className="flex gap-6">
-          <label className="flex items-center gap-2 text-sm text-ink">
-            <input type="checkbox" checked={form.isFeatured} onChange={update("isFeatured")} />
-            Показывать в Люксовом
-          </label>
+          {kind === "addon" && (
+            <label className="flex items-center gap-2 text-sm text-ink">
+              <input type="checkbox" checked={form.isFeatured} onChange={update("isFeatured")} />
+              Показывать в Люксовом
+            </label>
+          )}
           <label className="flex items-center gap-2 text-sm text-ink">
             <input type="checkbox" checked={form.isActive} onChange={update("isActive")} />
             Активен (виден на сайте)
@@ -384,7 +490,11 @@ export default function ProductForm() {
         {error && <p className="text-sm text-hermes-600">{error}</p>}
 
         <div className="flex gap-3 pt-2">
-          <button type="submit" disabled={saving || uploading || form.images.length === 0} className="btn-primary">
+          <button
+            type="submit"
+            disabled={saving || uploading || form.images.length === 0 || (kind === "bouquet" && !recipeIsValid)}
+            className="btn-primary"
+          >
             {saving ? "Сохраняем…" : "Сохранить"}
           </button>
           <button type="button" onClick={() => navigate("/showcase")} className="btn-secondary">
@@ -405,5 +515,182 @@ function Field({ label, required, children }: { label: string; required?: boolea
       </span>
       {children}
     </label>
+  );
+}
+
+// One "Состав букета" row: a debounced flower search that can also create
+// a brand new flower inline (same raw material Приход draws from), plus
+// how many of it the recipe needs. The parent only ever reads
+// flowerId/quantity on submit — name/unit/costPrice/stock here exist
+// purely to drive the live preview above.
+function FlowerRow({
+  row,
+  categories,
+  onChange,
+  onRemove,
+}: {
+  row: RecipeRow;
+  categories: Category[];
+  onChange: (next: RecipeRow) => void;
+  onRemove: () => void;
+}) {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<Flower[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [showCreate, setShowCreate] = useState(false);
+  const [createName, setCreateName] = useState("");
+  const [createCategory, setCreateCategory] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (row.flowerId) return;
+    const term = query.trim();
+    if (!term) {
+      setResults([]);
+      return;
+    }
+    setSearching(true);
+    const handle = setTimeout(() => {
+      getFlowers(term)
+        .then((flowers) => setResults(flowers as Flower[]))
+        .catch(() => setResults([]))
+        .finally(() => setSearching(false));
+    }, 300);
+    return () => clearTimeout(handle);
+  }, [query, row.flowerId]);
+
+  const selectFlower = (f: Flower) => {
+    onChange({ ...row, flowerId: f._id, name: f.name, unit: f.unit, costPrice: f.costPrice, stock: f.stock });
+    setQuery("");
+    setResults([]);
+    setShowCreate(false);
+  };
+
+  const clearSelection = () => {
+    onChange({ ...row, flowerId: "", name: "", unit: "шт", costPrice: 0, stock: 0 });
+  };
+
+  const openCreate = () => {
+    setCreateName(query.trim());
+    setCreateCategory("");
+    setCreateError(null);
+    setShowCreate(true);
+  };
+
+  const handleCreateFlower = async () => {
+    if (!createName.trim() || !createCategory) return;
+    setCreating(true);
+    setCreateError(null);
+    try {
+      const flower = (await createFlower({ name: createName.trim(), category: createCategory })) as Flower;
+      selectFlower(flower);
+    } catch (err) {
+      setCreateError(err instanceof ApiError ? err.message : "Не удалось создать цветок");
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  return (
+    <div className="rounded-xl border border-hairline p-3">
+      {row.flowerId ? (
+        <div className="flex items-center justify-between gap-2">
+          <span className="min-w-0 truncate text-sm font-medium text-ink">{row.name}</span>
+          <button
+            type="button"
+            onClick={clearSelection}
+            className="flex-none text-xs text-graphite underline-offset-2 hover:underline"
+          >
+            Заменить
+          </button>
+        </div>
+      ) : (
+        <div className="relative">
+          <input
+            value={query}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setShowCreate(false);
+            }}
+            placeholder="Название цветка…"
+            className="input"
+          />
+          {query.trim() && (
+            <div className="absolute inset-x-0 top-full z-10 mt-1 max-h-56 overflow-y-auto rounded-xl border border-hairline bg-paper shadow-sm">
+              {searching ? (
+                <p className="p-3 text-sm text-graphite">Ищем…</p>
+              ) : (
+                <>
+                  {results.map((f) => (
+                    <button
+                      key={f._id}
+                      type="button"
+                      onClick={() => selectFlower(f)}
+                      className="block w-full px-3.5 py-2.5 text-left text-sm text-ink hover:bg-canvas"
+                    >
+                      {f.name} <span className="text-xs text-graphite">· остаток {f.stock} {f.unit}</span>
+                    </button>
+                  ))}
+                  {results.length === 0 && (
+                    <button
+                      type="button"
+                      onClick={openCreate}
+                      className="block w-full px-3.5 py-2.5 text-left text-sm font-medium text-hermes-600 hover:bg-canvas"
+                    >
+                      + Создать «{query.trim()}»
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {showCreate && (
+        <div className="mt-3 space-y-2 rounded-xl bg-canvas p-3">
+          <input value={createName} onChange={(e) => setCreateName(e.target.value)} placeholder="Название цветка" className="input" />
+          <select value={createCategory} onChange={(e) => setCreateCategory(e.target.value)} className="input">
+            <option value="">Категория цветка</option>
+            {categories.map((c) => (
+              <option key={c._id} value={c._id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              disabled={!createName.trim() || !createCategory || creating}
+              onClick={handleCreateFlower}
+              className="btn-primary flex-1"
+            >
+              {creating ? "Создаём…" : "Создать"}
+            </button>
+            <button type="button" onClick={() => setShowCreate(false)} className="btn-secondary">
+              Отмена
+            </button>
+          </div>
+          {createError && <p className="text-xs text-hermes-600">{createError}</p>}
+        </div>
+      )}
+
+      <div className="mt-3 flex items-center gap-2">
+        <input
+          type="number"
+          min={1}
+          step="any"
+          value={row.quantity}
+          onChange={(e) => onChange({ ...row, quantity: e.target.value })}
+          placeholder="Кол-во"
+          className="input w-24"
+        />
+        <span className="text-xs text-graphite">{row.unit}</span>
+        <button type="button" onClick={onRemove} aria-label="Удалить позицию" className="btn-danger ml-auto flex-none">
+          <Trash2 className="h-4 w-4" />
+        </button>
+      </div>
+    </div>
   );
 }
