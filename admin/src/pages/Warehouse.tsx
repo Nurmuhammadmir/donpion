@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { Flower2, Package, Search, Trash2 } from "lucide-react";
 import { api, ApiError, createFlower, createPurchaseBatch, getFlowers, resolveImageUrl } from "@/lib/api";
 import { useBranch } from "@/context/BranchContext";
+import Modal from "@/components/Modal";
 import type {
   Category,
   Flower,
@@ -329,20 +330,13 @@ function StockTab({
 
   const [editingFlower, setEditingFlower] = useState<Flower | null>(null);
   const [editName, setEditName] = useState("");
-  const [editCategory, setEditCategory] = useState("");
   const [editActive, setEditActive] = useState(true);
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
-  const [categories, setCategories] = useState<Category[]>([]);
-
-  useEffect(() => {
-    api<Category[]>("/categories").then(setCategories).catch(() => setCategories([]));
-  }, []);
 
   const startEditFlower = (flower: Flower) => {
     setEditingFlower(flower);
     setEditName(flower.name);
-    setEditCategory(typeof flower.category === "string" ? flower.category : (flower.category?._id ?? ""));
     setEditActive(flower.isActive);
     setEditError(null);
   };
@@ -359,7 +353,7 @@ function StockTab({
     try {
       await api(`/flowers/${editingFlower._id}`, {
         method: "PUT",
-        body: JSON.stringify({ name: editName.trim(), category: editCategory || null, isActive: editActive }),
+        body: JSON.stringify({ name: editName.trim(), isActive: editActive }),
       });
       setEditingFlower(null);
       onChanged();
@@ -497,7 +491,8 @@ function StockTab({
       </div>
 
       {formItem && (
-        <form onSubmit={handleSubmit} className="card mt-6 max-w-lg space-y-4">
+        <Modal onClose={closeForm}>
+        <form onSubmit={handleSubmit} className="space-y-4">
           <h2 className="font-medium text-ink">
             {formType === "receipt" ? "Приход" : "Корректировка"}: {formItem.name}
           </h2>
@@ -561,50 +556,36 @@ function StockTab({
             </button>
           </div>
         </form>
+        </Modal>
       )}
 
       {editingFlower && (
-        <form onSubmit={submitEditFlower} className="card mt-6 max-w-lg space-y-4">
-          <div className="flex items-center justify-between">
+        <Modal onClose={() => setEditingFlower(null)}>
+          <form onSubmit={submitEditFlower} className="space-y-4">
             <h2 className="font-medium text-ink">Изменить цветок</h2>
-            <button type="button" onClick={() => setEditingFlower(null)} className="text-sm text-graphite hover:text-ink">
-              ← Назад
-            </button>
-          </div>
 
-          <label className="block">
-            <span className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-graphite">Название</span>
-            <input value={editName} onChange={(e) => setEditName(e.target.value)} className="input" autoFocus />
-          </label>
+            <label className="block">
+              <span className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-graphite">Название</span>
+              <input value={editName} onChange={(e) => setEditName(e.target.value)} className="input" autoFocus />
+            </label>
 
-          <label className="block">
-            <span className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-graphite">Категория (необязательно)</span>
-            <select value={editCategory} onChange={(e) => setEditCategory(e.target.value)} className="input">
-              <option value="">Без категории</option>
-              {categories.map((c) => (
-                <option key={c._id} value={c._id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </label>
+            <label className="flex items-center gap-2 text-sm text-ink">
+              <input type="checkbox" checked={editActive} onChange={(e) => setEditActive(e.target.checked)} />
+              Активен
+            </label>
 
-          <label className="flex items-center gap-2 text-sm text-ink">
-            <input type="checkbox" checked={editActive} onChange={(e) => setEditActive(e.target.checked)} />
-            Активен
-          </label>
+            {editError && <p className="text-sm text-hermes-600">{editError}</p>}
 
-          {editError && <p className="text-sm text-hermes-600">{editError}</p>}
-
-          <div className="flex gap-3">
-            <button type="submit" disabled={editSaving} className="btn-primary">
-              {editSaving ? "Сохраняем…" : "Сохранить"}
-            </button>
-            <button type="button" onClick={() => setEditingFlower(null)} className="btn-secondary">
-              Отмена
-            </button>
-          </div>
-        </form>
+            <div className="flex gap-3">
+              <button type="submit" disabled={editSaving} className="btn-primary">
+                {editSaving ? "Сохраняем…" : "Сохранить"}
+              </button>
+              <button type="button" onClick={() => setEditingFlower(null)} className="btn-secondary">
+                Отмена
+              </button>
+            </div>
+          </form>
+        </Modal>
       )}
 
       <h2 className="mt-8 font-display text-lg font-semibold text-ink">Доп. товары</h2>
@@ -1050,7 +1031,7 @@ function BatchForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="card mt-4 space-y-5">
+    <form onSubmit={handleSubmit} className="space-y-5">
       <h2 className="font-medium text-ink">Новая партия</h2>
 
       <div className="grid gap-4 sm:grid-cols-2">

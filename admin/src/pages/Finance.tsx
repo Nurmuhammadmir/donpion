@@ -416,6 +416,7 @@ export default function Finance() {
       </div>
 
       {incomeExpanded && (
+        <div className="anim-dropdown">
         <IncomeList
           orders={incomeOrders}
           loading={incomeLoading}
@@ -425,10 +426,11 @@ export default function Finance() {
           onPrev={() => setIncomePage((p) => p - 1)}
           onNext={() => setIncomePage((p) => p + 1)}
         />
+        </div>
       )}
 
       {expensesExpanded && (
-        <div className="mt-3">
+        <div className="anim-dropdown mt-3">
           <label className="mb-3 block max-w-xs">
             <span className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-graphite">Категория</span>
             <select value={categoryFilter} onChange={handleCategoryFilterChange} className="input">
@@ -701,8 +703,8 @@ function AddChoiceModal({
   onPickSale: () => void;
 }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4" onClick={onClose}>
-      <div className="card w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+    <div className="anim-backdrop fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4" onClick={onClose}>
+      <div className="anim-modal card w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
         <div className="mb-4 flex items-center justify-between">
           <h2 className="font-display text-lg font-semibold text-ink">Новая запись</h2>
           <button
@@ -750,10 +752,10 @@ function ExpenseFormModal({
   onClose: () => void;
 }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4" onClick={onClose}>
+    <div className="anim-backdrop fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4" onClick={onClose}>
       <form
         onSubmit={onSubmit}
-        className="card max-h-[90vh] w-full max-w-lg overflow-y-auto"
+        className="anim-modal card max-h-[90vh] w-full max-w-lg overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between">

@@ -129,7 +129,7 @@ export default function Showcase() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Поиск по названию…"
-          className="input pl-10"
+          className="input !pl-10"
         />
       </div>
 

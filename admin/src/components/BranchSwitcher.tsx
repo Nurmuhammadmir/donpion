@@ -87,12 +87,12 @@ export default function BranchSwitcher({ variant = "sidebar" }: { variant?: "sid
 
       {open && (
         <>
-          <div className="fixed inset-0 z-40 bg-ink/30" onClick={close} />
+          <div className="anim-backdrop fixed inset-0 z-40 bg-ink/30" onClick={close} />
           <div
             className={
               variant === "sidebar"
-                ? "absolute left-0 top-full z-50 mt-2 w-full border border-hairline bg-paper"
-                : "fixed inset-x-0 bottom-0 z-50 border-t border-hairline bg-paper md:absolute md:inset-x-auto md:bottom-auto md:right-0 md:top-full md:mt-2 md:w-72 md:border"
+                ? "anim-dropdown absolute left-0 top-full z-50 mt-2 w-full border border-hairline bg-paper"
+                : "anim-sheet fixed inset-x-0 bottom-0 z-50 border-t border-hairline bg-paper md:absolute md:inset-x-auto md:bottom-auto md:right-0 md:top-full md:mt-2 md:w-72 md:border"
             }
           >
             <div className="border-b border-hairline px-4 py-3">

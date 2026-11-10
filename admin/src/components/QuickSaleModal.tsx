@@ -129,7 +129,7 @@ export default function QuickSaleModal({
       onClick={onClose}
     >
       <div
-        className="flex h-full w-full flex-col overflow-hidden bg-paper sm:h-auto sm:max-h-[90vh] sm:max-w-3xl sm:rounded-2xl sm:border sm:border-hairline"
+        className="anim-sheet flex h-full w-full flex-col overflow-hidden bg-paper sm:h-auto sm:max-h-[90vh] sm:max-w-3xl sm:rounded-2xl sm:border sm:border-hairline"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b border-hairline px-4 py-3 sm:px-6">

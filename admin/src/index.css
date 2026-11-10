@@ -81,3 +81,67 @@ table.admin-table td {
 .mobile-nav-spacer {
   padding-bottom: calc(64px + var(--safe-bottom));
 }
+
+/* ---- Motion: every popup/dropdown/overlay eases in instead of snapping
+   into place, and respects a person's reduced-motion preference. ---- */
+@keyframes backdrop-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes modal-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.97);
+  }
+}
+@keyframes sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+}
+@keyframes dropdown-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+}
+
+.anim-backdrop {
+  animation: backdrop-in 0.2s ease-out both;
+}
+.anim-modal {
+  animation: modal-in 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.anim-sheet {
+  animation: sheet-up 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.anim-dropdown {
+  animation: dropdown-in 0.16s ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .anim-backdrop,
+  .anim-modal,
+  .anim-sheet,
+  .anim-dropdown {
+    animation: none;
+  }
+}
+
+/* A disclosure panel (Поступления/Списания and similar) grows/shrinks its
+   own height smoothly instead of popping open — grid-rows is the only
+   property that can tween "auto" height at all; the same trick the
+   storefront's own ProductAddons accordion already uses. */
+.disclosure-rows {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.25s ease;
+}
+.disclosure-rows[data-open="true"] {
+  grid-template-rows: 1fr;
+}
+.disclosure-rows > div {
+  overflow: hidden;
+  min-height: 0;
+}

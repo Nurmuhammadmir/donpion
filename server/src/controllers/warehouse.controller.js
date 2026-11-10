@@ -17,7 +17,12 @@ export const getOverview = asyncHandler(async (req, res) => {
   const settings = await SiteSettings.findOne({ key: "homepage" });
   const threshold = settings?.lowStockThreshold ?? 5;
 
-  const products = await Product.find({})
+  // Addon-kind only — a bouquet has no stock of its own to receive or
+  // correct here, its "Остаток" is only ever derived from the flowers in
+  // its recipe (see utils/bouquetStock.js). Listing it here would make it
+  // look like a directly-stocked item with a real Приход/Корректировка,
+  // which it never is.
+  const products = await Product.find({ kind: "addon" })
     .populate("category", "name")
     .select("name slug category stock isActive images costPrice")
     .sort({ stock: 1, name: 1 });
@@ -225,12 +230,21 @@ export const createReceipt = asyncHandler(async (req, res) => {
     throw new Error("Укажите товар и положительное количество");
   }
 
-  const product = await Product.findByIdAndUpdate(productId, { $inc: { stock: qty } }, { new: true });
-  if (!product) {
+  const existing = await Product.findById(productId).select("kind");
+  if (!existing) {
     res.status(404);
     throw new Error("Товар не найден");
   }
+  // A bouquet has no stock of its own — it's always derived from its
+  // recipe's flowers. Receiving stock "on" one would just get silently
+  // overwritten by the next recompute, so reject it outright instead of
+  // pretending it did something.
+  if (existing.kind === "bouquet") {
+    res.status(400);
+    throw new Error("У букета нет собственного остатка — приход оформляется на цветы в «Партиях»");
+  }
 
+  const product = await Product.findByIdAndUpdate(productId, { $inc: { stock: qty } }, { new: true });
   const entry = await StockEntry.create({ product: productId, quantity: qty, reason: "receipt", note: note || "" });
   res.status(201).json({ product, entry });
 });
@@ -256,6 +270,10 @@ export const createAdjustment = asyncHandler(async (req, res) => {
   if (!product) {
     res.status(404);
     throw new Error("Товар не найден");
+  }
+  if (product.kind === "bouquet") {
+    res.status(400);
+    throw new Error("У букета нет собственного остатка — корректировка делается на цветы в «Партиях»");
   }
   product.stock = Math.max(0, product.stock + qty);
   await product.save();

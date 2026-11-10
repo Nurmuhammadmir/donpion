@@ -17,9 +17,16 @@ const NAV = [
 export default function AdminLayout() {
   return (
     <BranchProvider>
-      <div className="flex min-h-screen bg-canvas">
+      {/* h-screen + overflow-hidden on the whole shell, instead of the old
+          min-h-screen (which just grows with content): a page taller than
+          the viewport used to scroll the *document*, taking the sidebar
+          and header — which are just ordinary flex children, not actually
+          pinned to anything — along with it. Now <main> below is the only
+          scrolling element; the chrome around it never moves, like a real
+          app shell instead of a long webpage. */}
+      <div className="flex h-screen overflow-hidden bg-canvas">
         {/* Desktop sidebar */}
-        <aside className="hidden w-64 flex-none flex-col border-r border-hairline bg-paper px-4 py-6 md:flex">
+        <aside className="hidden w-64 flex-none flex-col overflow-y-auto border-r border-hairline bg-paper px-4 py-6 md:flex">
           <div className="mb-6 px-1">
             <span className="font-display text-xl font-semibold text-ink">DonPion</span>
             <span className="ml-1.5 text-xs text-graphite">CRM</span>
@@ -62,21 +69,24 @@ export default function AdminLayout() {
           </div>
         </aside>
 
-        {/* min-w-0: without it, a flex item refuses to shrink below its
-            content's natural width — one wide table anywhere on any page
-            was enough to force this whole column (and everything in it,
-            including the unrelated header above) past the viewport on
-            mobile instead of letting that table scroll internally. */}
-        <div className="flex min-h-screen min-w-0 flex-1 flex-col">
-          {/* Mobile top bar */}
-          <header className="flex items-center justify-between border-b border-hairline bg-paper px-4 py-3 md:hidden">
+        {/* min-w-0 (horizontal) for the same reason as before — a wide
+            table anywhere shouldn't force this column past the viewport.
+            min-h-0 (vertical) is its scroll-axis equivalent: a flex column
+            child defaults to min-height:auto, which refuses to shrink
+            below its content's height — without min-h-0 here, <main>'s
+            own overflow-y-auto below would never actually kick in, since
+            this wrapper would just grow to fit it instead of clipping it. */}
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+          {/* Mobile top bar — no longer just an ordinary flow element: it
+              needs to stay put while <main> scrolls past underneath it. */}
+          <header className="z-20 flex flex-none items-center justify-between border-b border-hairline bg-paper px-4 py-3 md:hidden">
             <span className="font-display text-lg font-semibold text-ink">
               DonPion<span className="ml-1 text-xs font-normal text-graphite">CRM</span>
             </span>
             <BranchSwitcher variant="topbar" />
           </header>
 
-          <main className="min-w-0 flex-1 overflow-x-hidden p-4 mobile-nav-spacer md:p-8 md:pb-8">
+          <main className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto p-4 mobile-nav-spacer md:p-8 md:pb-8">
             <Outlet />
           </main>
 
