@@ -17,11 +17,11 @@ export const getFlowers = asyncHandler(async (req, res) => {
 // the same picker, the moment it's needed instead of a separate detour.
 export const createFlower = asyncHandler(async (req, res) => {
   const { name, category } = req.body;
-  if (!String(name || "").trim() || !category) {
+  if (!String(name || "").trim()) {
     res.status(400);
-    throw new Error("Укажите название и категорию цветка");
+    throw new Error("Укажите название цветка");
   }
-  const flower = await Flower.create({ name: name.trim(), category, unit: req.body.unit || "шт" });
+  const flower = await Flower.create({ name: name.trim(), category: category || null, unit: req.body.unit || "шт" });
   res.status(201).json(flower);
 });
 

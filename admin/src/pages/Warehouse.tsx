@@ -215,7 +215,7 @@ function FlowerStatus({ flower, threshold }: { flower: Flower; threshold: number
   return <span className="pill">В наличии</span>;
 }
 
-function FlowerCard({ flower, threshold }: { flower: Flower; threshold: number }) {
+function FlowerCard({ flower, threshold, onEdit }: { flower: Flower; threshold: number; onEdit: () => void }) {
   return (
     <div className="card p-3">
       <div className="flex items-center gap-3">
@@ -243,6 +243,13 @@ function FlowerCard({ flower, threshold }: { flower: Flower; threshold: number }
           Себест.: <span className="font-medium text-ink">{formatUZS(flower.costPrice)}</span>
         </span>
       </div>
+      <button
+        type="button"
+        onClick={onEdit}
+        className="mt-3 w-full rounded-md border border-hairline px-3 py-2 text-xs font-medium text-graphite transition-colors hover:border-ink hover:text-ink"
+      >
+        Изменить
+      </button>
     </div>
   );
 }
@@ -320,6 +327,49 @@ function StockTab({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [editingFlower, setEditingFlower] = useState<Flower | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editCategory, setEditCategory] = useState("");
+  const [editActive, setEditActive] = useState(true);
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+  const [categories, setCategories] = useState<Category[]>([]);
+
+  useEffect(() => {
+    api<Category[]>("/categories").then(setCategories).catch(() => setCategories([]));
+  }, []);
+
+  const startEditFlower = (flower: Flower) => {
+    setEditingFlower(flower);
+    setEditName(flower.name);
+    setEditCategory(typeof flower.category === "string" ? flower.category : (flower.category?._id ?? ""));
+    setEditActive(flower.isActive);
+    setEditError(null);
+  };
+
+  const submitEditFlower = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingFlower) return;
+    if (!editName.trim()) {
+      setEditError("Укажите название");
+      return;
+    }
+    setEditSaving(true);
+    setEditError(null);
+    try {
+      await api(`/flowers/${editingFlower._id}`, {
+        method: "PUT",
+        body: JSON.stringify({ name: editName.trim(), category: editCategory || null, isActive: editActive }),
+      });
+      setEditingFlower(null);
+      onChanged();
+    } catch (err) {
+      setEditError(err instanceof ApiError ? err.message : "Не удалось сохранить");
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
   const startReceipt = (item: WarehouseItem) => {
     setFormItem(item);
     setFormType("receipt");
@@ -379,21 +429,7 @@ function StockTab({
 
   return (
     <div>
-      <div className="card">
-        <p className="eyebrow">Стоимость склада по себестоимости</p>
-        <p className="mt-2 font-display text-3xl font-semibold text-ink sm:text-4xl">
-          {loading ? "—" : formatUZS(overview?.totalValue ?? 0)}
-        </p>
-        <p className="mt-1 text-xs text-graphite">Остаток × себестоимость, по всем товарам</p>
-      </div>
-
-      <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <StatCard label="Товаров на складе" value={loading ? "—" : items.length} />
-        <StatCard label="Мало на складе" value={loading ? "—" : lowStockCount} accent={lowStockCount > 0} />
-        <StatCard label="Порог «мало»" value={loading ? "—" : overview?.threshold ?? 0} />
-      </div>
-
-      <div className="mt-8">
+      <div>
         <div className="flex items-center justify-between">
           <h2 className="font-display text-lg font-semibold text-ink">Цветы</h2>
           <span className="text-xs text-graphite">{flowersLoading ? "—" : `${flowers.length} позиций`}</span>
@@ -402,7 +438,7 @@ function StockTab({
         {/* mobile: card-per-flower */}
         <div className="mt-3 space-y-3 md:hidden">
           {flowers.map((flower) => (
-            <FlowerCard key={flower._id} flower={flower} threshold={threshold} />
+            <FlowerCard key={flower._id} flower={flower} threshold={threshold} onEdit={() => startEditFlower(flower)} />
           ))}
           {!flowersLoading && flowers.length === 0 && (
             <p className="card text-sm text-graphite">Цветов пока нет — добавьте через «Партии».</p>
@@ -419,6 +455,7 @@ function StockTab({
                 <th>Остаток</th>
                 <th>Себестоимость</th>
                 <th>Статус</th>
+                <th />
               </tr>
             </thead>
             <tbody>
@@ -445,6 +482,11 @@ function StockTab({
                   <td>{formatUZS(flower.costPrice)}</td>
                   <td>
                     <FlowerStatus flower={flower} threshold={threshold} />
+                  </td>
+                  <td className="text-right">
+                    <button type="button" onClick={() => startEditFlower(flower)} className="text-sm text-sapphire-600 hover:underline">
+                      Изменить
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -515,6 +557,50 @@ function StockTab({
               {saving ? "Сохраняем…" : "Сохранить"}
             </button>
             <button type="button" onClick={closeForm} className="btn-secondary">
+              Отмена
+            </button>
+          </div>
+        </form>
+      )}
+
+      {editingFlower && (
+        <form onSubmit={submitEditFlower} className="card mt-6 max-w-lg space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="font-medium text-ink">Изменить цветок</h2>
+            <button type="button" onClick={() => setEditingFlower(null)} className="text-sm text-graphite hover:text-ink">
+              ← Назад
+            </button>
+          </div>
+
+          <label className="block">
+            <span className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-graphite">Название</span>
+            <input value={editName} onChange={(e) => setEditName(e.target.value)} className="input" autoFocus />
+          </label>
+
+          <label className="block">
+            <span className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-graphite">Категория (необязательно)</span>
+            <select value={editCategory} onChange={(e) => setEditCategory(e.target.value)} className="input">
+              <option value="">Без категории</option>
+              {categories.map((c) => (
+                <option key={c._id} value={c._id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="flex items-center gap-2 text-sm text-ink">
+            <input type="checkbox" checked={editActive} onChange={(e) => setEditActive(e.target.checked)} />
+            Активен
+          </label>
+
+          {editError && <p className="text-sm text-hermes-600">{editError}</p>}
+
+          <div className="flex gap-3">
+            <button type="submit" disabled={editSaving} className="btn-primary">
+              {editSaving ? "Сохраняем…" : "Сохранить"}
+            </button>
+            <button type="button" onClick={() => setEditingFlower(null)} className="btn-secondary">
               Отмена
             </button>
           </div>
@@ -649,17 +735,14 @@ function lineTotalUZS(line: BatchLine): number {
 
 // Flowers are picked OR created right from this search box — "цветы либо
 // выбираются, либо создаются". If a search finds nothing, "+ Создать
-// «…»" opens a one-field inline form (just a category) and the new
-// flower drops straight into the batch as a line, no separate page.
-function FlowerPicker({ categories, onPick }: { categories: Category[]; onPick: (flower: Flower) => void }) {
+// «…»" creates it by name alone (no category, no extra step) and drops
+// it straight into the batch as a line, no separate page.
+function FlowerPicker({ onPick }: { onPick: (flower: Flower) => void }) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Flower[]>([]);
   const [searching, setSearching] = useState(false);
   const [open, setOpen] = useState(false);
-  const [creating, setCreating] = useState(false);
-  const [newFlowerName, setNewFlowerName] = useState("");
-  const [newCategoryId, setNewCategoryId] = useState("");
-  const [createSaving, setCreateSaving] = useState(false);
+  const [creatingName, setCreatingName] = useState<string | null>(null);
   const [createError, setCreateError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -684,30 +767,18 @@ function FlowerPicker({ categories, onPick }: { categories: Category[]; onPick: 
     setQuery("");
     setResults([]);
     setOpen(false);
-    setCreating(false);
   };
 
-  const startCreate = () => {
-    setNewFlowerName(query.trim());
-    setNewCategoryId("");
-    setCreateError(null);
-    setCreating(true);
-  };
-
-  const submitCreate = async () => {
-    if (!newCategoryId) {
-      setCreateError("Выберите категорию");
-      return;
-    }
-    setCreateSaving(true);
+  const createAndPick = async (name: string) => {
+    setCreatingName(name);
     setCreateError(null);
     try {
-      const flower = (await createFlower({ name: newFlowerName, category: newCategoryId })) as Flower;
+      const flower = (await createFlower({ name })) as Flower;
       pick(flower);
     } catch (err) {
       setCreateError(err instanceof ApiError ? err.message : "Не удалось создать цветок");
     } finally {
-      setCreateSaving(false);
+      setCreatingName(null);
     }
   };
 
@@ -727,7 +798,7 @@ function FlowerPicker({ categories, onPick }: { categories: Category[]; onPick: 
           className="input pl-9"
         />
       </div>
-      {open && query.trim() && !creating && (
+      {open && query.trim() && (
         <div className="absolute inset-x-0 top-full z-20 mt-1 max-h-60 overflow-y-auto border border-hairline bg-paper">
           {searching ? (
             <p className="p-3 text-sm text-graphite">Ищем…</p>
@@ -737,11 +808,13 @@ function FlowerPicker({ categories, onPick }: { categories: Category[]; onPick: 
               <button
                 type="button"
                 onMouseDown={(e) => e.preventDefault()}
-                onClick={startCreate}
-                className="mt-1.5 text-sm font-medium text-sapphire-600 hover:underline"
+                onClick={() => createAndPick(query.trim())}
+                disabled={creatingName !== null}
+                className="mt-1.5 text-sm font-medium text-sapphire-600 hover:underline disabled:opacity-50"
               >
-                + Создать «{query.trim()}»
+                {creatingName ? "Создаём…" : `+ Создать «${query.trim()}»`}
               </button>
+              {createError && <p className="mt-1 text-xs text-hermes-600">{createError}</p>}
             </div>
           ) : (
             results.map((flower) => (
@@ -762,37 +835,6 @@ function FlowerPicker({ categories, onPick }: { categories: Category[]; onPick: 
               </button>
             ))
           )}
-        </div>
-      )}
-      {creating && (
-        <div className="card mt-2 space-y-2.5 p-3">
-          <p className="text-sm text-ink">
-            Новый цветок: <span className="font-medium">«{newFlowerName}»</span>
-          </p>
-          <select value={newCategoryId} onChange={(e) => setNewCategoryId(e.target.value)} className="input">
-            <option value="">Категория…</option>
-            {categories.map((c) => (
-              <option key={c._id} value={c._id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-          {createError && <p className="text-xs text-hermes-600">{createError}</p>}
-          <div className="flex gap-2">
-            <button type="button" onClick={submitCreate} disabled={createSaving} className="btn-primary flex-1 py-2 text-xs">
-              {createSaving ? "Создаём…" : "Создать и добавить"}
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setCreating(false);
-                setOpen(true);
-              }}
-              className="btn-secondary flex-1 py-2 text-xs"
-            >
-              Отмена
-            </button>
-          </div>
         </div>
       )}
     </div>
@@ -908,7 +950,6 @@ function BatchForm({
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [notes, setNotes] = useState("");
   const [lines, setLines] = useState<BatchLine[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
   // Lump-sum landed-cost overhead for the whole shipment (shipping,
   // customs, broker fees) — not any single flower's own price, but the
   // server folds it into each flower's weighted-average costPrice,
@@ -919,11 +960,6 @@ function BatchForm({
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const nextKey = useRef(0);
-
-  // Only needed for the FlowerPicker's inline "+ Создать" mini-form.
-  useEffect(() => {
-    api<Category[]>("/categories").then(setCategories).catch(() => setCategories([]));
-  }, []);
 
   const addLine = (flower: Flower) => {
     nextKey.current += 1;
@@ -1059,7 +1095,7 @@ function BatchForm({
 
       <div>
         <span className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-graphite">Добавить цветок</span>
-        <FlowerPicker categories={categories} onPick={addLine} />
+        <FlowerPicker onPick={addLine} />
       </div>
 
       {lines.length > 0 && (

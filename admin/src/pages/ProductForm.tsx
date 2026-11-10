@@ -26,7 +26,6 @@ const emptyForm = {
   stock: "",
   images: [] as string[],
   shortDescription: "",
-  story: "",
   composition: "",
   careInstructions: "",
   isFeatured: false,
@@ -106,7 +105,6 @@ export default function ProductForm() {
           stock: String(p.stock),
           images: p.images,
           shortDescription: p.shortDescription,
-          story: p.story,
           composition: p.composition.join("\n"),
           careInstructions: p.careInstructions,
           isFeatured: p.isFeatured,
@@ -186,8 +184,9 @@ export default function ProductForm() {
 
     // Slug is intentionally not sent — the server always derives it from
     // the name. For a bouquet, category/characters/SEO/isFeatured/stock/
-    // costPrice are all server-computed from `recipe` and overwritten if
-    // sent anyway, so they're simply left out below.
+    // costPrice/story/composition are all server-computed (story from
+    // shortDescription, composition from `recipe`) and overwritten if sent
+    // anyway, so they're simply left out below.
     const shared = {
       name: form.name,
       kind,
@@ -195,11 +194,6 @@ export default function ProductForm() {
       oldPrice: form.oldPrice ? Number(form.oldPrice) : null,
       images: form.images,
       shortDescription: form.shortDescription,
-      story: form.story,
-      composition: form.composition
-        .split("\n")
-        .map((s) => s.trim())
-        .filter(Boolean),
       careInstructions: form.careInstructions,
       isActive: form.isActive,
     };
@@ -217,6 +211,10 @@ export default function ProductForm() {
             addonCategories: form.addonCategories,
             stock: Number(form.stock),
             isFeatured: form.isFeatured,
+            composition: form.composition
+              .split("\n")
+              .map((s) => s.trim())
+              .filter(Boolean),
           };
 
     try {
@@ -392,7 +390,6 @@ export default function ProductForm() {
                   <FlowerRow
                     key={row.key}
                     row={row}
-                    categories={categories}
                     onChange={(next) => setRecipe((prev) => prev.map((r) => (r.key === row.key ? next : r)))}
                     onRemove={() => setRecipe((prev) => prev.filter((r) => r.key !== row.key))}
                   />
@@ -462,13 +459,11 @@ export default function ProductForm() {
           </>
         )}
 
-        <Field label="Подробный рассказ о товаре (уникальный текст для SEO)" required>
-          <textarea required value={form.story} onChange={update("story")} className="input min-h-32" />
-        </Field>
-
-        <Field label="Состав (по одной позиции на строку)">
-          <textarea value={form.composition} onChange={update("composition")} className="input min-h-20" />
-        </Field>
+        {kind === "addon" && (
+          <Field label="Состав (по одной позиции на строку)">
+            <textarea value={form.composition} onChange={update("composition")} className="input min-h-20" />
+          </Field>
+        )}
 
         <Field label="Инструкция по уходу">
           <textarea value={form.careInstructions} onChange={update("careInstructions")} className="input min-h-20" />
@@ -525,12 +520,10 @@ function Field({ label, required, children }: { label: string; required?: boolea
 // purely to drive the live preview above.
 function FlowerRow({
   row,
-  categories,
   onChange,
   onRemove,
 }: {
   row: RecipeRow;
-  categories: Category[];
   onChange: (next: RecipeRow) => void;
   onRemove: () => void;
 }) {
@@ -539,7 +532,6 @@ function FlowerRow({
   const [searching, setSearching] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [createName, setCreateName] = useState("");
-  const [createCategory, setCreateCategory] = useState("");
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
 
@@ -573,17 +565,16 @@ function FlowerRow({
 
   const openCreate = () => {
     setCreateName(query.trim());
-    setCreateCategory("");
     setCreateError(null);
     setShowCreate(true);
   };
 
   const handleCreateFlower = async () => {
-    if (!createName.trim() || !createCategory) return;
+    if (!createName.trim()) return;
     setCreating(true);
     setCreateError(null);
     try {
-      const flower = (await createFlower({ name: createName.trim(), category: createCategory })) as Flower;
+      const flower = (await createFlower({ name: createName.trim() })) as Flower;
       selectFlower(flower);
     } catch (err) {
       setCreateError(err instanceof ApiError ? err.message : "Не удалось создать цветок");
@@ -651,18 +642,10 @@ function FlowerRow({
       {showCreate && (
         <div className="mt-3 space-y-2 rounded-xl bg-canvas p-3">
           <input value={createName} onChange={(e) => setCreateName(e.target.value)} placeholder="Название цветка" className="input" />
-          <select value={createCategory} onChange={(e) => setCreateCategory(e.target.value)} className="input">
-            <option value="">Категория цветка</option>
-            {categories.map((c) => (
-              <option key={c._id} value={c._id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
           <div className="flex gap-2">
             <button
               type="button"
-              disabled={!createName.trim() || !createCategory || creating}
+              disabled={!createName.trim() || creating}
               onClick={handleCreateFlower}
               className="btn-primary flex-1"
             >

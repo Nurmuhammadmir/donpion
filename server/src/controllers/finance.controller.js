@@ -4,24 +4,7 @@ import Order from "../models/Order.js";
 import StockEntry from "../models/StockEntry.js";
 import Expense from "../models/Expense.js";
 import Product from "../models/Product.js";
-
-// "2026-11-10" is a plain calendar date, not an instant — parsed as
-// `new Date(str)` it's midnight UTC, which (a) excludes that entire day
-// from an inclusive upper bound, since anything after 00:00 UTC on the
-// last day would be cut off, and (b) silently shifts whole-day meaning
-// for a non-UTC server/business like this one (Tashkent, UTC+5). Parsed
-// locally and pinned to day-start/day-end instead, matching the "local
-// calendar day" the client (and getOrderStats elsewhere) already means.
-function parseLocalDate(str, endOfDay) {
-  const [y, m, d] = str.split("-").map(Number);
-  return endOfDay ? new Date(y, m - 1, d, 23, 59, 59, 999) : new Date(y, m - 1, d, 0, 0, 0, 0);
-}
-
-function parseRange(query) {
-  const to = query.to ? parseLocalDate(query.to, true) : new Date();
-  const from = query.from ? parseLocalDate(query.from, false) : new Date(to.getTime() - 30 * 24 * 60 * 60 * 1000);
-  return { from, to };
-}
+import { parseRange } from "../utils/dateRange.js";
 
 // GET /api/finance/summary?branch=&from=&to=  (admin) — the P&L the
 // Финансы tab is built around: revenue (paid-out orders) minus COGS (sale

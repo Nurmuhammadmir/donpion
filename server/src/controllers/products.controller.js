@@ -197,6 +197,9 @@ export const createProduct = asyncHandler(async (req, res) => {
     characters,
     seoTitle,
     seoDescription,
+    // The admin only ever writes the short description once — the long
+    // "story" text is the same copy, not a second thing to compose.
+    story: body.shortDescription,
     isFeatured,
   });
   if (hasRecipe) product = await recomputeBouquet(product);
@@ -225,6 +228,7 @@ export const updateProduct = asyncHandler(async (req, res) => {
   const derived = deriveSeoFields(body.name ?? product.name, body.shortDescription ?? product.shortDescription);
   body.seoTitle = derived.seoTitle;
   body.seoDescription = derived.seoDescription;
+  body.story = body.shortDescription ?? product.shortDescription;
 
   Object.assign(product, body);
   await product.save();

@@ -2,11 +2,11 @@ import Product from "../models/Product.js";
 import Flower from "../models/Flower.js";
 import StockEntry from "../models/StockEntry.js";
 
-// Recomputes one bouquet's costPrice/category/stock from its current
-// recipe and the live state of its flowers. A no-op for addon products or
-// any bouquet with no recipe yet (those keep their old, manually-set
-// values untouched — only a product that actually has a recipe opts into
-// this automatic behavior).
+// Recomputes one bouquet's costPrice/category/stock/composition from its
+// current recipe and the live state of its flowers. A no-op for addon
+// products or any bouquet with no recipe yet (those keep their old,
+// manually-set values untouched — only a product that actually has a
+// recipe opts into this automatic behavior).
 export async function recomputeBouquet(product) {
   if (product.kind !== "bouquet" || !product.recipe?.length) return product;
 
@@ -17,17 +17,27 @@ export async function recomputeBouquet(product) {
   let availability = Infinity;
   let dominant = null; // the recipe line with the largest quantity, for category
 
-  for (const line of product.recipe) {
+  // Largest quantity first — reads naturally as a "состав" list on the
+  // storefront (what the bouquet is mostly made of, first).
+  const sortedLines = [...product.recipe].sort((a, b) => b.quantity - a.quantity);
+  const compositionLines = [];
+
+  for (const line of sortedLines) {
     const flower = flowerById.get(String(line.flower));
     if (!flower) continue;
     costPrice += (flower.costPrice || 0) * line.quantity;
     availability = Math.min(availability, Math.floor((flower.stock || 0) / line.quantity));
     if (!dominant || line.quantity > dominant.quantity) dominant = { quantity: line.quantity, flower };
+    compositionLines.push(`${line.quantity} шт. — ${flower.name}`);
   }
 
   product.costPrice = costPrice;
   product.stock = Number.isFinite(availability) ? Math.max(0, availability) : 0;
   if (dominant?.flower.category) product.category = dominant.flower.category;
+  // The admin never types this by hand for a bouquet — it's always exactly
+  // what the recipe says, so the storefront's "Состав" section can never
+  // drift from what's actually in stock for it.
+  product.composition = compositionLines;
 
   await product.save();
   return product;

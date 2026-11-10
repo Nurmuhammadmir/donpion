@@ -7,6 +7,7 @@ import StockEntry from "../models/StockEntry.js";
 import Branch from "../models/Branch.js";
 import { sendTelegramMessage } from "../utils/telegramBot.js";
 import { deductFlowersForSale, restoreFlowersForCancel } from "../utils/bouquetStock.js";
+import { parseRange } from "../utils/dateRange.js";
 
 const PAYMENT_METHOD_LABELS = { cash: "Наличными", card: "Картой", online: "Онлайн" };
 
@@ -282,10 +283,26 @@ export const createPosOrder = asyncHandler(async (req, res) => {
     };
   });
 
+  // A phone number given at the register is the same customer every time
+  // they come back — find-or-create by phone so POS sales build the same
+  // customer base the storefront's own orders already do, instead of
+  // every walk-in being a disconnected one-off.
+  const trimmedPhone = customerPhone?.trim();
+  let posCustomerId;
+  if (trimmedPhone) {
+    const customerRecord = await Customer.findOneAndUpdate(
+      { phone: trimmedPhone },
+      { $setOnInsert: { phone: trimmedPhone, name: customerName?.trim() || "Розничный покупатель" } },
+      { upsert: true, new: true }
+    );
+    posCustomerId = customerRecord._id;
+  }
+
   const order = await createOrderWithUniqueNumber({
+    customerId: posCustomerId,
     customer: {
       name: customerName?.trim() || "Розничный покупатель",
-      phone: customerPhone?.trim() || "-",
+      phone: trimmedPhone || "-",
       city: "Tashkent",
     },
     items: orderItems,
@@ -333,6 +350,10 @@ export const getOrders = asyncHandler(async (req, res) => {
   if (status) filter.status = status;
   if (branch) filter.branch = branch;
   if (source) filter.source = source;
+  if (req.query.from || req.query.to) {
+    const { from, to } = parseRange(req.query);
+    filter.createdAt = { $gte: from, $lte: to };
+  }
 
   const skip = (Number(page) - 1) * Number(limit);
   const [items, total] = await Promise.all([

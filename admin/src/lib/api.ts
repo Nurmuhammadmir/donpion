@@ -115,7 +115,7 @@ export function getFlowers(search?: string) {
   return api(`/flowers${qs}`);
 }
 
-export function createFlower(payload: { name: string; category: string; unit?: string }) {
+export function createFlower(payload: { name: string; category?: string; unit?: string }) {
   return api("/flowers", { method: "POST", body: JSON.stringify(payload) });
 }
 

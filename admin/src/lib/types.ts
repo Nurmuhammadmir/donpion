@@ -61,7 +61,7 @@ export interface SiteSettings {
 export interface Flower {
   _id: string;
   name: string;
-  category: { _id: string; name: string } | string;
+  category: { _id: string; name: string } | string | null;
   stock: number;
   costPrice: number;
   unit: string;
