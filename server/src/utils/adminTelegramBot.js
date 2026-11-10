@@ -26,7 +26,12 @@ function miniAppButtonMarkup() {
   return { inline_keyboard: [[{ text: "Открыть панель", web_app: { url: ADMIN_URL } }]] };
 }
 
-async function sendMessage(chatId, text) {
+// This VPS's outbound calls to api.telegram.org fail transiently under
+// load ("fetch failed" — a transport-level error, not a Telegram-side
+// rejection) often enough to matter for a one-shot send like a login
+// alert: unlike the polling loop, which just tries again next cycle,
+// a failed send here is simply lost unless retried.
+async function sendMessage(chatId, text, attempt = 1) {
   if (!API_BASE) return;
   try {
     const res = await fetch(`${API_BASE}/sendMessage`, {
@@ -36,7 +41,11 @@ async function sendMessage(chatId, text) {
     });
     if (!res.ok) console.error("Admin bot sendMessage failed:", await res.text());
   } catch (err) {
-    console.error("Admin bot sendMessage error:", err.message);
+    if (attempt < 3) {
+      await new Promise((resolve) => setTimeout(resolve, attempt * 1000));
+      return sendMessage(chatId, text, attempt + 1);
+    }
+    console.error("Admin bot sendMessage error after retries:", err.message);
   }
 }
 
