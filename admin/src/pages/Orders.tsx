@@ -1,11 +1,16 @@
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { Fragment, lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { ChevronDown, ChevronUp, Globe, MapPin, Store } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import type { Branch, Order } from "@/lib/types";
 import { ORDER_SOURCE_LABELS, ORDER_STATUS_LABELS, PAYMENT_METHOD_LABELS, PAYMENT_STATUS_LABELS } from "@/lib/types";
 import { useBranch } from "@/context/BranchContext";
-import OrderLocationMap from "@/components/OrderLocationMap";
 import { Skeleton } from "@/components/Skeleton";
+
+// mapbox-gl alone is ~500KB gzipped — on a static top-level import, every
+// visit to Заказы had to fetch it immediately even though a map only ever
+// renders once a specific order with a location is actually expanded. This
+// way it's only fetched the first time that actually happens.
+const OrderLocationMap = lazy(() => import("@/components/OrderLocationMap"));
 
 function formatUZS(amount: number) {
   return `${new Intl.NumberFormat("ru-RU").format(amount)} сум`;
@@ -142,7 +147,9 @@ function OrderDetail({ order, branches }: { order: Order; branches: Branch[] }) 
 
         {order.location && (
           <div className="mt-4">
-            <OrderLocationMap lat={order.location.lat} lng={order.location.lng} />
+            <Suspense fallback={<Skeleton className="h-40 w-full rounded-lg" />}>
+              <OrderLocationMap lat={order.location.lat} lng={order.location.lng} />
+            </Suspense>
           </div>
         )}
       </div>

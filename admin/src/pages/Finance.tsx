@@ -1,26 +1,17 @@
-import { useEffect, useState } from "react";
-import { Bar, BarChart, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { Globe, Plus, Store, TrendingDown, TrendingUp, Warehouse as WarehouseIcon, X } from "lucide-react";
 import { api, ApiError, getFinanceSummary } from "@/lib/api";
 import { useBranch } from "@/context/BranchContext";
 import type { Branch, Expense, ExpenseCategory, FinanceSummary, Order } from "@/lib/types";
 import { EXPENSE_CATEGORY_LABELS, ORDER_SOURCE_LABELS } from "@/lib/types";
-import QuickSaleModal from "@/components/QuickSaleModal";
 import { Skeleton } from "@/components/Skeleton";
 import PriceInput from "@/components/PriceInput";
 
+const QuickSaleModal = lazy(() => import("@/components/QuickSaleModal"));
+const ExpenseBreakdownChart = lazy(() => import("@/components/ExpenseBreakdownChart"));
+
 function formatUZS(amount: number) {
   return `${new Intl.NumberFormat("ru-RU").format(Math.round(amount))} сум`;
-}
-
-// Short, rounded figure for the chart's bar-tip labels only — full
-// precision always stays in the headline numbers and the hover tooltip, so
-// nothing is ever gated behind the rounding.
-function formatCompact(amount: number) {
-  const abs = Math.abs(amount);
-  if (abs >= 1_000_000) return `${(amount / 1_000_000).toFixed(1).replace(/\.0$/, "")}М`;
-  if (abs >= 1_000) return `${Math.round(amount / 1_000)}К`;
-  return `${Math.round(amount)}`;
 }
 
 function isoDate(d: Date) {
@@ -63,7 +54,6 @@ function presetRange(preset: Exclude<Preset, "custom">): { from: string; to: str
 const CATEGORY_KEYS = Object.keys(EXPENSE_CATEGORY_LABELS) as ExpenseCategory[];
 const CATEGORY_ENTRIES = Object.entries(EXPENSE_CATEGORY_LABELS) as [ExpenseCategory, string][];
 const LIST_PAGE_SIZE = 20;
-const HERMES_500 = "#F9511D";
 
 interface Page<T> {
   items: T[];
@@ -504,24 +494,9 @@ export default function Finance() {
           {chartData.length > 0 && (
             <div className="card mt-3">
               <p className="eyebrow mb-4">Расходы по категориям</p>
-              <ResponsiveContainer width="100%" height={Math.max(160, chartData.length * 44)}>
-                <BarChart data={chartData} layout="vertical" margin={{ top: 4, right: 48, bottom: 4, left: 4 }}>
-                  <XAxis type="number" hide />
-                  <YAxis type="category" dataKey="label" width={104} tickLine={false} axisLine={false} tick={{ fill: "#5A564F", fontSize: 12 }} />
-                  <Tooltip
-                    cursor={{ fill: "#FAF9F6" }}
-                    separator=": "
-                    formatter={(value) => formatUZS(Number(value))}
-                    labelFormatter={(label) => chartData.find((d) => d.label === label)?.fullLabel ?? label}
-                    contentStyle={{ borderRadius: 2, border: "1px solid #E7E1D6", background: "#FFFFFF", boxShadow: "none", fontSize: 12 }}
-                    labelStyle={{ color: "#1A1A1A", fontWeight: 600, marginBottom: 2 }}
-                    itemStyle={{ color: "#5A564F" }}
-                  />
-                  <Bar dataKey="amount" name="Сумма" fill={HERMES_500} radius={[0, 4, 4, 0]} barSize={20}>
-                    <LabelList dataKey="amount" position="right" formatter={(value) => formatCompact(Number(value))} style={{ fill: "#1A1A1A", fontSize: 11 }} />
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+              <Suspense fallback={<Skeleton className="h-40 w-full" />}>
+                <ExpenseBreakdownChart data={chartData} />
+              </Suspense>
             </div>
           )}
         </div>
@@ -556,14 +531,16 @@ export default function Finance() {
       )}
 
       {saleOpen && (
-        <QuickSaleModal
-          branches={branches}
-          activeBranchId={activeBranchId}
-          activeBranch={activeBranch}
-          isCEO={isCEO}
-          onClose={() => setSaleOpen(false)}
-          onSuccess={reloadAfterSale}
-        />
+        <Suspense fallback={<div className="anim-backdrop fixed inset-0 z-50 bg-ink/30" />}>
+          <QuickSaleModal
+            branches={branches}
+            activeBranchId={activeBranchId}
+            activeBranch={activeBranch}
+            isCEO={isCEO}
+            onClose={() => setSaleOpen(false)}
+            onSuccess={reloadAfterSale}
+          />
+        </Suspense>
       )}
     </div>
   );

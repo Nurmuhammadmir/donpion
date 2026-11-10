@@ -1,25 +1,22 @@
-import { useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { AlertTriangle, Globe, ShoppingBag, Zap } from "lucide-react";
 import { api } from "@/lib/api";
 import { useBranch } from "@/context/BranchContext";
 import type { Order, OrderStats, WarehouseOverview } from "@/lib/types";
 import { ORDER_SOURCE_LABELS, ORDER_STATUS_LABELS } from "@/lib/types";
-import QuickSaleModal from "@/components/QuickSaleModal";
 import { Skeleton } from "@/components/Skeleton";
+import type { TrendPoint } from "@/components/RevenueTrendChart";
+
+// Both ~100KB+ gzipped chunks that aren't needed for Дашборд's first
+// paint — Быстрая продажа only matters once tapped, and the chart only
+// once its own data/layout is ready — so neither should hold up or bloat
+// the landing page's very first load.
+const QuickSaleModal = lazy(() => import("@/components/QuickSaleModal"));
+const RevenueTrendChart = lazy(() => import("@/components/RevenueTrendChart"));
 
 function formatUZS(amount: number) {
   return `${new Intl.NumberFormat("ru-RU").format(amount)} сум`;
-}
-
-function formatCompact(n: number): string {
-  if (n >= 1_000_000) {
-    const v = n / 1_000_000;
-    return `${v % 1 === 0 ? v.toFixed(0) : v.toFixed(1)}М`;
-  }
-  if (n >= 1_000) return `${Math.round(n / 1000)}К`;
-  return String(n);
 }
 
 function formatDateTime(iso: string) {
@@ -29,13 +26,6 @@ function formatDateTime(iso: string) {
 // ---- 14-day revenue trend, bucketed client-side from /orders (no daily-
 // history endpoint exists) — keyed on local calendar date, not
 // toISOString(), so a UTC+5 "today" doesn't silently shift a day.
-interface TrendPoint {
-  key: string;
-  label: string;
-  fullLabel: string;
-  revenue: number;
-}
-
 function dayKey(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
@@ -63,17 +53,6 @@ function buildTrend(orders: Order[], days: number): TrendPoint[] {
     if (bucket) bucket.revenue += order.totalAmount;
   }
   return points;
-}
-
-function TrendTooltip({ active, payload }: { active?: boolean; payload?: Array<{ payload: TrendPoint }> }) {
-  if (!active || !payload?.length) return null;
-  const point = payload[0].payload;
-  return (
-    <div className="border border-hairline bg-paper px-3 py-2 text-xs">
-      <p className="capitalize text-graphite">{point.fullLabel}</p>
-      <p className="mt-0.5 text-sm font-semibold text-ink">{formatUZS(point.revenue)}</p>
-    </div>
-  );
 }
 
 export default function Dashboard() {
@@ -160,43 +139,9 @@ export default function Dashboard() {
           <h2 className="font-display text-lg font-semibold text-ink">Выручка за 14 дней</h2>
         </div>
         <div className="h-48 sm:h-64">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={trend} margin={{ top: 8, right: 4, left: -16, bottom: 0 }}>
-              <defs>
-                <linearGradient id="revenueFill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#F9511D" stopOpacity={0.16} />
-                  <stop offset="100%" stopColor="#F9511D" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid vertical={false} stroke="#E7E1D6" />
-              <XAxis
-                dataKey="label"
-                tick={{ fontSize: 11, fill: "#5A564F" }}
-                axisLine={{ stroke: "#E7E1D6" }}
-                tickLine={false}
-                interval={1}
-              />
-              <YAxis
-                tick={{ fontSize: 11, fill: "#5A564F" }}
-                axisLine={false}
-                tickLine={false}
-                width={44}
-                domain={[0, "auto"]}
-                tickFormatter={formatCompact}
-              />
-              <Tooltip content={<TrendTooltip />} cursor={{ stroke: "#1A1A1A", strokeOpacity: 0.12 }} />
-              <Area
-                type="monotone"
-                dataKey="revenue"
-                stroke="#F9511D"
-                strokeWidth={2}
-                fill="url(#revenueFill)"
-                dot={false}
-                activeDot={{ r: 5, strokeWidth: 2, stroke: "#fff", fill: "#F9511D" }}
-                isAnimationActive={false}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
+          <Suspense fallback={<Skeleton className="h-full w-full" />}>
+            <RevenueTrendChart trend={trend} />
+          </Suspense>
         </div>
       </div>
 
@@ -248,14 +193,16 @@ export default function Dashboard() {
       </div>
 
       {saleOpen && (
-        <QuickSaleModal
-          branches={branches}
-          activeBranchId={activeBranchId}
-          activeBranch={activeBranch}
-          isCEO={isCEO}
-          onClose={() => setSaleOpen(false)}
-          onSuccess={load}
-        />
+        <Suspense fallback={<div className="anim-backdrop fixed inset-0 z-50 bg-ink/30" />}>
+          <QuickSaleModal
+            branches={branches}
+            activeBranchId={activeBranchId}
+            activeBranch={activeBranch}
+            isCEO={isCEO}
+            onClose={() => setSaleOpen(false)}
+            onSuccess={load}
+          />
+        </Suspense>
       )}
     </div>
   );
