@@ -152,22 +152,6 @@ export default function Showcase() {
         )}
       </div>
 
-      {/* Категории/Поводы/Допы are now rare, small edits (routine tagging
-          moved inline into ProductForm) — kept reachable here without
-          taking up prominent tab space. */}
-      <div className="mt-16 flex flex-wrap items-center gap-2 border-t border-hairline pt-6">
-        <span className="text-xs text-graphite">Ещё:</span>
-        <Link to="/showcase/categories" className="pill">
-          Категории (контент страниц)
-        </Link>
-        <Link to="/showcase/occasions" className="pill">
-          Поводы
-        </Link>
-        <Link to="/showcase/addons" className="pill">
-          Допы
-        </Link>
-      </div>
-
       {/* Mobile-only add action; desktop gets the header button above. */}
       <Link
         to="/showcase/new"

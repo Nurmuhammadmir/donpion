@@ -291,9 +291,14 @@ export default function ProductForm() {
             Изменить тип
           </button>
         ) : (
-          <span className="pill" data-active="true">
-            {KIND_LABELS[kind]}
-          </span>
+          <div className="flex flex-none gap-1.5">
+            <button type="button" onClick={() => setKind("bouquet")} className="pill" data-active={kind === "bouquet" ? "true" : "false"}>
+              {KIND_LABELS.bouquet}
+            </button>
+            <button type="button" onClick={() => setKind("addon")} className="pill" data-active={kind === "addon" ? "true" : "false"}>
+              {KIND_LABELS.addon}
+            </button>
+          </div>
         )}
       </div>
 
