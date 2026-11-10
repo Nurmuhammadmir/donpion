@@ -5,6 +5,7 @@ import type { Branch, Order } from "@/lib/types";
 import { ORDER_SOURCE_LABELS, ORDER_STATUS_LABELS, PAYMENT_METHOD_LABELS, PAYMENT_STATUS_LABELS } from "@/lib/types";
 import { useBranch } from "@/context/BranchContext";
 import OrderLocationMap from "@/components/OrderLocationMap";
+import { Skeleton } from "@/components/Skeleton";
 
 function formatUZS(amount: number) {
   return `${new Intl.NumberFormat("ru-RU").format(amount)} сум`;
@@ -346,6 +347,21 @@ export default function Orders() {
             onStatusChange={(status) => handleStatusChange(order._id, status)}
           />
         ))}
+        {loading && filteredOrders.length === 0 && (
+          <>
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="card">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1 space-y-2">
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-3 w-16" />
+                  </div>
+                  <Skeleton className="h-7 w-24 flex-none rounded-full" />
+                </div>
+              </div>
+            ))}
+          </>
+        )}
         {!loading && filteredOrders.length === 0 && (
           <p className="card text-center text-sm text-graphite">
             {orders.length === 0 ? "Заказов пока нет." : "Заказов с таким статусом не найдено."}
@@ -411,6 +427,15 @@ export default function Orders() {
                 </Fragment>
               );
             })}
+            {loading &&
+              filteredOrders.length === 0 &&
+              Array.from({ length: 5 }).map((_, i) => (
+                <tr key={i}>
+                  <td colSpan={columnCount} className="py-3.5">
+                    <Skeleton className="h-4 w-full" />
+                  </td>
+                </tr>
+              ))}
           </tbody>
         </table>
         {!loading && filteredOrders.length === 0 && (

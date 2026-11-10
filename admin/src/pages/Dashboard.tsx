@@ -7,6 +7,7 @@ import { useBranch } from "@/context/BranchContext";
 import type { Order, OrderStats, WarehouseOverview } from "@/lib/types";
 import { ORDER_SOURCE_LABELS, ORDER_STATUS_LABELS } from "@/lib/types";
 import QuickSaleModal from "@/components/QuickSaleModal";
+import { Skeleton } from "@/components/Skeleton";
 
 function formatUZS(amount: number) {
   return `${new Intl.NumberFormat("ru-RU").format(amount)} сум`;
@@ -138,9 +139,13 @@ export default function Dashboard() {
           className="rounded-2xl border border-hairline bg-paper p-4 transition-colors hover:border-ink sm:p-5"
         >
           <p className="text-[11px] font-semibold uppercase tracking-wide2 text-graphite">Мало на складе</p>
-          <p className={`mt-2 text-2xl font-semibold sm:text-3xl ${hasLowStock ? "text-hermes-600" : "text-ink"}`}>
-            {loading ? "—" : lowStockCount ?? 0}
-          </p>
+          {loading ? (
+            <Skeleton className="mt-2 h-8 w-10 sm:h-9" />
+          ) : (
+            <p className={`mt-2 text-2xl font-semibold sm:text-3xl ${hasLowStock ? "text-hermes-600" : "text-ink"}`}>
+              {lowStockCount ?? 0}
+            </p>
+          )}
           {!loading && hasLowStock && (
             <p className="mt-1 flex items-center gap-1 text-xs text-hermes-600">
               <AlertTriangle className="h-3 w-3" /> Нужно пополнить
@@ -203,8 +208,20 @@ export default function Dashboard() {
           </Link>
         </div>
 
-        {feed.length === 0 ? (
-          <p className="px-5 py-6 text-sm text-graphite">{loading ? "Загрузка…" : "Заказов пока нет."}</p>
+        {loading && feed.length === 0 ? (
+          <ul className="divide-y divide-hairline">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <li key={i} className="flex items-center gap-3 px-5 py-3">
+                <Skeleton className="h-9 w-9 flex-none rounded-full" />
+                <div className="flex-1 space-y-1.5">
+                  <Skeleton className="h-3.5 w-1/2" />
+                  <Skeleton className="h-3 w-1/3" />
+                </div>
+              </li>
+            ))}
+          </ul>
+        ) : feed.length === 0 ? (
+          <p className="px-5 py-6 text-sm text-graphite">Заказов пока нет.</p>
         ) : (
           <ul className="divide-y divide-hairline">
             {feed.map((order) => (
@@ -248,7 +265,11 @@ function StatTile({ label, value, sub }: { label: string; value: string | null; 
   return (
     <div className="rounded-2xl border border-hairline bg-paper p-4 sm:p-5">
       <p className="text-[11px] font-semibold uppercase tracking-wide2 text-graphite">{label}</p>
-      <p className="mt-2 break-words text-2xl font-semibold text-ink sm:text-3xl">{value ?? "—"}</p>
+      {value === null ? (
+        <Skeleton className="mt-2 h-8 w-20 sm:h-9" />
+      ) : (
+        <p className="mt-2 break-words text-2xl font-semibold text-ink sm:text-3xl">{value}</p>
+      )}
       {sub && <p className="mt-1 text-xs text-graphite">{sub}</p>}
     </div>
   );

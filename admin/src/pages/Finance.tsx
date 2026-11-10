@@ -6,6 +6,7 @@ import { useBranch } from "@/context/BranchContext";
 import type { Branch, Expense, ExpenseCategory, FinanceSummary, Order } from "@/lib/types";
 import { EXPENSE_CATEGORY_LABELS, ORDER_SOURCE_LABELS } from "@/lib/types";
 import QuickSaleModal from "@/components/QuickSaleModal";
+import { Skeleton } from "@/components/Skeleton";
 
 function formatUZS(amount: number) {
   return `${new Intl.NumberFormat("ru-RU").format(Math.round(amount))} сум`;
@@ -375,7 +376,14 @@ export default function Finance() {
         </div>
 
         {!summary && summaryLoading ? (
-          <p className="text-sm text-graphite">Загрузка…</p>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="rounded-2xl border border-hairline bg-paper p-5">
+                <Skeleton className="h-3 w-20" />
+                <Skeleton className="mt-3 h-8 w-32" />
+              </div>
+            ))}
+          </div>
         ) : !summary ? (
           <p className="text-sm text-graphite">Не удалось загрузить данные за период.</p>
         ) : (
@@ -659,7 +667,13 @@ function IncomeList({
   onNext: () => void;
 }) {
   if (loading && orders.length === 0) {
-    return <p className="mt-3 text-sm text-graphite">Загрузка…</p>;
+    return (
+      <div className="card mt-3 space-y-3 p-4">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <Skeleton key={i} className="h-4 w-full" />
+        ))}
+      </div>
+    );
   }
   return (
     <div className="card mt-3 overflow-x-auto p-0">

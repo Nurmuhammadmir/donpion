@@ -4,6 +4,7 @@ import { Flower2, Package, Search, Trash2 } from "lucide-react";
 import { api, ApiError, createFlower, createPurchaseBatch, getFlowers, resolveImageUrl } from "@/lib/api";
 import { useBranch } from "@/context/BranchContext";
 import Modal from "@/components/Modal";
+import { Skeleton } from "@/components/Skeleton";
 import type {
   Category,
   Flower,
@@ -434,6 +435,14 @@ function StockTab({
           {flowers.map((flower) => (
             <FlowerCard key={flower._id} flower={flower} threshold={threshold} onEdit={() => startEditFlower(flower)} />
           ))}
+          {flowersLoading &&
+            flowers.length === 0 &&
+            Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="card space-y-2 p-4">
+                <Skeleton className="h-4 w-1/3" />
+                <Skeleton className="h-3 w-1/4" />
+              </div>
+            ))}
           {!flowersLoading && flowers.length === 0 && (
             <p className="card text-sm text-graphite">Цветов пока нет — добавьте через «Партии».</p>
           )}
@@ -484,6 +493,15 @@ function StockTab({
                   </td>
                 </tr>
               ))}
+              {flowersLoading &&
+                flowers.length === 0 &&
+                Array.from({ length: 5 }).map((_, i) => (
+                  <tr key={i}>
+                    <td colSpan={6} className="py-3.5">
+                      <Skeleton className="h-4 w-full" />
+                    </td>
+                  </tr>
+                ))}
             </tbody>
           </table>
           {!flowersLoading && flowers.length === 0 && <p className="p-6 text-sm text-graphite">Цветов пока нет — добавьте через «Партии».</p>}
@@ -595,6 +613,14 @@ function StockTab({
         {items.map((item) => (
           <StockItemCard key={item._id} item={item} onReceipt={startReceipt} onAdjust={startAdjustment} />
         ))}
+        {loading &&
+          items.length === 0 &&
+          Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="card space-y-2 p-4">
+              <Skeleton className="h-4 w-1/3" />
+              <Skeleton className="h-3 w-1/4" />
+            </div>
+          ))}
         {!loading && items.length === 0 && <p className="card text-sm text-graphite">Товаров пока нет.</p>}
       </div>
 
@@ -636,6 +662,15 @@ function StockTab({
                 </td>
               </tr>
             ))}
+            {loading &&
+              items.length === 0 &&
+              Array.from({ length: 5 }).map((_, i) => (
+                <tr key={i}>
+                  <td colSpan={6} className="py-3.5">
+                    <Skeleton className="h-4 w-full" />
+                  </td>
+                </tr>
+              ))}
           </tbody>
         </table>
         {!loading && items.length === 0 && <p className="p-6 text-sm text-graphite">Товаров пока нет.</p>}
@@ -662,6 +697,14 @@ function StockTab({
               {entry.note && <p className="mt-1 text-xs text-graphite">{entry.note}</p>}
             </div>
           ))}
+          {loading &&
+            entries.length === 0 &&
+            Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="border-b border-hairline py-3 last:border-b-0">
+                <Skeleton className="h-4 w-2/3" />
+                <Skeleton className="mt-2 h-3 w-1/3" />
+              </div>
+            ))}
           {!loading && entries.length === 0 && <p className="py-3 text-sm text-graphite">Движений пока не было.</p>}
         </div>
 
@@ -688,6 +731,15 @@ function StockTab({
                 <td className="text-graphite">{entry.note || "—"}</td>
               </tr>
             ))}
+            {loading &&
+              entries.length === 0 &&
+              Array.from({ length: 5 }).map((_, i) => (
+                <tr key={i}>
+                  <td colSpan={5} className="py-3.5">
+                    <Skeleton className="h-4 w-full" />
+                  </td>
+                </tr>
+              ))}
           </tbody>
         </table>
         {!loading && entries.length === 0 && <p className="hidden p-6 text-sm text-graphite md:block">Движений пока не было.</p>}
@@ -1211,7 +1263,14 @@ function BatchesTab({
       )}
 
       {loading ? (
-        <p className="card mt-4 text-sm text-graphite">Загрузка…</p>
+        <div className="mt-4 space-y-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="card space-y-2 p-4">
+              <Skeleton className="h-4 w-1/3" />
+              <Skeleton className="h-3 w-1/4" />
+            </div>
+          ))}
+        </div>
       ) : batches.length === 0 ? (
         <p className="card mt-4 text-sm text-graphite">Партий пока не было. Добавьте первую через «+ Новая партия».</p>
       ) : (
@@ -1462,6 +1521,15 @@ function SuppliersTab({
                 </td>
               </tr>
             ))}
+            {loading &&
+              suppliers.length === 0 &&
+              Array.from({ length: 3 }).map((_, i) => (
+                <tr key={i}>
+                  <td colSpan={6} className="py-3.5">
+                    <Skeleton className="h-4 w-full" />
+                  </td>
+                </tr>
+              ))}
           </tbody>
         </table>
         {!loading && suppliers.length === 0 && <p className="p-6 text-sm text-graphite">Поставщиков пока нет.</p>}

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Plus, Search } from "lucide-react";
 import { api, resolveImageUrl } from "@/lib/api";
+import { SkeletonProductCard } from "@/components/Skeleton";
 import type { AddonCategory, Category, Occasion, Product } from "@/lib/types";
 
 function formatUZS(amount: number) {
@@ -137,8 +138,10 @@ export default function Showcase() {
         {isSearching ? (
           products.length > 0 ? (
             <ProductGrid products={products} />
+          ) : loading ? (
+            <SkeletonGrid />
           ) : (
-            !loading && <p className="text-sm text-graphite">Товары не найдены.</p>
+            <p className="text-sm text-graphite">Товары не найдены.</p>
           )
         ) : (
           <div className="space-y-12">
@@ -187,8 +190,10 @@ function ShowcaseSection({ label, products, loading }: { label: string; products
       </h2>
       {products.length > 0 ? (
         <ProductGrid products={products} className="mt-5" />
+      ) : loading ? (
+        <SkeletonGrid count={4} className="mt-5" />
       ) : (
-        !loading && <p className="mt-3 text-sm text-graphite">Пока нет товаров.</p>
+        <p className="mt-3 text-sm text-graphite">Пока нет товаров.</p>
       )}
     </section>
   );
@@ -199,6 +204,16 @@ function ProductGrid({ products, className = "" }: { products: Product[]; classN
     <div className={`grid grid-cols-2 gap-x-6 gap-y-12 sm:gap-x-8 lg:grid-cols-4 ${className}`}>
       {products.map((product, index) => (
         <ShowcaseProductCard key={product._id} product={product} index={index} />
+      ))}
+    </div>
+  );
+}
+
+function SkeletonGrid({ count = 8, className = "" }: { count?: number; className?: string }) {
+  return (
+    <div className={`grid grid-cols-2 gap-x-6 gap-y-12 sm:gap-x-8 lg:grid-cols-4 ${className}`}>
+      {Array.from({ length: count }).map((_, i) => (
+        <SkeletonProductCard key={i} />
       ))}
     </div>
   );
