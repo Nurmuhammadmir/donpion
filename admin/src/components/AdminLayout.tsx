@@ -62,7 +62,12 @@ export default function AdminLayout() {
           </div>
         </aside>
 
-        <div className="flex min-h-screen flex-1 flex-col">
+        {/* min-w-0: without it, a flex item refuses to shrink below its
+            content's natural width — one wide table anywhere on any page
+            was enough to force this whole column (and everything in it,
+            including the unrelated header above) past the viewport on
+            mobile instead of letting that table scroll internally. */}
+        <div className="flex min-h-screen min-w-0 flex-1 flex-col">
           {/* Mobile top bar */}
           <header className="flex items-center justify-between border-b border-hairline bg-paper px-4 py-3 md:hidden">
             <span className="font-display text-lg font-semibold text-ink">
@@ -71,7 +76,7 @@ export default function AdminLayout() {
             <BranchSwitcher variant="topbar" />
           </header>
 
-          <main className="flex-1 p-4 mobile-nav-spacer md:p-8 md:pb-8">
+          <main className="min-w-0 flex-1 overflow-x-hidden p-4 mobile-nav-spacer md:p-8 md:pb-8">
             <Outlet />
           </main>
 

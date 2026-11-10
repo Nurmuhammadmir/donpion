@@ -78,7 +78,7 @@ export default function BranchSwitcher({ variant = "sidebar" }: { variant?: "sid
         <span className="flex h-8 w-8 flex-none items-center justify-center rounded-full bg-navy text-sm font-semibold text-white">
           {initial}
         </span>
-        <span className="flex-1 overflow-hidden">
+        <span className="min-w-0 flex-1 overflow-hidden">
           <span className="block truncate text-sm font-medium text-ink">{currentLabel}</span>
           {variant === "sidebar" && <span className="block truncate text-xs text-graphite">{admin?.name}</span>}
         </span>
