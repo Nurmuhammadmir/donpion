@@ -6,6 +6,7 @@ import SiteSettings from "../models/SiteSettings.js";
 import StockEntry from "../models/StockEntry.js";
 import Branch from "../models/Branch.js";
 import { sendTelegramMessage } from "../utils/telegramBot.js";
+import { deductFlowersForSale, restoreFlowersForCancel } from "../utils/bouquetStock.js";
 
 const PAYMENT_METHOD_LABELS = { cash: "Наличными", card: "Картой", online: "Онлайн" };
 
@@ -195,20 +196,28 @@ export const createOrder = asyncHandler(async (req, res) => {
   // greppable mitigation used there.
   console.log(`[stock] deducting items for new order ${order.orderNumber}`);
   await Promise.all(
-    orderItems.map((item) =>
-      Promise.all([
-        Product.findByIdAndUpdate(item.product, { $inc: { stock: -item.quantity } }),
-        StockEntry.create({
-          product: item.product,
-          quantity: -item.quantity,
-          reason: "sale",
-          order: order._id,
-          branch: order.branch,
-          unitCost: productMap.get(String(item.product))?.costPrice ?? 0,
-          note: `Заказ ${order.orderNumber}`,
-        }),
-      ])
-    )
+    orderItems.map(async (item) => {
+      const product = productMap.get(String(item.product));
+      // A bouquet with a recipe consumes its flowers instead of its own
+      // stock (there's nothing of its own to deduct — see bouquetStock.js);
+      // anything else (an addon, or a bouquet with no recipe yet) keeps
+      // the original direct-stock behavior unchanged.
+      const viaFlowers = product && (await deductFlowersForSale(product, item.quantity, { order, branch: order.branch }));
+      if (!viaFlowers) {
+        await Promise.all([
+          Product.findByIdAndUpdate(item.product, { $inc: { stock: -item.quantity } }),
+          StockEntry.create({
+            product: item.product,
+            quantity: -item.quantity,
+            reason: "sale",
+            order: order._id,
+            branch: order.branch,
+            unitCost: product?.costPrice ?? 0,
+            note: `Заказ ${order.orderNumber}`,
+          }),
+        ]);
+      }
+    })
   );
   order.stockDeducted = true;
   await order.save();
@@ -293,8 +302,11 @@ export const createPosOrder = asyncHandler(async (req, res) => {
 
   console.log(`[stock] deducting items for POS sale ${order.orderNumber} at ${branch.name}`);
   await Promise.all(
-    orderItems.map((item) =>
-      Promise.all([
+    orderItems.map(async (item) => {
+      const product = productMap.get(String(item.product));
+      const viaFlowers = product && (await deductFlowersForSale(product, item.quantity, { order, branch: branch._id }));
+      if (viaFlowers) return;
+      await Promise.all([
         Product.findByIdAndUpdate(item.product, { $inc: { stock: -item.quantity } }),
         StockEntry.create({
           product: item.product,
@@ -302,11 +314,11 @@ export const createPosOrder = asyncHandler(async (req, res) => {
           reason: "sale",
           order: order._id,
           branch: branch._id,
-          unitCost: productMap.get(String(item.product))?.costPrice ?? 0,
+          unitCost: product?.costPrice ?? 0,
           note: `Продажа ${order.orderNumber}`,
         }),
-      ])
-    )
+      ]);
+    })
   );
   order.stockDeducted = true;
   await order.save();
@@ -396,20 +408,25 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
     );
     if (claimed) {
       console.log(`[stock] restoring items for cancelled order ${order.orderNumber}`);
+      const products = await Product.find({ _id: { $in: order.items.map((i) => i.product).filter(Boolean) } });
+      const productMap = new Map(products.map((p) => [String(p._id), p]));
       await Promise.all(
-        order.items.map((item) =>
-          Promise.all([
-            item.product && Product.findByIdAndUpdate(item.product, { $inc: { stock: item.quantity } }),
-            item.product &&
-              StockEntry.create({
-                product: item.product,
-                quantity: item.quantity,
-                reason: "cancel_restock",
-                order: order._id,
-                note: `Отмена заказа ${order.orderNumber}`,
-              }),
-          ])
-        )
+        order.items.map(async (item) => {
+          if (!item.product) return;
+          const product = productMap.get(String(item.product));
+          const viaFlowers = product && (await restoreFlowersForCancel(product, item.quantity, { order, branch: order.branch }));
+          if (viaFlowers) return;
+          await Promise.all([
+            Product.findByIdAndUpdate(item.product, { $inc: { stock: item.quantity } }),
+            StockEntry.create({
+              product: item.product,
+              quantity: item.quantity,
+              reason: "cancel_restock",
+              order: order._id,
+              note: `Отмена заказа ${order.orderNumber}`,
+            }),
+          ]);
+        })
       );
     }
   }

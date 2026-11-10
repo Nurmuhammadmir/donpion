@@ -5,6 +5,8 @@ import SiteSettings from "../models/SiteSettings.js";
 import Supplier from "../models/Supplier.js";
 import PurchaseBatch from "../models/PurchaseBatch.js";
 import Branch from "../models/Branch.js";
+import Flower from "../models/Flower.js";
+import { recomputeBouquetsUsingFlower } from "../utils/bouquetStock.js";
 
 // GET /api/warehouse/overview  (admin) — every product's current stock,
 // lowest first, flagged against the admin's low-stock threshold (see
@@ -87,19 +89,22 @@ export const getBatches = asyncHandler(async (req, res) => {
   const batches = await PurchaseBatch.find(filter)
     .populate("supplier", "name country")
     .populate("branch", "name")
-    .populate("items.product", "name slug images")
+    .populate("items.flower", "name unit")
     .sort({ date: -1 })
     .limit(Number(limit));
   res.json(batches);
 });
 
 // POST /api/warehouse/batches  (admin) — records an incoming shipment of
-// one or more products from a supplier: raises Product.stock, rolls each
-// line's cost into that product's weighted-average costPrice, and leaves
-// one StockEntry per line (reason "receipt") pointing back at this batch —
-// same ledger-per-change discipline as createReceipt below, just richer.
+// one or more individual flowers from a supplier: raises Flower.stock,
+// rolls each line's cost into that flower's weighted-average costPrice,
+// cascades into every bouquet built from it (recomputeBouquetsUsingFlower),
+// and leaves one StockEntry per line (reason "receipt") pointing back at
+// this batch — same ledger-per-change discipline as createReceipt below,
+// just richer. This is the real "приход" — individual flowers, never
+// finished bouquets; a bouquet's own stock is only ever derived from this.
 export const createBatch = asyncHandler(async (req, res) => {
-  const { branchId, supplierId, invoiceNumber, date, items, notes } = req.body;
+  const { branchId, supplierId, invoiceNumber, date, items, notes, additionalCost, additionalCostCurrency, additionalCostExchangeRate } = req.body;
 
   if (!branchId) {
     res.status(400);
@@ -116,16 +121,16 @@ export const createBatch = asyncHandler(async (req, res) => {
     throw new Error("Филиал не найден");
   }
 
-  const products = await Product.find({ _id: { $in: items.map((i) => i.productId) } });
-  const productMap = new Map(products.map((p) => [String(p._id), p]));
+  const flowers = await Flower.find({ _id: { $in: items.map((i) => i.flowerId) } });
+  const flowerMap = new Map(flowers.map((f) => [String(f._id), f]));
 
   let totalCostUZS = 0;
   const cleanItems = [];
   for (const raw of items) {
-    const product = productMap.get(String(raw.productId));
-    if (!product) {
+    const flower = flowerMap.get(String(raw.flowerId));
+    if (!flower) {
       res.status(400);
-      throw new Error("Товар не найден");
+      throw new Error("Цветок не найден");
     }
     const quantity = Math.max(1, Math.trunc(Number(raw.quantity) || 0));
     const unitCost = Math.max(0, Number(raw.unitCost) || 0);
@@ -137,55 +142,76 @@ export const createBatch = asyncHandler(async (req, res) => {
     }
     const unitCostUZS = unitCost * exchangeRate;
     totalCostUZS += unitCostUZS * quantity;
-    cleanItems.push({ product, quantity, unitCost, currency, exchangeRate, unitCostUZS });
+    cleanItems.push({ flower, quantity, unitCost, currency, exchangeRate, unitCostUZS });
   }
+
+  // Landed-cost overhead for the whole shipment (freight, customs, broker
+  // fees) — not any single line's own price, but still real cost of
+  // getting these flowers onto the shelf. Allocated below by each line's
+  // share of the batch's raw goods value, not split evenly per unit —
+  // a $5 carnation and a $0.40 chrysanthemum shouldn't absorb the same
+  // flat overhead per stem.
+  const extraCurrency = additionalCostCurrency === "USD" ? "USD" : "UZS";
+  const extraRate = extraCurrency === "USD" ? Math.max(0, Number(additionalCostExchangeRate) || 0) : 1;
+  const additionalCostUZS = Math.max(0, Number(additionalCost) || 0) * extraRate;
+  const rawGoodsTotal = totalCostUZS; // before overhead, used only for allocation below
+  totalCostUZS += additionalCostUZS;
 
   const batch = await PurchaseBatch.create({
     branch: branch._id,
     supplier: supplierId || null,
     invoiceNumber: invoiceNumber || "",
     date: date || Date.now(),
-    items: cleanItems.map(({ product, quantity, unitCost, currency, exchangeRate }) => ({
-      product: product._id,
+    items: cleanItems.map(({ flower, quantity, unitCost, currency, exchangeRate }) => ({
+      flower: flower._id,
       quantity,
       unitCost,
       currency,
       exchangeRate,
     })),
+    additionalCost: Math.max(0, Number(additionalCost) || 0),
+    additionalCostCurrency: extraCurrency,
+    additionalCostExchangeRate: extraRate,
     totalCostUZS,
     notes: notes || "",
     createdBy: req.admin._id,
   });
 
-  // One product at a time (not a bulk update) since each line weighs its
-  // new cost against that product's own existing stock/cost, not a shared
+  // One flower at a time (not a bulk update) since each line weighs its
+  // new cost against that flower's own existing stock/cost, not a shared
   // average across the whole batch.
   for (const item of cleanItems) {
-    const existingQty = item.product.stock;
-    const existingCost = item.product.costPrice || 0;
+    const itemRawValue = item.quantity * item.unitCostUZS;
+    const overheadShare = rawGoodsTotal > 0 ? (itemRawValue / rawGoodsTotal) * additionalCostUZS : 0;
+    const landedUnitCostUZS = item.unitCostUZS + overheadShare / item.quantity;
+
+    const existingQty = item.flower.stock;
+    const existingCost = item.flower.costPrice || 0;
     const newQty = existingQty + item.quantity;
     const newCostPrice =
-      newQty > 0 ? (existingQty * existingCost + item.quantity * item.unitCostUZS) / newQty : item.unitCostUZS;
+      newQty > 0 ? (existingQty * existingCost + item.quantity * landedUnitCostUZS) / newQty : landedUnitCostUZS;
 
-    item.product.stock = newQty;
-    item.product.costPrice = newCostPrice;
-    await item.product.save();
+    item.flower.stock = newQty;
+    item.flower.costPrice = newCostPrice;
+    await item.flower.save();
 
     await StockEntry.create({
-      product: item.product._id,
+      flower: item.flower._id,
       quantity: item.quantity,
       reason: "receipt",
       note: invoiceNumber ? `Партия ${invoiceNumber}` : "Приход партии",
       branch: branch._id,
       batch: batch._id,
-      unitCost: item.unitCostUZS,
+      unitCost: landedUnitCostUZS,
     });
+
+    await recomputeBouquetsUsingFlower(item.flower._id);
   }
 
   const populated = await PurchaseBatch.findById(batch._id)
     .populate("supplier", "name country")
     .populate("branch", "name")
-    .populate("items.product", "name slug images");
+    .populate("items.flower", "name unit");
 
   res.status(201).json(populated);
 });
@@ -241,12 +267,14 @@ export const createAdjustment = asyncHandler(async (req, res) => {
 // GET /api/warehouse/entries  (admin) — movement history, newest first;
 // optionally scoped to one product via ?product=<id>.
 export const getEntries = asyncHandler(async (req, res) => {
-  const { product, limit = 50 } = req.query;
+  const { product, flower, limit = 50 } = req.query;
   const filter = {};
   if (product) filter.product = product;
+  if (flower) filter.flower = flower;
 
   const entries = await StockEntry.find(filter)
     .populate("product", "name slug")
+    .populate("flower", "name unit")
     .sort({ createdAt: -1 })
     .limit(Number(limit));
   res.json(entries);

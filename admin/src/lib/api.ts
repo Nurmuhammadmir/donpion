@@ -96,9 +96,27 @@ export function createPurchaseBatch(payload: {
   invoiceNumber?: string;
   date?: string;
   notes?: string;
-  items: { productId: string; quantity: number; unitCost: number; currency: "UZS" | "USD"; exchangeRate?: number }[];
+  items: { flowerId: string; quantity: number; unitCost: number; currency: "UZS" | "USD"; exchangeRate?: number }[];
+  // Landed-cost overhead for the whole shipment (shipping, customs,
+  // broker fees) — allocated server-side across items by their share of
+  // raw goods value, not split evenly per stem.
+  additionalCost?: number;
+  additionalCostCurrency?: "UZS" | "USD";
+  additionalCostExchangeRate?: number;
 }) {
   return api("/warehouse/batches", { method: "POST", body: JSON.stringify(payload) });
+}
+
+// Flowers — the individual, piece-imported raw material a bouquet's
+// recipe is built from. Used both by the Приход/Партии flow above and by
+// a bouquet's recipe editor.
+export function getFlowers(search?: string) {
+  const qs = search ? `?search=${encodeURIComponent(search)}` : "";
+  return api(`/flowers${qs}`);
+}
+
+export function createFlower(payload: { name: string; category: string; unit?: string }) {
+  return api("/flowers", { method: "POST", body: JSON.stringify(payload) });
 }
 
 // File uploads use multipart/form-data — deliberately bypasses the JSON

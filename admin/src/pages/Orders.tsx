@@ -225,7 +225,7 @@ function OrderCard({
       <button
         type="button"
         onClick={onToggle}
-        className="mt-3 flex w-full items-center justify-center gap-1 border-t border-hairline pt-3 text-sm font-medium text-hermes-600"
+        className="mt-3 flex w-full items-center justify-center gap-1 border-t border-hairline pt-3 text-sm font-medium text-hermes-600 transition-colors hover:text-hermes-700"
       >
         {expanded ? "Скрыть детали" : "Детали заказа"}
         {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}

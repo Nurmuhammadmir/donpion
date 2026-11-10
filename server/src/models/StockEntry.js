@@ -7,7 +7,11 @@ import mongoose from "mongoose";
 // being one number nobody can audit.
 const stockEntrySchema = new mongoose.Schema(
   {
-    product: { type: mongoose.Schema.Types.ObjectId, ref: "Product", required: true },
+    // Exactly one of product/flower is set — product for an addon's direct
+    // stock movement (unchanged, legacy behavior), flower for the real
+    // warehouse movements (приход, and the flower side of a bouquet sale).
+    product: { type: mongoose.Schema.Types.ObjectId, ref: "Product" },
+    flower: { type: mongoose.Schema.Types.ObjectId, ref: "Flower" },
     // Signed delta (positive = added, negative = removed) — summing a
     // product's entries always reconciles with its current stock.
     quantity: { type: Number, required: true },
@@ -34,6 +38,7 @@ const stockEntrySchema = new mongoose.Schema(
 );
 
 stockEntrySchema.index({ product: 1, createdAt: -1 });
+stockEntrySchema.index({ flower: 1, createdAt: -1 });
 stockEntrySchema.index({ createdAt: -1 });
 
 export default mongoose.models.StockEntry || mongoose.model("StockEntry", stockEntrySchema);

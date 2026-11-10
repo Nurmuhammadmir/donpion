@@ -60,11 +60,6 @@ export default function Settings() {
   return (
     <div>
       <h1 className="font-display text-2xl font-semibold text-ink">Главная страница</h1>
-      <p className="mt-1 text-sm text-graphite">
-        Фото в самом верху сайта — то, что видит каждый посетитель первым. У телефона и планшета
-        своя квадратная обрезка фото, чтобы лицо букета не резалось криво, как на широком фото для
-        компьютера.
-      </p>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
         <HeroSlot
@@ -96,10 +91,8 @@ export default function Settings() {
       <div className="mt-10 max-w-sm border-t border-hairline pt-6">
         <h2 className="font-display text-lg font-semibold text-ink">Кешбек «Пионы»</h2>
         <p className="mt-1 text-sm text-graphite">
-          Процент от суммы каждого оплаченного заказа, который клиент получает на баланс
-          «Пионов» после того, как заказ отмечен завершённым. Пионы можно списать как скидку на
-          следующий заказ (1 Пион = 1 сум). Поставьте 0, чтобы полностью отключить — начисление
-          новых Пионов остановится, но уже накопленный баланс клиентов не изменится.
+          1 Пион = 1 сум при списании. 0 — отключает начисление новых, накопленный баланс не
+          изменится.
         </p>
         <label className="mt-4 block">
           <span className="mb-2 block text-xs font-medium uppercase tracking-wide text-graphite">Процент кешбека</span>
@@ -120,10 +113,6 @@ export default function Settings() {
 
       <div className="mt-8 max-w-sm border-t border-hairline pt-6">
         <h2 className="font-display text-lg font-semibold text-ink">Склад</h2>
-        <p className="mt-1 text-sm text-graphite">
-          Если остаток товара опускается до этого числа или ниже, страница «Склад» и обзор
-          отмечают его как «Мало на складе».
-        </p>
         <label className="mt-4 block">
           <span className="mb-2 block text-xs font-medium uppercase tracking-wide text-graphite">Порог «мало на складе»</span>
           <input

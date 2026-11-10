@@ -4,7 +4,28 @@ const productSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true },
     slug: { type: String, required: true, unique: true, lowercase: true, trim: true, index: true },
+    // "bouquet" = made from flowers, has a `recipe` driving its cost/
+    // category/availability automatically. "addon" = a directly-stocked
+    // retail item (vase, chocolate box, toy, certificate) with its own
+    // manually-tracked stock, same as how every product used to work.
+    kind: { type: String, enum: ["bouquet", "addon"], default: "bouquet" },
     category: { type: mongoose.Schema.Types.ObjectId, ref: "Category", required: true },
+    // Bill of materials for a "bouquet" product — which Flowers (and how
+    // many of each) it's assembled from. Drives costPrice, category, and
+    // stock automatically (see utils/bouquetStock.js) instead of any of
+    // those being tracked/purchased on the bouquet itself. Empty for
+    // "addon" products, and for any legacy bouquet not yet given one
+    // (those keep behaving exactly as before until a recipe is set).
+    recipe: {
+      type: [
+        {
+          flower: { type: mongoose.Schema.Types.ObjectId, ref: "Flower", required: true },
+          quantity: { type: Number, required: true, min: 1 },
+        },
+      ],
+      default: [],
+      _id: false,
+    },
     // Who the bouquet suits (see Character model) — powers the homepage
     // quiz's product results. Never left empty: if the admin doesn't pick
     // one, the server assigns a random active Character on save (see

@@ -41,24 +41,25 @@ const config: Config = {
         luxe: "0.02em",
         wide2: "0.14em",
       },
-      // The storefront's single most distinctive rule: strictly geometric,
-      // near-zero corners everywhere — nothing softens into a pill/blob.
+      // The admin is its own product, not a mirror of the storefront's
+      // sharp-geometric print-brand look — soft, rounded, Apple-like
+      // instead: generous radii, real (if gentle) elevation.
       borderRadius: {
         none: "0",
-        sm: "2px",
-        DEFAULT: "2px",
-        md: "2px",
-        lg: "3px",
-        xl: "4px",
-        "2xl": "4px",
-        "3xl": "4px",
-        full: "2px",
+        sm: "8px",
+        DEFAULT: "10px",
+        md: "12px",
+        lg: "14px",
+        xl: "18px",
+        "2xl": "22px",
+        "3xl": "28px",
+        full: "9999px",
       },
       boxShadow: {
-        // The brand uses flat hairline borders, not elevation — kept only
-        // for any leftover `shadow-sm` usage on unmigrated pages, and
-        // deliberately unchanged (not deeper) so it stays unobtrusive.
-        sm: "0 1px 2px 0 rgb(0 0 0 / 0.03)",
+        sm: "0 1px 2px rgba(17,17,17,0.04), 0 1px 1px rgba(17,17,17,0.03)",
+        DEFAULT: "0 2px 10px rgba(17,17,17,0.06), 0 1px 2px rgba(17,17,17,0.04)",
+        md: "0 6px 20px rgba(17,17,17,0.08), 0 2px 6px rgba(17,17,17,0.04)",
+        lg: "0 16px 40px rgba(17,17,17,0.14), 0 4px 10px rgba(17,17,17,0.05)",
       },
     },
   },

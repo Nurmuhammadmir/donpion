@@ -146,7 +146,7 @@ export default function Dashboard() {
         />
         <Link
           to="/warehouse"
-          className="rounded-md border border-hairline bg-paper p-4 transition-colors hover:border-ink sm:p-5"
+          className="rounded-2xl border border-hairline bg-paper p-4 transition-colors hover:border-ink sm:p-5"
         >
           <p className="text-[11px] font-semibold uppercase tracking-wide2 text-graphite">Мало на складе</p>
           <p className={`mt-2 text-2xl font-semibold sm:text-3xl ${hasLowStock ? "text-hermes-600" : "text-ink"}`}>
@@ -257,9 +257,9 @@ export default function Dashboard() {
 
 function StatTile({ label, value, sub }: { label: string; value: string | null; sub?: string }) {
   return (
-    <div className="rounded-md border border-hairline bg-paper p-4 sm:p-5">
+    <div className="rounded-2xl border border-hairline bg-paper p-4 sm:p-5">
       <p className="text-[11px] font-semibold uppercase tracking-wide2 text-graphite">{label}</p>
-      <p className="mt-2 text-2xl font-semibold text-ink sm:text-3xl">{value ?? "—"}</p>
+      <p className="mt-2 break-words text-2xl font-semibold text-ink sm:text-3xl">{value ?? "—"}</p>
       {sub && <p className="mt-1 text-xs text-graphite">{sub}</p>}
     </div>
   );
@@ -385,7 +385,7 @@ function QuickSaleModal({
       onClick={onClose}
     >
       <div
-        className="flex h-full w-full flex-col bg-paper sm:h-auto sm:max-h-[90vh] sm:max-w-3xl sm:border sm:border-hairline"
+        className="flex h-full w-full flex-col overflow-hidden bg-paper sm:h-auto sm:max-h-[90vh] sm:max-w-3xl sm:rounded-2xl sm:border sm:border-hairline"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b border-hairline px-4 py-3 sm:px-6">
@@ -393,7 +393,7 @@ function QuickSaleModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md p-1.5 text-graphite transition-colors hover:bg-canvas hover:text-ink"
+            className="rounded-full p-1.5 text-graphite transition-colors hover:bg-canvas hover:text-ink"
           >
             <X className="h-5 w-5" />
           </button>
@@ -450,7 +450,7 @@ function QuickSaleModal({
                       key={p._id}
                       type="button"
                       onClick={() => addToCart(p)}
-                      className="flex w-full items-center gap-3 border border-hairline bg-paper p-2.5 text-left transition-colors hover:border-hermes-500"
+                      className="flex w-full items-center gap-3 rounded-xl border border-hairline bg-paper p-2.5 text-left transition-colors hover:border-hermes-500"
                     >
                       <img src={resolveImageUrl(p.images[0])} alt="" className="h-11 w-11 flex-none rounded-md object-cover" />
                       <span className="flex-1 overflow-hidden">
@@ -468,11 +468,11 @@ function QuickSaleModal({
               <div className="mt-5">
                 <p className="eyebrow mb-2">Корзина{totalItems > 0 ? ` · ${totalItems}` : ""}</p>
                 {cart.length === 0 ? (
-                  <p className="border border-dashed border-hairline p-4 text-center text-sm text-graphite">
+                  <p className="rounded-xl border border-dashed border-hairline p-4 text-center text-sm text-graphite">
                     Добавьте товары из поиска выше
                   </p>
                 ) : (
-                  <ul className="divide-y divide-hairline border border-hairline">
+                  <ul className="divide-y divide-hairline overflow-hidden rounded-xl border border-hairline">
                     {cart.map((line) => (
                       <li key={line.product._id} className="flex items-center gap-3 p-2.5">
                         <img
@@ -488,7 +488,7 @@ function QuickSaleModal({
                           <button
                             type="button"
                             onClick={() => changeQty(line.product._id, -1)}
-                            className="flex h-7 w-7 items-center justify-center border border-hairline text-graphite transition-colors hover:border-ink hover:text-ink"
+                            className="flex h-7 w-7 items-center justify-center rounded-full border border-hairline text-graphite transition-colors hover:border-ink hover:text-ink"
                           >
                             <Minus className="h-3.5 w-3.5" />
                           </button>
@@ -496,7 +496,7 @@ function QuickSaleModal({
                           <button
                             type="button"
                             onClick={() => changeQty(line.product._id, 1)}
-                            className="flex h-7 w-7 items-center justify-center border border-hairline text-graphite transition-colors hover:border-ink hover:text-ink"
+                            className="flex h-7 w-7 items-center justify-center rounded-full border border-hairline text-graphite transition-colors hover:border-ink hover:text-ink"
                           >
                             <Plus className="h-3.5 w-3.5" />
                           </button>

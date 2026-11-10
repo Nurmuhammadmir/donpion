@@ -120,14 +120,7 @@ export default function AddonCategories() {
     <div>
       <ShowcaseTabs />
       <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="font-display text-2xl text-ink">Допы (доп. товары)</h1>
-          <p className="mt-1 text-sm text-graphite">
-            Категории допродаж на карточке товара («Вазы», «Шоколад», «Игрушки»…). Отметьте в
-            карточке товара, в какую категорию он входит — он будет предлагаться под ДРУГИМИ
-            товарами как доп. покупка.
-          </p>
-        </div>
+        <h1 className="font-display text-2xl text-ink">Допы (доп. товары)</h1>
         <button type="button" onClick={startCreate} className="btn-primary">
           + Добавить категорию
         </button>

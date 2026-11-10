@@ -101,13 +101,7 @@ export default function Occasions() {
     <div>
       <ShowcaseTabs />
       <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="font-display text-2xl text-ink">Поводы</h1>
-          <p className="mt-1 text-sm text-graphite">
-            Раздел на главной странице сразу после мини-квиза («Свадебная флористика»,
-            «Корпоративные заказы»…). Отметьте в карточке товара, для каких поводов он подходит.
-          </p>
-        </div>
+        <h1 className="font-display text-2xl text-ink">Поводы</h1>
         <button type="button" onClick={startCreate} className="btn-primary">
           + Добавить повод
         </button>

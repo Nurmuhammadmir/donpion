@@ -58,10 +58,31 @@ export interface SiteSettings {
   lowStockThreshold: number;
 }
 
+export interface Flower {
+  _id: string;
+  name: string;
+  category: { _id: string; name: string } | string;
+  stock: number;
+  costPrice: number;
+  unit: string;
+  isActive: boolean;
+}
+
+export interface RecipeLine {
+  flower: { _id: string; name: string; unit?: string } | string;
+  quantity: number;
+}
+
 export interface Product {
   _id: string;
   name: string;
   slug: string;
+  // "bouquet": category/characters/costPrice/stock/isFeatured are all
+  // derived automatically from `recipe` — nothing here is admin-entered.
+  // "addon" (vase/chocolate/toy/certificate): works like before, direct
+  // manual stock, no recipe.
+  kind: "bouquet" | "addon";
+  recipe: RecipeLine[];
   category: { _id: string; name: string; slug: string };
   characters: { _id: string; name: string; slug: string }[];
   addonCategories: { _id: string; name: string; slug: string }[];
@@ -169,6 +190,7 @@ export interface WarehouseOverview {
 export interface StockEntry {
   _id: string;
   product: { _id: string; name: string; slug: string } | null;
+  flower: { _id: string; name: string; unit?: string } | null;
   quantity: number;
   reason: "receipt" | "sale" | "cancel_restock" | "adjustment";
   note: string;
@@ -205,7 +227,7 @@ export interface Supplier {
 }
 
 export interface PurchaseBatchItem {
-  product: { _id: string; name: string; slug: string; images?: string[] } | string;
+  flower: { _id: string; name: string; unit?: string } | string;
   quantity: number;
   unitCost: number;
   currency: "UZS" | "USD";

@@ -272,9 +272,6 @@ export default function Finance() {
   return (
     <div>
       <h1 className="font-display text-2xl font-semibold text-ink">Финансы</h1>
-      <p className="mt-1 text-sm text-graphite">
-        Выручка, себестоимость, расходы и прибыль за период — считаем аккуратно, по каждой статье.
-      </p>
 
       {/* Period picker */}
       <div className="card mt-6">
@@ -553,7 +550,7 @@ export default function Finance() {
         </div>
 
         {pages > 1 && (
-          <div className="mt-4 flex items-center justify-between text-sm text-graphite">
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-2 text-sm text-graphite">
             <button type="button" disabled={page <= 1} onClick={() => setPage((p) => p - 1)} className="btn-secondary disabled:opacity-40">
               ← Назад
             </button>

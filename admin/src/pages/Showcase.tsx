@@ -1,27 +1,67 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Plus, Search } from "lucide-react";
 import { api, resolveImageUrl } from "@/lib/api";
-import type { Product } from "@/lib/types";
-import ShowcaseTabs from "@/components/ShowcaseTabs";
+import type { AddonCategory, Category, Occasion, Product } from "@/lib/types";
 
 function formatUZS(amount: number) {
   return `${new Intl.NumberFormat("ru-RU").format(amount)} сум`;
 }
 
+// /products/admin/all (unlike the single-product /products/admin/id/:id
+// endpoint ProductForm uses) only populates `category` — `occasions` and
+// `addonCategories` come back as plain id strings there. The shared
+// Product type assumes the populated shape everywhere (correct for
+// ProductForm), so this normalizes either shape down to an id instead of
+// widening that type and risking ProductForm's own assumptions.
+function refId(ref: { _id: string } | string): string {
+  return typeof ref === "string" ? ref : ref._id;
+}
+
+// The homepage's "Клубника в шоколаде" shelf is actually keyed off the
+// AddonCategory "Шоколад" (see client/src/app/[locale]/page.tsx — it's
+// explicitly branded with this name on the homepage even though the
+// underlying tag is the general chocolate add-on). A separate real
+// Category can also exist under roughly this name purely as a content/SEO
+// landing page (edited via the "Категории" link below) — excluded from
+// the trailing base-category sections so it doesn't duplicate this one.
+const CHOCOLATE_ADDON_SLUG = "shokolad";
+const CHOCOLATE_CATEGORY_SLUG = "klubnika-v-shokolade";
+
+interface Section {
+  key: string;
+  label: string;
+  products: Product[];
+}
+
 export default function Showcase() {
   const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [occasions, setOccasions] = useState<Occasion[]>([]);
+  const [addonCategories, setAddonCategories] = useState<AddonCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+
+  // Taxonomy used only to group the grid below into sections — fetched
+  // once, independent of the product search below. admin/all (not the
+  // public list) on purpose: inactive entries still get a section here so
+  // a product tagged into one never silently disappears from this page.
+  useEffect(() => {
+    api<Category[]>("/categories/admin/all").then(setCategories).catch(() => setCategories([]));
+    api<Occasion[]>("/occasions/admin/all").then(setOccasions).catch(() => setOccasions([]));
+    api<AddonCategory[]>("/addon-categories/admin/all").then(setAddonCategories).catch(() => setAddonCategories([]));
+  }, []);
 
   // Debounced live search against the same /products/admin/all?search=
   // endpoint Products.tsx used — no submit button needed, but the previous
   // request's result is kept on screen (instead of blanking the grid) so
-  // typing doesn't cause a flash on every keystroke.
+  // typing doesn't cause a flash on every keystroke. Limit bumped from 100
+  // to 500 — the sectioned view below needs the whole catalog, not a page
+  // of it, to group correctly.
   useEffect(() => {
     const handle = setTimeout(() => {
       setLoading(true);
-      const qs = search ? `?search=${encodeURIComponent(search)}&limit=100` : "?limit=100";
+      const qs = search ? `?search=${encodeURIComponent(search)}&limit=500` : "?limit=500";
       api<{ items: Product[] }>(`/products/admin/all${qs}`)
         .then((res) => setProducts(res.items))
         .catch(() => setProducts([]))
@@ -30,10 +70,47 @@ export default function Showcase() {
     return () => clearTimeout(handle);
   }, [search]);
 
+  // Mirrors the real homepage's order exactly (client/src/app/[locale]/page.tsx):
+  // Люксовые коллекции, Клубника в шоколаде, one shelf per Occasion in
+  // their stored order, then every other base Category so every product
+  // stays reachable here even if it's not in one of the curated sections.
+  // A product can land in several sections at once — that's correct, same
+  // as the real site, not deduplicated on purpose.
+  const sections = useMemo<Section[]>(() => {
+    const chocolateAddon = addonCategories.find((a) => a.slug === CHOCOLATE_ADDON_SLUG);
+
+    const curated: Section[] = [
+      { key: "featured", label: "Люксовые коллекции", products: products.filter((p) => p.isFeatured) },
+      {
+        key: "chocolate",
+        label: "Клубника в шоколаде",
+        products: chocolateAddon
+          ? products.filter((p) => p.addonCategories.some((a) => refId(a) === chocolateAddon._id))
+          : [],
+      },
+    ];
+
+    const occasionSections: Section[] = occasions.map((occasion) => ({
+      key: `occasion-${occasion._id}`,
+      label: occasion.name,
+      products: products.filter((p) => p.occasions.some((o) => refId(o) === occasion._id)),
+    }));
+
+    const categorySections: Section[] = categories
+      .filter((c) => c.slug !== CHOCOLATE_CATEGORY_SLUG)
+      .map((category) => ({
+        key: `category-${category._id}`,
+        label: category.name,
+        products: products.filter((p) => p.category?._id === category._id),
+      }));
+
+    return [...curated, ...occasionSections, ...categorySections];
+  }, [products, categories, occasions, addonCategories]);
+
+  const isSearching = search.trim().length > 0;
+
   return (
     <div>
-      <ShowcaseTabs />
-
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="font-display text-2xl text-ink">Витрина</h1>
@@ -56,15 +133,37 @@ export default function Showcase() {
         />
       </div>
 
-      {products.length > 0 ? (
-        <div className="mt-10 grid grid-cols-2 gap-x-6 gap-y-12 sm:gap-x-8 lg:grid-cols-4">
-          {products.map((product) => (
-            <ShowcaseProductCard key={product._id} product={product} />
-          ))}
-        </div>
-      ) : (
-        !loading && <p className="mt-10 text-sm text-graphite">Товары не найдены.</p>
-      )}
+      <div className="mt-10">
+        {isSearching ? (
+          products.length > 0 ? (
+            <ProductGrid products={products} />
+          ) : (
+            !loading && <p className="text-sm text-graphite">Товары не найдены.</p>
+          )
+        ) : (
+          <div className="space-y-12">
+            {sections.map((section) => (
+              <ShowcaseSection key={section.key} label={section.label} products={section.products} loading={loading} />
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Категории/Поводы/Допы are now rare, small edits (routine tagging
+          moved inline into ProductForm) — kept reachable here without
+          taking up prominent tab space. */}
+      <div className="mt-16 flex flex-wrap items-center gap-2 border-t border-hairline pt-6">
+        <span className="text-xs text-graphite">Ещё:</span>
+        <Link to="/showcase/categories" className="pill">
+          Категории (контент страниц)
+        </Link>
+        <Link to="/showcase/occasions" className="pill">
+          Поводы
+        </Link>
+        <Link to="/showcase/addons" className="pill">
+          Допы
+        </Link>
+      </div>
 
       {/* Mobile-only add action; desktop gets the header button above. */}
       <Link
@@ -75,6 +174,32 @@ export default function Showcase() {
       >
         <Plus className="h-6 w-6" />
       </Link>
+    </div>
+  );
+}
+
+function ShowcaseSection({ label, products, loading }: { label: string; products: Product[]; loading: boolean }) {
+  return (
+    <section>
+      <h2 className="flex items-baseline gap-2 font-display text-lg text-ink">
+        {label}
+        <span className="font-sans text-xs font-normal text-graphite">{loading ? "…" : `· ${products.length}`}</span>
+      </h2>
+      {products.length > 0 ? (
+        <ProductGrid products={products} className="mt-5" />
+      ) : (
+        !loading && <p className="mt-3 text-sm text-graphite">Пока нет товаров.</p>
+      )}
+    </section>
+  );
+}
+
+function ProductGrid({ products, className = "" }: { products: Product[]; className?: string }) {
+  return (
+    <div className={`grid grid-cols-2 gap-x-6 gap-y-12 sm:gap-x-8 lg:grid-cols-4 ${className}`}>
+      {products.map((product) => (
+        <ShowcaseProductCard key={product._id} product={product} />
+      ))}
     </div>
   );
 }

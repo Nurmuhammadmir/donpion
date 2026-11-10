@@ -116,13 +116,7 @@ export default function Branches() {
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="font-display text-2xl font-semibold text-ink">Филиалы</h1>
-          <p className="mt-1 text-sm text-graphite">
-            Точки на карте в подвале сайта — клиенты видят их местоположение и могут открыть
-            маршрут в Google или Яндекс Картах.
-          </p>
-        </div>
+        <h1 className="font-display text-2xl font-semibold text-ink">Филиалы</h1>
         <button type="button" onClick={startCreate} className="btn-primary">
           + Добавить филиал
         </button>

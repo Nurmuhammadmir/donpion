@@ -6,19 +6,14 @@ import AddonCategory from "../models/AddonCategory.js";
 import Occasion from "../models/Occasion.js";
 import { slugifyRu } from "../utils/slugify.js";
 import { notifyRevalidate } from "../utils/notifyRevalidate.js";
+import { recomputeBouquet } from "../utils/bouquetStock.js";
 
-// A product left untagged by the admin still needs to show up in the
-// homepage quiz's results, so it gets a random active Character instead of
-// none at all. Stored for real (not computed on read), so the admin can see
-// and change it afterwards like any other field.
-async function ensureCharacters(characterIds) {
-  if (Array.isArray(characterIds) && characterIds.length > 0) return characterIds;
-
+// Every product tags every active Character — the admin never picks this
+// (there's nothing to decide: it's not "which personality does this suit",
+// it's "make sure this shows up in all the homepage quiz's results").
+async function allCharacterIds() {
   const activeCharacters = await Character.find({ isActive: true }).select("_id");
-  if (activeCharacters.length === 0) return [];
-
-  const pick = activeCharacters[Math.floor(Math.random() * activeCharacters.length)];
-  return [pick._id];
+  return activeCharacters.map((c) => c._id);
 }
 
 // Category is required at the schema level (every product page, breadcrumb
@@ -183,11 +178,29 @@ export const createProduct = asyncHandler(async (req, res) => {
     throw new Error("Название товара обязательно");
   }
   const slug = body.slug ? slugifyRu(body.slug) : slugifyRu(body.name);
+  const hasRecipe = Array.isArray(body.recipe) && body.recipe.length > 0;
+  // A bouquet with a recipe gets its real category from recomputeBouquet
+  // right after save (the dominant flower's own category) — ensureCategory
+  // here is just a placeholder so the required field never blocks the
+  // insert; it's immediately overwritten below.
   const category = await ensureCategory(body.category);
-  const characters = await ensureCharacters(body.characters);
+  const characters = await allCharacterIds();
   const { seoTitle, seoDescription } = deriveSeoFields(body.name, body.shortDescription);
+  // Nothing to curate here — every bouquet belongs in "Люксовые коллекции"
+  // on the homepage; addons keep whatever the admin actually set.
+  const isFeatured = body.kind === "addon" ? Boolean(body.isFeatured) : true;
 
-  const product = await Product.create({ ...body, slug, category, characters, seoTitle, seoDescription });
+  let product = await Product.create({
+    ...body,
+    slug,
+    category,
+    characters,
+    seoTitle,
+    seoDescription,
+    isFeatured,
+  });
+  if (hasRecipe) product = await recomputeBouquet(product);
+
   notifyRevalidate();
   res.status(201).json(product);
 });
@@ -202,12 +215,12 @@ export const updateProduct = asyncHandler(async (req, res) => {
 
   const body = { ...req.body };
   if (body.slug) body.slug = slugifyRu(body.slug);
-  if (body.characters !== undefined) {
-    body.characters = await ensureCharacters(body.characters);
-  }
-  if (body.category !== undefined) {
+  body.characters = await allCharacterIds();
+  if (body.category !== undefined && !(Array.isArray(body.recipe) && body.recipe.length > 0)) {
     body.category = await ensureCategory(body.category);
   }
+  const kind = body.kind ?? product.kind;
+  if (kind !== "addon") body.isFeatured = true;
 
   const derived = deriveSeoFields(body.name ?? product.name, body.shortDescription ?? product.shortDescription);
   body.seoTitle = derived.seoTitle;
@@ -215,6 +228,7 @@ export const updateProduct = asyncHandler(async (req, res) => {
 
   Object.assign(product, body);
   await product.save();
+  await recomputeBouquet(product);
   notifyRevalidate();
   res.json(product);
 });

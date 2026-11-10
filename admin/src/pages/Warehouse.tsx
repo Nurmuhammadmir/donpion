@@ -1,10 +1,11 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { Package, Search, Trash2 } from "lucide-react";
-import { api, ApiError, createPurchaseBatch, resolveImageUrl } from "@/lib/api";
+import { Flower2, Package, Search, Trash2 } from "lucide-react";
+import { api, ApiError, createFlower, createPurchaseBatch, getFlowers, resolveImageUrl } from "@/lib/api";
 import { useBranch } from "@/context/BranchContext";
 import type {
-  Product,
+  Category,
+  Flower,
   PurchaseBatch,
   PurchaseBatchItem,
   StockEntry,
@@ -67,11 +68,22 @@ export default function Warehouse() {
   const [entries, setEntries] = useState<StockEntry[]>([]);
   const [overviewLoading, setOverviewLoading] = useState(true);
 
+  const [flowers, setFlowers] = useState<Flower[]>([]);
+  const [flowersLoading, setFlowersLoading] = useState(true);
+
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [suppliersLoading, setSuppliersLoading] = useState(true);
 
   const [batches, setBatches] = useState<PurchaseBatch[]>([]);
   const [batchesLoading, setBatchesLoading] = useState(true);
+
+  const loadFlowers = () => {
+    setFlowersLoading(true);
+    getFlowers()
+      .then((res) => setFlowers(res as Flower[]))
+      .catch(() => setFlowers([]))
+      .finally(() => setFlowersLoading(false));
+  };
 
   const loadOverview = () => {
     setOverviewLoading(true);
@@ -105,6 +117,7 @@ export default function Warehouse() {
   };
 
   useEffect(loadOverview, []);
+  useEffect(loadFlowers, []);
   useEffect(loadSuppliers, []);
   // Batches are branch-attributed (unlike the stock overview), so they
   // reload whenever the admin switches branch in the sidebar/topbar.
@@ -113,9 +126,6 @@ export default function Warehouse() {
   return (
     <div>
       <h1 className="font-display text-2xl font-semibold text-ink">Склад</h1>
-      <p className="mt-1 text-sm text-graphite">
-        Остатки по каждому товару, приход партий с учётом цены закупки и поставщики, у которых закупаются цветы.
-      </p>
 
       <div className="mt-5 flex gap-2 overflow-x-auto no-scrollbar">
         {TABS.map((t) => (
@@ -133,7 +143,14 @@ export default function Warehouse() {
 
       <div className="mt-6">
         {tab === "stock" && (
-          <StockTab overview={overview} entries={entries} loading={overviewLoading} onChanged={loadOverview} />
+          <StockTab
+            overview={overview}
+            entries={entries}
+            flowers={flowers}
+            flowersLoading={flowersLoading}
+            loading={overviewLoading}
+            onChanged={loadOverview}
+          />
         )}
         {tab === "batches" && (
           <BatchesTab
@@ -143,6 +160,7 @@ export default function Warehouse() {
             onCreated={() => {
               loadBatches();
               loadOverview();
+              loadFlowers();
             }}
           />
         )}
@@ -183,6 +201,48 @@ function StockThumb({ image, size = "h-10 w-10" }: { image: string; size?: strin
   return (
     <div className={`flex ${size} flex-none items-center justify-center rounded-sm bg-canvas text-graphite`}>
       <Package className="h-4 w-4" />
+    </div>
+  );
+}
+
+function flowerCategoryName(flower: Flower): string {
+  return typeof flower.category === "string" ? "—" : flower.category?.name ?? "—";
+}
+
+function FlowerStatus({ flower, threshold }: { flower: Flower; threshold: number }) {
+  if (flower.stock <= 0) return <span className="pill border-hermes-100 bg-hermes-50 text-hermes-700">Нет в наличии</span>;
+  if (threshold > 0 && flower.stock <= threshold) return <span className="pill border-amber-200 bg-amber-50 text-amber-700">Мало</span>;
+  return <span className="pill">В наличии</span>;
+}
+
+function FlowerCard({ flower, threshold }: { flower: Flower; threshold: number }) {
+  return (
+    <div className="card p-3">
+      <div className="flex items-center gap-3">
+        <div className="flex h-11 w-11 flex-none items-center justify-center rounded-xl bg-hermes-50 text-hermes-600">
+          <Flower2 className="h-5 w-5" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-medium text-ink">{flower.name}</p>
+          <p className="truncate text-xs text-graphite">{flowerCategoryName(flower)}</p>
+        </div>
+        <FlowerStatus flower={flower} threshold={threshold} />
+      </div>
+      <div className="mt-3 flex items-center justify-between text-sm">
+        <span className="text-graphite">
+          Остаток:{" "}
+          <span
+            className={`font-medium ${
+              flower.stock <= 0 ? "text-hermes-600" : threshold > 0 && flower.stock <= threshold ? "text-amber-600" : "text-ink"
+            }`}
+          >
+            {flower.stock} {flower.unit}
+          </span>
+        </span>
+        <span className="text-graphite">
+          Себест.: <span className="font-medium text-ink">{formatUZS(flower.costPrice)}</span>
+        </span>
+      </div>
     </div>
   );
 }
@@ -240,11 +300,15 @@ function StockItemCard({
 function StockTab({
   overview,
   entries,
+  flowers,
+  flowersLoading,
   loading,
   onChanged,
 }: {
   overview: WarehouseOverview | null;
   entries: StockEntry[];
+  flowers: Flower[];
+  flowersLoading: boolean;
   loading: boolean;
   onChanged: () => void;
 }) {
@@ -311,6 +375,7 @@ function StockTab({
 
   const items = overview?.items ?? [];
   const lowStockCount = items.filter((i) => i.lowStock).length;
+  const threshold = overview?.threshold ?? 0;
 
   return (
     <div>
@@ -326,6 +391,67 @@ function StockTab({
         <StatCard label="Товаров на складе" value={loading ? "—" : items.length} />
         <StatCard label="Мало на складе" value={loading ? "—" : lowStockCount} accent={lowStockCount > 0} />
         <StatCard label="Порог «мало»" value={loading ? "—" : overview?.threshold ?? 0} />
+      </div>
+
+      <div className="mt-8">
+        <div className="flex items-center justify-between">
+          <h2 className="font-display text-lg font-semibold text-ink">Цветы</h2>
+          <span className="text-xs text-graphite">{flowersLoading ? "—" : `${flowers.length} позиций`}</span>
+        </div>
+
+        {/* mobile: card-per-flower */}
+        <div className="mt-3 space-y-3 md:hidden">
+          {flowers.map((flower) => (
+            <FlowerCard key={flower._id} flower={flower} threshold={threshold} />
+          ))}
+          {!flowersLoading && flowers.length === 0 && (
+            <p className="card text-sm text-graphite">Цветов пока нет — добавьте через «Партии».</p>
+          )}
+        </div>
+
+        {/* desktop: table */}
+        <div className="mt-3 hidden overflow-x-auto card p-0 md:block">
+          <table className="admin-table w-full">
+            <thead>
+              <tr>
+                <th>Цветок</th>
+                <th>Категория</th>
+                <th>Остаток</th>
+                <th>Себестоимость</th>
+                <th>Статус</th>
+              </tr>
+            </thead>
+            <tbody>
+              {flowers.map((flower) => (
+                <tr key={flower._id}>
+                  <td className="flex items-center gap-3">
+                    <div className="flex h-8 w-8 flex-none items-center justify-center rounded-lg bg-hermes-50 text-hermes-600">
+                      <Flower2 className="h-4 w-4" />
+                    </div>
+                    <span>{flower.name}</span>
+                  </td>
+                  <td>{flowerCategoryName(flower)}</td>
+                  <td
+                    className={
+                      flower.stock <= 0
+                        ? "font-medium text-hermes-600"
+                        : threshold > 0 && flower.stock <= threshold
+                          ? "font-medium text-amber-600"
+                          : ""
+                    }
+                  >
+                    {flower.stock} {flower.unit}
+                  </td>
+                  <td>{formatUZS(flower.costPrice)}</td>
+                  <td>
+                    <FlowerStatus flower={flower} threshold={threshold} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {!flowersLoading && flowers.length === 0 && <p className="p-6 text-sm text-graphite">Цветов пока нет — добавьте через «Партии».</p>}
+        </div>
       </div>
 
       {formItem && (
@@ -395,10 +521,7 @@ function StockTab({
         </form>
       )}
 
-      <p className="mt-6 text-xs text-graphite">
-        Приход и корректировка меняют только количество, не себестоимость. Для прихода с учётом цены закупки и валюты —
-        вкладка «Партии».
-      </p>
+      <h2 className="mt-8 font-display text-lg font-semibold text-ink">Доп. товары</h2>
 
       {/* mobile: card-per-product */}
       <div className="mt-3 space-y-3 md:hidden">
@@ -461,7 +584,7 @@ function StockTab({
           {entries.map((entry) => (
             <div key={entry._id} className="border-b border-hairline py-3 last:border-b-0">
               <div className="flex items-center justify-between gap-3">
-                <span className="truncate text-sm text-ink">{entry.product?.name ?? "—"}</span>
+                <span className="truncate text-sm text-ink">{entry.product?.name ?? entry.flower?.name ?? "—"}</span>
                 <span className={`flex-none text-sm font-medium ${entry.quantity > 0 ? "text-sapphire-700" : "text-hermes-600"}`}>
                   {entry.quantity > 0 ? `+${entry.quantity}` : entry.quantity}
                 </span>
@@ -490,7 +613,7 @@ function StockTab({
             {entries.map((entry) => (
               <tr key={entry._id}>
                 <td className="whitespace-nowrap text-graphite">{formatDate(entry.createdAt)}</td>
-                <td>{entry.product?.name ?? "—"}</td>
+                <td>{entry.product?.name ?? entry.flower?.name ?? "—"}</td>
                 <td>{STOCK_REASON_LABELS[entry.reason]}</td>
                 <td className={entry.quantity > 0 ? "text-sapphire-700" : "text-hermes-600"}>
                   {entry.quantity > 0 ? `+${entry.quantity}` : entry.quantity}
@@ -510,7 +633,7 @@ function StockTab({
 
 type BatchLine = {
   key: string;
-  product: Product;
+  flower: Flower;
   quantity: string;
   unitCost: string;
   currency: "UZS" | "USD";
@@ -524,11 +647,20 @@ function lineTotalUZS(line: BatchLine): number {
   return qty * cost * rate;
 }
 
-function ProductPicker({ onPick }: { onPick: (product: Product) => void }) {
+// Flowers are picked OR created right from this search box — "цветы либо
+// выбираются, либо создаются". If a search finds nothing, "+ Создать
+// «…»" opens a one-field inline form (just a category) and the new
+// flower drops straight into the batch as a line, no separate page.
+function FlowerPicker({ categories, onPick }: { categories: Category[]; onPick: (flower: Flower) => void }) {
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<Product[]>([]);
+  const [results, setResults] = useState<Flower[]>([]);
   const [searching, setSearching] = useState(false);
   const [open, setOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [newFlowerName, setNewFlowerName] = useState("");
+  const [newCategoryId, setNewCategoryId] = useState("");
+  const [createSaving, setCreateSaving] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
 
   useEffect(() => {
     const term = query.trim();
@@ -539,19 +671,44 @@ function ProductPicker({ onPick }: { onPick: (product: Product) => void }) {
     }
     setSearching(true);
     const handle = setTimeout(() => {
-      api<{ items: Product[] }>(`/products/admin/all?search=${encodeURIComponent(term)}&limit=8`)
-        .then((res) => setResults(res.items))
+      getFlowers(term)
+        .then((res) => setResults(res as Flower[]))
         .catch(() => setResults([]))
         .finally(() => setSearching(false));
     }, 300);
     return () => clearTimeout(handle);
   }, [query]);
 
-  const pick = (product: Product) => {
-    onPick(product);
+  const pick = (flower: Flower) => {
+    onPick(flower);
     setQuery("");
     setResults([]);
     setOpen(false);
+    setCreating(false);
+  };
+
+  const startCreate = () => {
+    setNewFlowerName(query.trim());
+    setNewCategoryId("");
+    setCreateError(null);
+    setCreating(true);
+  };
+
+  const submitCreate = async () => {
+    if (!newCategoryId) {
+      setCreateError("Выберите категорию");
+      return;
+    }
+    setCreateSaving(true);
+    setCreateError(null);
+    try {
+      const flower = (await createFlower({ name: newFlowerName, category: newCategoryId })) as Flower;
+      pick(flower);
+    } catch (err) {
+      setCreateError(err instanceof ApiError ? err.message : "Не удалось создать цветок");
+    } finally {
+      setCreateSaving(false);
+    }
   };
 
   return (
@@ -566,35 +723,76 @@ function ProductPicker({ onPick }: { onPick: (product: Product) => void }) {
           }}
           onFocus={() => setOpen(true)}
           onBlur={() => setOpen(false)}
-          placeholder="Название товара…"
+          placeholder="Название цветка…"
           className="input pl-9"
         />
       </div>
-      {open && query.trim() && (
+      {open && query.trim() && !creating && (
         <div className="absolute inset-x-0 top-full z-20 mt-1 max-h-60 overflow-y-auto border border-hairline bg-paper">
           {searching ? (
             <p className="p-3 text-sm text-graphite">Ищем…</p>
           ) : results.length === 0 ? (
-            <p className="p-3 text-sm text-graphite">Ничего не найдено</p>
-          ) : (
-            results.map((product) => (
+            <div className="p-3">
+              <p className="text-sm text-graphite">Ничего не найдено</p>
               <button
-                key={product._id}
                 type="button"
                 onMouseDown={(e) => e.preventDefault()}
-                onClick={() => pick(product)}
+                onClick={startCreate}
+                className="mt-1.5 text-sm font-medium text-sapphire-600 hover:underline"
+              >
+                + Создать «{query.trim()}»
+              </button>
+            </div>
+          ) : (
+            results.map((flower) => (
+              <button
+                key={flower._id}
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => pick(flower)}
                 className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm text-ink hover:bg-canvas"
               >
-                {product.images[0] ? (
-                  <img src={resolveImageUrl(product.images[0])} alt="" className="h-8 w-8 flex-none rounded-sm object-cover" />
-                ) : (
-                  <Package className="h-8 w-8 flex-none text-graphite" />
-                )}
-                <span className="flex-1 truncate">{product.name}</span>
-                <span className="flex-none text-xs text-graphite">остаток {product.stock}</span>
+                <div className="flex h-8 w-8 flex-none items-center justify-center rounded-sm bg-canvas text-hermes-600">
+                  <Flower2 className="h-4 w-4" />
+                </div>
+                <span className="flex-1 truncate">{flower.name}</span>
+                <span className="flex-none text-xs text-graphite">
+                  остаток {flower.stock} {flower.unit}
+                </span>
               </button>
             ))
           )}
+        </div>
+      )}
+      {creating && (
+        <div className="card mt-2 space-y-2.5 p-3">
+          <p className="text-sm text-ink">
+            Новый цветок: <span className="font-medium">«{newFlowerName}»</span>
+          </p>
+          <select value={newCategoryId} onChange={(e) => setNewCategoryId(e.target.value)} className="input">
+            <option value="">Категория…</option>
+            {categories.map((c) => (
+              <option key={c._id} value={c._id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+          {createError && <p className="text-xs text-hermes-600">{createError}</p>}
+          <div className="flex gap-2">
+            <button type="button" onClick={submitCreate} disabled={createSaving} className="btn-primary flex-1 py-2 text-xs">
+              {createSaving ? "Создаём…" : "Создать и добавить"}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setCreating(false);
+                setOpen(true);
+              }}
+              className="btn-secondary flex-1 py-2 text-xs"
+            >
+              Отмена
+            </button>
+          </div>
         </div>
       )}
     </div>
@@ -610,19 +808,15 @@ function BatchLineEditor({
   onChange: (patch: Partial<BatchLine>) => void;
   onRemove: () => void;
 }) {
-  const product = line.product;
+  const flower = line.flower;
   return (
     <div className="border border-hairline p-3">
       <div className="flex items-center justify-between gap-2">
         <div className="flex min-w-0 flex-1 items-center gap-2.5">
-          {product.images[0] ? (
-            <img src={resolveImageUrl(product.images[0])} alt="" className="h-9 w-9 flex-none rounded-sm object-cover" />
-          ) : (
-            <div className="flex h-9 w-9 flex-none items-center justify-center rounded-sm bg-canvas text-graphite">
-              <Package className="h-4 w-4" />
-            </div>
-          )}
-          <p className="truncate text-sm font-medium text-ink">{product.name}</p>
+          <div className="flex h-9 w-9 flex-none items-center justify-center rounded-sm bg-canvas text-hermes-600">
+            <Flower2 className="h-4 w-4" />
+          </div>
+          <p className="truncate text-sm font-medium text-ink">{flower.name}</p>
         </div>
         <button
           type="button"
@@ -636,7 +830,7 @@ function BatchLineEditor({
 
       <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
         <label className="block">
-          <span className="mb-1 block text-xs text-graphite">Количество</span>
+          <span className="mb-1 block text-xs text-graphite">Количество, {flower.unit}</span>
           <input
             type="number"
             min={1}
@@ -714,22 +908,45 @@ function BatchForm({
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [notes, setNotes] = useState("");
   const [lines, setLines] = useState<BatchLine[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  // Lump-sum landed-cost overhead for the whole shipment (shipping,
+  // customs, broker fees) — not any single flower's own price, but the
+  // server folds it into each flower's weighted-average costPrice,
+  // allocated by each item's share of raw goods value.
+  const [additionalCost, setAdditionalCost] = useState("");
+  const [additionalCostCurrency, setAdditionalCostCurrency] = useState<"UZS" | "USD">("UZS");
+  const [additionalCostExchangeRate, setAdditionalCostExchangeRate] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const nextKey = useRef(0);
 
-  const addLine = (product: Product) => {
+  // Only needed for the FlowerPicker's inline "+ Создать" mini-form.
+  useEffect(() => {
+    api<Category[]>("/categories").then(setCategories).catch(() => setCategories([]));
+  }, []);
+
+  const addLine = (flower: Flower) => {
     nextKey.current += 1;
     setLines((prev) => [
       ...prev,
-      { key: `${product._id}-${nextKey.current}`, product, quantity: "1", unitCost: "", currency: "UZS", exchangeRate: "" },
+      { key: `${flower._id}-${nextKey.current}`, flower, quantity: "1", unitCost: "", currency: "UZS", exchangeRate: "" },
     ]);
   };
   const removeLine = (key: string) => setLines((prev) => prev.filter((l) => l.key !== key));
   const updateLine = (key: string, patch: Partial<BatchLine>) =>
     setLines((prev) => prev.map((l) => (l.key === key ? { ...l, ...patch } : l)));
 
-  const total = useMemo(() => lines.reduce((sum, l) => sum + lineTotalUZS(l), 0), [lines]);
+  const additionalCostUZS = useMemo(() => {
+    const amount = Number(additionalCost) || 0;
+    if (amount <= 0) return 0;
+    const rate = additionalCostCurrency === "USD" ? Number(additionalCostExchangeRate) || 0 : 1;
+    return amount * rate;
+  }, [additionalCost, additionalCostCurrency, additionalCostExchangeRate]);
+
+  const total = useMemo(
+    () => lines.reduce((sum, l) => sum + lineTotalUZS(l), 0) + additionalCostUZS,
+    [lines, additionalCostUZS],
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -745,17 +962,27 @@ function BatchForm({
       const qty = Number(line.quantity);
       const cost = Number(line.unitCost);
       if (!Number.isFinite(qty) || qty <= 0) {
-        setError(`Укажите количество для «${line.product.name}»`);
+        setError(`Укажите количество для «${line.flower.name}»`);
         return;
       }
       if (line.unitCost.trim() === "" || !Number.isFinite(cost) || cost < 0) {
-        setError(`Укажите цену закупки для «${line.product.name}»`);
+        setError(`Укажите цену закупки для «${line.flower.name}»`);
         return;
       }
       if (line.currency === "USD" && !(Number(line.exchangeRate) > 0)) {
-        setError(`Укажите курс USD для «${line.product.name}»`);
+        setError(`Укажите курс USD для «${line.flower.name}»`);
         return;
       }
+    }
+
+    const additionalCostNum = additionalCost.trim() === "" ? 0 : Number(additionalCost);
+    if (additionalCost.trim() !== "" && (!Number.isFinite(additionalCostNum) || additionalCostNum < 0)) {
+      setError("Укажите корректную сумму доп. расходов");
+      return;
+    }
+    if (additionalCostNum > 0 && additionalCostCurrency === "USD" && !(Number(additionalCostExchangeRate) > 0)) {
+      setError("Укажите курс USD для доп. расходов");
+      return;
     }
 
     setSaving(true);
@@ -768,12 +995,15 @@ function BatchForm({
         date,
         notes,
         items: lines.map((l) => ({
-          productId: l.product._id,
+          flowerId: l.flower._id,
           quantity: Number(l.quantity),
           unitCost: Number(l.unitCost),
           currency: l.currency,
           exchangeRate: l.currency === "USD" ? Number(l.exchangeRate) : undefined,
         })),
+        additionalCost: additionalCostNum > 0 ? additionalCostNum : undefined,
+        additionalCostCurrency: additionalCostNum > 0 ? additionalCostCurrency : undefined,
+        additionalCostExchangeRate: additionalCostNum > 0 && additionalCostCurrency === "USD" ? Number(additionalCostExchangeRate) : undefined,
       });
       onSaved();
     } catch (err) {
@@ -828,8 +1058,8 @@ function BatchForm({
       </Field>
 
       <div>
-        <span className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-graphite">Добавить товар</span>
-        <ProductPicker onPick={addLine} />
+        <span className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-graphite">Добавить цветок</span>
+        <FlowerPicker categories={categories} onPick={addLine} />
       </div>
 
       {lines.length > 0 && (
@@ -839,6 +1069,59 @@ function BatchForm({
           ))}
         </div>
       )}
+
+      <div className="border-t border-hairline pt-4">
+        <Field label="Доп. расходы по партии — доставка, таможня">
+          <div className="flex gap-2">
+            <input
+              type="number"
+              min={0}
+              value={additionalCost}
+              onChange={(e) => setAdditionalCost(e.target.value)}
+              placeholder="0"
+              className="input"
+            />
+            <div className="flex flex-none gap-1.5">
+              <button
+                type="button"
+                className="pill"
+                data-active={additionalCostCurrency === "UZS" ? "true" : "false"}
+                onClick={() => {
+                  setAdditionalCostCurrency("UZS");
+                  setAdditionalCostExchangeRate("");
+                }}
+              >
+                UZS
+              </button>
+              <button
+                type="button"
+                className="pill"
+                data-active={additionalCostCurrency === "USD" ? "true" : "false"}
+                onClick={() => {
+                  setAdditionalCostCurrency("USD");
+                  setAdditionalCostExchangeRate("");
+                }}
+              >
+                USD
+              </button>
+            </div>
+          </div>
+        </Field>
+        {additionalCostCurrency === "USD" && (
+          <div className="mt-3 max-w-[200px]">
+            <Field label="Курс, UZS за $1">
+              <input
+                type="number"
+                min={0}
+                value={additionalCostExchangeRate}
+                onChange={(e) => setAdditionalCostExchangeRate(e.target.value)}
+                placeholder="Например: 12700"
+                className="input"
+              />
+            </Field>
+          </div>
+        )}
+      </div>
 
       <div className="flex items-center justify-between border-t border-hairline pt-4">
         <span className="text-sm font-medium text-ink">Итого по партии</span>
@@ -860,11 +1143,12 @@ function BatchForm({
 }
 
 function BatchLineRow({ item }: { item: PurchaseBatchItem }) {
-  const product = typeof item.product === "string" ? null : item.product;
+  const flower = typeof item.flower === "string" ? null : item.flower;
   return (
     <div className="flex items-center justify-between gap-3 text-sm">
       <span className="truncate text-ink">
-        {product?.name ?? "Товар удалён"} × {item.quantity}
+        {flower?.name ?? "Цветок удалён"} × {item.quantity}
+        {flower?.unit ? ` ${flower.unit}` : ""}
       </span>
       <span className="flex-none text-graphite">
         {new Intl.NumberFormat("ru-RU").format(item.unitCost)} {item.currency}
@@ -890,8 +1174,7 @@ function BatchesTab({
 
   return (
     <div>
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-sm text-graphite">Приход партий от поставщиков с учётом цены закупки и валюты.</p>
+      <div className="flex items-center justify-end gap-3">
         {!showForm && (
           <button type="button" onClick={() => setShowForm(true)} className="btn-primary flex-none">
             + Новая партия

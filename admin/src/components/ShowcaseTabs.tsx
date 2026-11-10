@@ -1,27 +1,22 @@
 import { Link, useLocation } from "react-router-dom";
 
-const TAXONOMY_TABS = [
+const TABS = [
   { to: "/showcase/categories", label: "Категории" },
-  { to: "/showcase/characters", label: "Характеры" },
   { to: "/showcase/occasions", label: "Поводы" },
   { to: "/showcase/addons", label: "Допы" },
 ] as const;
 
-// Mounted at the top of all five Витрина pages so they read as one section.
-// "Товары" covers /showcase itself plus the product form (/showcase/new,
-// /showcase/:id) — a plain prefix match can't tell those apart from the
-// taxonomy routes (same /showcase/<segment> shape), so active state is
-// resolved by hand instead of relying on NavLink's built-in matching.
+// Mounted only on these three secondary Витрина pages so admins can hop
+// between them directly — Showcase itself no longer needs this strip (it
+// IS the main "Товары" page now; see the small "Ещё" links at its own
+// bottom instead), and Характеры was retired here entirely: every product
+// gets every character automatically now, so there's nothing left to tag.
 export default function ShowcaseTabs() {
   const { pathname } = useLocation();
-  const isTaxonomy = TAXONOMY_TABS.some((tab) => pathname.startsWith(tab.to));
 
   return (
     <nav className="mb-6 flex gap-2 overflow-x-auto no-scrollbar">
-      <Link to="/showcase" className="pill flex-none" data-active={!isTaxonomy}>
-        Товары
-      </Link>
-      {TAXONOMY_TABS.map((tab) => (
+      {TABS.map((tab) => (
         <Link key={tab.to} to={tab.to} className="pill flex-none" data-active={pathname.startsWith(tab.to)}>
           {tab.label}
         </Link>
