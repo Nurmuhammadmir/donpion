@@ -4,6 +4,7 @@ import {
   createReceipt,
   createAdjustment,
   getEntries,
+  clearEntries,
   getSuppliers,
   createSupplier,
   updateSupplier,
@@ -17,6 +18,7 @@ const router = Router();
 
 router.get("/overview", protectAdmin, getOverview);
 router.get("/entries", protectAdmin, getEntries);
+router.delete("/entries", protectAdmin, clearEntries);
 router.post("/receipts", protectAdmin, createReceipt);
 router.post("/adjustments", protectAdmin, createAdjustment);
 

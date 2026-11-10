@@ -297,3 +297,12 @@ export const getEntries = asyncHandler(async (req, res) => {
     .limit(Number(limit));
   res.json(entries);
 });
+
+// DELETE /api/warehouse/entries  (admin) — wipes the movement log only.
+// Purely a journal of how stock got where it is; current Flower.stock and
+// Product.stock aren't touched, so this never changes what's actually in
+// the warehouse, just the history of how it got there.
+export const clearEntries = asyncHandler(async (req, res) => {
+  const { deletedCount } = await StockEntry.deleteMany({});
+  res.json({ deletedCount });
+});
