@@ -7,6 +7,7 @@ import type { Branch, Expense, ExpenseCategory, FinanceSummary, Order } from "@/
 import { EXPENSE_CATEGORY_LABELS, ORDER_SOURCE_LABELS } from "@/lib/types";
 import QuickSaleModal from "@/components/QuickSaleModal";
 import { Skeleton } from "@/components/Skeleton";
+import PriceInput from "@/components/PriceInput";
 
 function formatUZS(amount: number) {
   return `${new Intl.NumberFormat("ru-RU").format(Math.round(amount))} сум`;
@@ -804,14 +805,10 @@ function ExpenseFormModal({
               <span className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-graphite">
                 Сумма (сум) <span className="text-hermes-500">*</span>
               </span>
-              <input
-                type="number"
-                min="0.01"
-                step="any"
+              <PriceInput
                 required
                 value={form.amount}
-                onChange={(e) => setForm((prev) => ({ ...prev, amount: e.target.value }))}
-                className="input"
+                onChange={(v) => setForm((prev) => ({ ...prev, amount: v }))}
                 placeholder="150000"
               />
             </label>

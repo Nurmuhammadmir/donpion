@@ -5,6 +5,7 @@ import { api, ApiError, createFlower, createPurchaseBatch, getFlowers, resolveIm
 import { useBranch } from "@/context/BranchContext";
 import Modal from "@/components/Modal";
 import { Skeleton } from "@/components/Skeleton";
+import PriceInput from "@/components/PriceInput";
 import type {
   Category,
   Flower,
@@ -916,13 +917,18 @@ function BatchLineEditor({
         </label>
         <label className="block">
           <span className="mb-1 block text-xs text-graphite">Цена закупки, {line.currency}</span>
-          <input
-            type="number"
-            min={0}
-            value={line.unitCost}
-            onChange={(e) => onChange({ unitCost: e.target.value })}
-            className="input"
-          />
+          {line.currency === "UZS" ? (
+            <PriceInput value={line.unitCost} onChange={(v) => onChange({ unitCost: v })} />
+          ) : (
+            <input
+              type="number"
+              min={0}
+              step="any"
+              value={line.unitCost}
+              onChange={(e) => onChange({ unitCost: e.target.value })}
+              className="input"
+            />
+          )}
         </label>
         <div>
           <span className="mb-1 block text-xs text-graphite">Валюта</span>
@@ -1142,14 +1148,19 @@ function BatchForm({
       <div className="border-t border-hairline pt-4">
         <Field label="Доп. расходы по партии — доставка, таможня">
           <div className="flex gap-2">
-            <input
-              type="number"
-              min={0}
-              value={additionalCost}
-              onChange={(e) => setAdditionalCost(e.target.value)}
-              placeholder="0"
-              className="input"
-            />
+            {additionalCostCurrency === "UZS" ? (
+              <PriceInput value={additionalCost} onChange={setAdditionalCost} placeholder="0" />
+            ) : (
+              <input
+                type="number"
+                min={0}
+                step="any"
+                value={additionalCost}
+                onChange={(e) => setAdditionalCost(e.target.value)}
+                placeholder="0"
+                className="input"
+              />
+            )}
             <div className="flex flex-none gap-1.5">
               <button
                 type="button"

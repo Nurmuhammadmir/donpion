@@ -4,6 +4,7 @@ import { Plus, Trash2 } from "lucide-react";
 import { api, ApiError, createFlower, getFlowers, resolveImageUrl, uploadProductImages } from "@/lib/api";
 import type { AddonCategory, Category, Flower, Occasion, Product } from "@/lib/types";
 import ShowcaseTabs from "@/components/ShowcaseTabs";
+import PriceInput from "@/components/PriceInput";
 
 function formatUZS(amount: number) {
   return `${new Intl.NumberFormat("ru-RU").format(amount)} сум`;
@@ -340,10 +341,10 @@ export default function ProductForm() {
 
         <div className={`grid gap-5 ${kind === "addon" ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
           <Field label="Цена, сум" required>
-            <input required type="number" min={0} value={form.price} onChange={update("price")} className="input" />
+            <PriceInput required value={form.price} onChange={(v) => setForm((prev) => ({ ...prev, price: v }))} />
           </Field>
           <Field label="Старая цена (для скидки)">
-            <input type="number" min={0} value={form.oldPrice} onChange={update("oldPrice")} className="input" />
+            <PriceInput value={form.oldPrice} onChange={(v) => setForm((prev) => ({ ...prev, oldPrice: v }))} />
           </Field>
           {kind === "addon" && (
             <Field label="Остаток на складе" required>
