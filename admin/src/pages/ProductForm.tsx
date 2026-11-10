@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Plus, Trash2 } from "lucide-react";
-import { api, ApiError, createFlower, getFlowers, resolveImageUrl, uploadProductImages } from "@/lib/api";
+import { api, ApiError, createFlower, getFlowers, isVideoUrl, resolveImageUrl, uploadProductImages } from "@/lib/api";
 import type { AddonCategory, Category, Flower, Occasion, Product } from "@/lib/types";
 import ShowcaseTabs from "@/components/ShowcaseTabs";
 import PriceInput from "@/components/PriceInput";
+import ImageCropModal from "@/components/ImageCropModal";
+import { cropImageToFile, type CropArea } from "@/lib/cropImage";
 
 function formatUZS(amount: number) {
   return `${new Intl.NumberFormat("ru-RU").format(amount)} сум`;
@@ -70,10 +72,17 @@ export default function ProductForm() {
   const [savedCostPrice, setSavedCostPrice] = useState<number | null>(null);
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  // Images selected but not yet cropped — shown one at a time in
+  // ImageCropModal; a video skips this queue entirely (see
+  // handleFilesSelected) since cropping to a fixed photo aspect makes no
+  // sense for a clip.
+  const [cropQueue, setCropQueue] = useState<File[]>([]);
+  const [cropObjectUrl, setCropObjectUrl] = useState<string | null>(null);
 
   useEffect(() => {
     api<Category[]>("/categories").then(setCategories).catch(() => setCategories([]));
@@ -146,10 +155,8 @@ export default function ProductForm() {
       setForm((prev) => ({ ...prev, [field]: value }));
     };
 
-  const handleFilesSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files ?? []);
+  const uploadFiles = async (files: File[]) => {
     if (files.length === 0) return;
-
     setUploading(true);
     setUploadError(null);
     try {
@@ -161,7 +168,57 @@ export default function ProductForm() {
       setUploadError(err instanceof ApiError ? err.message : "Не удалось загрузить фото");
     } finally {
       setUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const handleFilesSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+    if (files.length === 0) return;
+
+    const videos = files.filter((f) => f.type.startsWith("video/"));
+    const images = files.filter((f) => !f.type.startsWith("video/"));
+
+    if (videos.length > 0) uploadFiles(videos);
+    if (images.length > 0) setCropQueue((prev) => [...prev, ...images]);
+  };
+
+  const currentCropFile = cropQueue[0] ?? null;
+
+  useEffect(() => {
+    if (!currentCropFile) {
+      setCropObjectUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(currentCropFile);
+    setCropObjectUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [currentCropFile]);
+
+  const handleCropConfirm = async (area: CropArea) => {
+    if (!currentCropFile || !cropObjectUrl) return;
+    const filename = currentCropFile.name.replace(/\.[^.]+$/, "") + ".jpg";
+    setCropQueue((prev) => prev.slice(1));
+    try {
+      const cropped = await cropImageToFile(cropObjectUrl, area, filename);
+      await uploadFiles([cropped]);
+    } catch {
+      setUploadError("Не удалось обрезать фото");
+    }
+  };
+
+  const handleCropCancel = () => setCropQueue((prev) => prev.slice(1));
+
+  const handleDeleteProduct = async () => {
+    if (!id) return;
+    if (!window.confirm("Удалить товар? Он уйдёт в корзину и исчезнет с витрины и сайта.")) return;
+    setDeleting(true);
+    try {
+      await api(`/products/${id}`, { method: "DELETE" });
+      navigate("/showcase");
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Не удалось удалить товар");
+      setDeleting(false);
     }
   };
 
@@ -291,12 +348,21 @@ export default function ProductForm() {
             Изменить тип
           </button>
         ) : (
-          <div className="flex flex-none gap-1.5">
+          <div className="flex flex-none items-center gap-1.5">
             <button type="button" onClick={() => setKind("bouquet")} className="pill" data-active={kind === "bouquet" ? "true" : "false"}>
               {KIND_LABELS.bouquet}
             </button>
             <button type="button" onClick={() => setKind("addon")} className="pill" data-active={kind === "addon" ? "true" : "false"}>
               {KIND_LABELS.addon}
+            </button>
+            <button
+              type="button"
+              onClick={handleDeleteProduct}
+              disabled={deleting}
+              aria-label="Удалить товар"
+              className="flex h-8 w-8 flex-none items-center justify-center rounded-full text-graphite transition-colors hover:bg-hermes-50 hover:text-hermes-600 disabled:opacity-50"
+            >
+              <Trash2 className="h-4 w-4" />
             </button>
           </div>
         )}
@@ -307,7 +373,11 @@ export default function ProductForm() {
           <div className="flex flex-wrap gap-3">
             {form.images.map((url) => (
               <div key={url} className="group relative h-24 w-24 overflow-hidden rounded-xl border border-hairline">
-                <img src={resolveImageUrl(url)} alt="" className="h-full w-full object-cover" />
+                {isVideoUrl(url) ? (
+                  <video src={resolveImageUrl(url)} className="h-full w-full object-cover" muted loop playsInline autoPlay />
+                ) : (
+                  <img src={resolveImageUrl(url)} alt="" className="h-full w-full object-cover" />
+                )}
                 <button
                   type="button"
                   onClick={() => removeImage(url)}
@@ -331,7 +401,7 @@ export default function ProductForm() {
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/jpeg,image/png,image/webp,image/avif"
+            accept="image/jpeg,image/png,image/webp,image/avif,video/mp4,video/webm,video/quicktime"
             multiple
             onChange={handleFilesSelected}
             className="hidden"
@@ -511,6 +581,15 @@ export default function ProductForm() {
           </button>
         </div>
       </form>
+
+      {currentCropFile && cropObjectUrl && (
+        <ImageCropModal
+          imageSrc={cropObjectUrl}
+          stepLabel={cropQueue.length > 1 ? `1 из ${cropQueue.length}` : undefined}
+          onConfirm={handleCropConfirm}
+          onCancel={handleCropCancel}
+        />
+      )}
     </div>
   );
 }

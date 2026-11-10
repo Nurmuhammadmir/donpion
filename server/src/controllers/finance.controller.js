@@ -36,7 +36,10 @@ export const getFinanceSummary = asyncHandler(async (req, res) => {
       { $match: { ...branchFilter, date: { $gte: from, $lte: to } } },
       { $group: { _id: "$category", total: { $sum: "$amount" } } },
     ]),
-    Product.aggregate([{ $group: { _id: null, value: { $sum: { $multiply: ["$stock", "$costPrice"] } } } }]),
+    Product.aggregate([
+      { $match: { deletedAt: null } },
+      { $group: { _id: null, value: { $sum: { $multiply: ["$stock", "$costPrice"] } } } },
+    ]),
   ]);
 
   const revenue = revenueAgg[0]?.revenue ?? 0;

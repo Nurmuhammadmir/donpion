@@ -1,5 +1,5 @@
 import { getAddonCategories, getAllProductsForSitemap, getCategories, getCharacters, getOccasions } from "@/lib/api";
-import { resolveImageUrl } from "@/lib/images";
+import { isVideoUrl, resolveImageUrl } from "@/lib/images";
 import { routing } from "@/i18n/routing";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
@@ -123,7 +123,9 @@ export async function GET() {
         lastModified: product.updatedAt ? new Date(product.updatedAt).toISOString() : undefined,
         changeFrequency: "weekly",
         priority: 0.6,
-        images: product.images.map((img) => ({ loc: resolveImageUrl(img), title: product.name })),
+        images: product.images
+          .filter((img) => !isVideoUrl(img))
+          .map((img) => ({ loc: resolveImageUrl(img), title: product.name })),
       })
     ),
   ];

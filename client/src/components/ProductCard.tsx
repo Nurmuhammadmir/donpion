@@ -6,7 +6,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/Link";
 import type { ProductCardData } from "@/types";
 import { formatUZS } from "@/lib/format";
-import { resolveImageUrl } from "@/lib/images";
+import { isVideoUrl, resolveImageUrl } from "@/lib/images";
 
 interface ProductCardProps {
   product: ProductCardData;
@@ -36,21 +36,34 @@ export default function ProductCard({ product, showFromPrice }: ProductCardProps
       onTouchCancel={() => setActive(false)}
     >
       <div className="relative aspect-[3/4] overflow-hidden bg-hermes-50/30">
-        <Image
-          src={resolveImageUrl(product.images[0])}
-          alt={product.name}
-          fill
-          sizes="(min-width: 1024px) 280px, 45vw"
-          quality={95}
-          className={`pointer-events-none object-cover transition-transform duration-700 ease-out ${
-            active ? "scale-[1.04]" : ""
-          }`}
-        />
+        {isVideoUrl(product.images[0]) ? (
+          <video
+            src={resolveImageUrl(product.images[0])}
+            className="pointer-events-none absolute inset-0 h-full w-full object-cover"
+            autoPlay
+            muted
+            loop
+            playsInline
+          />
+        ) : (
+          <Image
+            src={resolveImageUrl(product.images[0])}
+            alt={product.name}
+            fill
+            sizes="(min-width: 1024px) 280px, 45vw"
+            quality={95}
+            className={`pointer-events-none object-cover transition-transform duration-700 ease-out ${
+              active ? "scale-[1.04]" : ""
+            }`}
+          />
+        )}
         {/* Second photo, if there is one — crossfades in on hover/touch and
             back out the moment it ends, on any device. pointer-events-none
             on both images is what makes the click always reach the Link
-            below instead of landing on whichever photo is on top. */}
-        {product.images[1] && (
+            below instead of landing on whichever photo is on top. Skipped
+            when the first slot is already a playing video — a hover-
+            crossfade on top of that would just compete for attention. */}
+        {product.images[1] && !isVideoUrl(product.images[0]) && (
           <Image
             src={resolveImageUrl(product.images[1])}
             alt={product.name}

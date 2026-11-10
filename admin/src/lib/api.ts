@@ -15,6 +15,13 @@ export function resolveImageUrl(src: string): string {
   return `${ASSET_ORIGIN}${src.startsWith("/") ? "" : "/"}${src}`;
 }
 
+// A product's media slot can hold a short clip instead of a photo — there's
+// no separate field for it, so anywhere `images` gets rendered has to check
+// each URL itself to know whether it needs <video> instead of <img>.
+export function isVideoUrl(src: string): boolean {
+  return /\.(mp4|webm|mov)$/i.test(src);
+}
+
 export function getToken(): string | null {
   return localStorage.getItem(TOKEN_KEY);
 }

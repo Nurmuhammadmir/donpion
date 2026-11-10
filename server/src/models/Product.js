@@ -66,6 +66,15 @@ const productSchema = new mongoose.Schema(
 
     rating: { type: Number, default: 4.8, min: 0, max: 5 },
     reviewsCount: { type: Number, default: 0 },
+
+    // Deleting from ProductForm is a soft delete, not a real one — set
+    // here, never actually removed. Every ordinary find/findOne/count
+    // below defaults to excluding these; a future "Корзина" view (none
+    // exists yet) would query `deletedAt: { $ne: null }` explicitly to see
+    // past this. Aggregate pipelines don't go through query middleware at
+    // all, so anywhere Product.aggregate is used has to filter by hand
+    // (see finance.controller.js).
+    deletedAt: { type: Date, default: null },
   },
   { timestamps: true }
 );
@@ -75,6 +84,15 @@ productSchema.index({ isActive: 1, characters: 1 });
 productSchema.index({ isActive: 1, addonCategories: 1 });
 productSchema.index({ isActive: 1, occasions: 1 });
 productSchema.index({ isFeatured: 1, isActive: 1 });
+productSchema.index({ deletedAt: 1 });
+
+function excludeDeletedByDefault(next) {
+  if (this.getQuery().deletedAt === undefined) {
+    this.where({ deletedAt: null });
+  }
+  next();
+}
+productSchema.pre(["find", "findOne", "countDocuments"], excludeDeletedByDefault);
 productSchema.index({ name: "text", shortDescription: "text" });
 
 productSchema.virtual("availability").get(function availability() {

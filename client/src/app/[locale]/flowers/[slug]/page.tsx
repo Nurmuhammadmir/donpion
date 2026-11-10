@@ -10,7 +10,7 @@ import ProductAddons from "@/components/ProductAddons";
 import ProductCard from "@/components/ProductCard";
 import ProductGallery from "@/components/ProductGallery";
 import { formatUZS } from "@/lib/format";
-import { resolveImageUrl } from "@/lib/images";
+import { isVideoUrl, resolveImageUrl } from "@/lib/images";
 import { routing } from "@/i18n/routing";
 import { localeAlternates } from "@/lib/seo";
 
@@ -45,7 +45,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       title: product.seoTitle,
       description: product.seoDescription,
       url: canonical,
-      images: product.images.map((url) => ({ url: resolveImageUrl(url) })),
+      images: product.images.filter((url) => !isVideoUrl(url)).map((url) => ({ url: resolveImageUrl(url) })),
     },
   };
 }
@@ -69,7 +69,7 @@ export default async function ProductPage({ params: { locale, slug } }: PageProp
     "@type": "Product",
     name: product.name,
     description: product.shortDescription,
-    image: product.images.map(resolveImageUrl),
+    image: product.images.filter((url) => !isVideoUrl(url)).map(resolveImageUrl),
     sku: product._id,
     category: product.category.name,
     aggregateRating:
@@ -133,7 +133,7 @@ export default async function ProductPage({ params: { locale, slug } }: PageProp
               slug={product.slug}
               name={product.name}
               price={product.price}
-              image={resolveImageUrl(product.images[0])}
+              image={resolveImageUrl(product.images.find((url) => !isVideoUrl(url)) ?? product.images[0])}
               cashbackPercent={settings.cashbackPercent}
             />
           </div>

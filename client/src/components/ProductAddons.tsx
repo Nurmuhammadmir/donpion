@@ -7,7 +7,7 @@ import { Link } from "@/i18n/Link";
 import { getProducts } from "@/lib/api";
 import { useCart } from "@/components/CartProvider";
 import { formatUZS } from "@/lib/format";
-import { resolveImageUrl } from "@/lib/images";
+import { isVideoUrl, resolveImageUrl } from "@/lib/images";
 import type { AddonCategory, ProductCardData } from "@/types";
 
 const ADDON_ICONS: Record<string, (props: { className?: string }) => React.JSX.Element> = {
@@ -188,14 +188,25 @@ function AddonTile({ product }: { product: ProductCardData }) {
     <div className="group border border-hairline p-3 text-center transition-colors duration-200 hover:border-ink/30">
       <Link href={`/flowers/${product.slug}`} className="block">
         <div className="relative aspect-[3/4] overflow-hidden bg-hermes-50/30">
-          <Image
-            src={resolveImageUrl(product.images[0])}
-            alt={product.name}
-            fill
-            sizes="(min-width: 640px) 170px, 42vw"
-            quality={95}
-            className="object-cover transition-transform duration-500 ease-out group-hover:scale-[1.04]"
-          />
+          {isVideoUrl(product.images[0]) ? (
+            <video
+              src={resolveImageUrl(product.images[0])}
+              className="h-full w-full object-cover"
+              autoPlay
+              muted
+              loop
+              playsInline
+            />
+          ) : (
+            <Image
+              src={resolveImageUrl(product.images[0])}
+              alt={product.name}
+              fill
+              sizes="(min-width: 640px) 170px, 42vw"
+              quality={95}
+              className="object-cover transition-transform duration-500 ease-out group-hover:scale-[1.04]"
+            />
+          )}
         </div>
         <p className="mt-2.5 line-clamp-1 text-xs font-medium text-[#ff794e] [text-shadow:0_1px_2px_rgba(0,0,0,0.6)]">
           {product.name}
@@ -219,7 +230,7 @@ function AddonTile({ product }: { product: ProductCardData }) {
           <button
             type="button"
             aria-label={tCart("increaseAria")}
-            onClick={() => addItem({ productId: product._id, slug: product.slug, name: product.name, price: product.price, image: product.images[0] })}
+            onClick={() => addItem({ productId: product._id, slug: product.slug, name: product.name, price: product.price, image: product.images.find((url) => !isVideoUrl(url)) ?? product.images[0] })}
             className="h-7 w-7 flex-shrink-0 text-graphite transition-transform hover:text-hermes-500 active:scale-90"
           >
             +
@@ -228,7 +239,7 @@ function AddonTile({ product }: { product: ProductCardData }) {
       ) : (
         <button
           type="button"
-          onClick={() => addItem({ productId: product._id, slug: product.slug, name: product.name, price: product.price, image: product.images[0] })}
+          onClick={() => addItem({ productId: product._id, slug: product.slug, name: product.name, price: product.price, image: product.images.find((url) => !isVideoUrl(url)) ?? product.images[0] })}
           className="mt-2 w-full border border-hairline py-1.5 text-[11px] font-medium uppercase tracking-wide2 text-graphite transition-all duration-200 hover:border-hermes-500 hover:text-hermes-500 active:scale-95"
         >
           {t("addToCart")}

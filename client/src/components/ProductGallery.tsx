@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
-import { resolveImageUrl } from "@/lib/images";
+import { isVideoUrl, resolveImageUrl } from "@/lib/images";
 
 interface ProductGalleryProps {
   images: string[];
@@ -47,15 +47,26 @@ export default function ProductGallery({ images, alt }: ProductGalleryProps) {
             key={`${img}-${i}`}
             className="relative aspect-[3/4] w-full flex-shrink-0 snap-center overflow-hidden bg-hermes-50/30"
           >
-            <Image
-              src={resolveImageUrl(img)}
-              alt={alt}
-              fill
-              priority={i === 0}
-              sizes="(min-width: 1024px) 540px, 90vw"
-              quality={95}
-              className="object-cover"
-            />
+            {isVideoUrl(img) ? (
+              <video
+                src={resolveImageUrl(img)}
+                className="h-full w-full object-cover"
+                controls
+                playsInline
+                loop
+                muted
+              />
+            ) : (
+              <Image
+                src={resolveImageUrl(img)}
+                alt={alt}
+                fill
+                priority={i === 0}
+                sizes="(min-width: 1024px) 540px, 90vw"
+                quality={95}
+                className="object-cover"
+              />
+            )}
           </div>
         ))}
       </div>

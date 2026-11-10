@@ -237,14 +237,17 @@ export const updateProduct = asyncHandler(async (req, res) => {
   res.json(product);
 });
 
-// DELETE /api/admin/products/:id  (admin)
+// DELETE /api/admin/products/:id  (admin) — soft delete: flips deletedAt
+// rather than actually removing the document, so a product never just
+// vanishes with no way back (see Product.js's exclude-by-default hook).
 export const deleteProduct = asyncHandler(async (req, res) => {
   const product = await Product.findById(req.params.id);
   if (!product) {
     res.status(404);
     throw new Error("Product not found");
   }
-  await product.deleteOne();
+  product.deletedAt = new Date();
+  await product.save();
   notifyRevalidate();
   res.json({ message: "Product deleted" });
 });
