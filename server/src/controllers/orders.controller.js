@@ -345,9 +345,10 @@ export const createPosOrder = asyncHandler(async (req, res) => {
 
 // GET /api/admin/orders  (admin)
 export const getOrders = asyncHandler(async (req, res) => {
-  const { status, branch, source, page = 1, limit = 30 } = req.query;
+  const { status, branch, source, excludeCancelled, page = 1, limit = 30 } = req.query;
   const filter = {};
   if (status) filter.status = status;
+  else if (excludeCancelled === "true") filter.status = { $ne: "cancelled" };
   if (branch) filter.branch = branch;
   if (source) filter.source = source;
   if (req.query.from || req.query.to) {

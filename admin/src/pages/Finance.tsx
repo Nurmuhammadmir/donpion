@@ -1,17 +1,18 @@
 import { useEffect, useState } from "react";
 import { Bar, BarChart, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { Warehouse as WarehouseIcon } from "lucide-react";
+import { Globe, Plus, Store, TrendingDown, TrendingUp, Warehouse as WarehouseIcon, X } from "lucide-react";
 import { api, ApiError, getFinanceSummary } from "@/lib/api";
 import { useBranch } from "@/context/BranchContext";
-import type { Expense, ExpenseCategory, FinanceSummary } from "@/lib/types";
-import { EXPENSE_CATEGORY_LABELS } from "@/lib/types";
+import type { Branch, Expense, ExpenseCategory, FinanceSummary, Order } from "@/lib/types";
+import { EXPENSE_CATEGORY_LABELS, ORDER_SOURCE_LABELS } from "@/lib/types";
+import QuickSaleModal from "@/components/QuickSaleModal";
 
 function formatUZS(amount: number) {
   return `${new Intl.NumberFormat("ru-RU").format(Math.round(amount))} сум`;
 }
 
 // Short, rounded figure for the chart's bar-tip labels only — full
-// precision always stays in the P&L list above and the hover tooltip, so
+// precision always stays in the headline numbers and the hover tooltip, so
 // nothing is ever gated behind the rounding.
 function formatCompact(amount: number) {
   const abs = Math.abs(amount);
@@ -55,11 +56,19 @@ function presetRange(preset: Exclude<Preset, "custom">): { from: string; to: str
 }
 
 // Fixed, canonical order (packaging → salary → rent → ... → other) so the
-// breakdown reads the same every time instead of reshuffling with amounts.
+// category chart reads the same every time instead of reshuffling with
+// amounts.
 const CATEGORY_KEYS = Object.keys(EXPENSE_CATEGORY_LABELS) as ExpenseCategory[];
 const CATEGORY_ENTRIES = Object.entries(EXPENSE_CATEGORY_LABELS) as [ExpenseCategory, string][];
-const EXPENSE_PAGE_SIZE = 20;
+const LIST_PAGE_SIZE = 20;
 const HERMES_500 = "#F9511D";
+
+interface Page<T> {
+  items: T[];
+  total: number;
+  page: number;
+  pages: number;
+}
 
 interface ExpenseForm {
   category: ExpenseCategory;
@@ -78,19 +87,12 @@ function branchName(b: Expense["branch"]): string {
   return typeof b === "string" ? "—" : b.name;
 }
 
-interface ExpensesPage {
-  items: Expense[];
-  total: number;
-  page: number;
-  pages: number;
-}
-
-// "Финансы" — the owner's own money command-center: revenue minus cost of
-// goods minus expenses, laid out so the arithmetic reads top to bottom
-// without having to trust a chart. The donut/bar below is supplementary,
-// never the primary source of a number.
+// "Финансы" — the owner's own money command-center. Three numbers up top
+// (поступления / списания / чистая прибыль) are the non-negotiable part;
+// everything else — the per-transaction lists, the category chart, the
+// warehouse balance — is supplementary detail reachable below them.
 export default function Finance() {
-  const { branches, activeBranchId } = useBranch();
+  const { branches, activeBranchId, activeBranch, isCEO } = useBranch();
 
   const [preset, setPreset] = useState<Preset>("30d");
   const [customFrom, setCustomFrom] = useState(() => presetRange("30d").from);
@@ -100,6 +102,17 @@ export default function Finance() {
   const [summary, setSummary] = useState<FinanceSummary | null>(null);
   const [summaryLoading, setSummaryLoading] = useState(true);
 
+  // "Поступления" drill-down — orders for the period/branch.
+  const [incomeExpanded, setIncomeExpanded] = useState(false);
+  const [incomeOrders, setIncomeOrders] = useState<Order[]>([]);
+  const [incomeTotal, setIncomeTotal] = useState(0);
+  const [incomePage, setIncomePage] = useState(1);
+  const [incomePages, setIncomePages] = useState(1);
+  const [incomeLoading, setIncomeLoading] = useState(true);
+
+  // "Списания" drill-down — the expense log (unchanged logic from before,
+  // just gated behind the toggle instead of always visible).
+  const [expensesExpanded, setExpensesExpanded] = useState(false);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [expensesTotalCount, setExpensesTotalCount] = useState(0);
   const [page, setPage] = useState(1);
@@ -107,6 +120,10 @@ export default function Finance() {
   const [categoryFilter, setCategoryFilter] = useState<ExpenseCategory | "">("");
   const [logLoading, setLogLoading] = useState(true);
 
+  // Unified "+" entry point: pick "Расход" or "Продажа" first, then open
+  // the matching form/modal.
+  const [addChoiceOpen, setAddChoiceOpen] = useState(false);
+  const [saleOpen, setSaleOpen] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<ExpenseForm>(() => emptyExpenseForm(activeBranchId ?? ""));
@@ -122,6 +139,31 @@ export default function Finance() {
       .finally(() => setSummaryLoading(false));
   };
 
+  const loadIncome = () => {
+    setIncomeLoading(true);
+    const qs = new URLSearchParams();
+    if (activeBranchId) qs.set("branch", activeBranchId);
+    qs.set("from", from);
+    qs.set("to", to);
+    // Matches the revenue headline number exactly — a cancelled order
+    // contributes to neither, so it shouldn't appear as income here either.
+    qs.set("excludeCancelled", "true");
+    qs.set("page", String(incomePage));
+    qs.set("limit", String(LIST_PAGE_SIZE));
+    api<Page<Order>>(`/orders?${qs.toString()}`)
+      .then((res) => {
+        setIncomeOrders(res.items);
+        setIncomeTotal(res.total);
+        setIncomePages(Math.max(1, res.pages));
+      })
+      .catch(() => {
+        setIncomeOrders([]);
+        setIncomeTotal(0);
+        setIncomePages(1);
+      })
+      .finally(() => setIncomeLoading(false));
+  };
+
   const loadExpenses = () => {
     setLogLoading(true);
     const qs = new URLSearchParams();
@@ -130,8 +172,8 @@ export default function Finance() {
     qs.set("from", from);
     qs.set("to", to);
     qs.set("page", String(page));
-    qs.set("limit", String(EXPENSE_PAGE_SIZE));
-    api<ExpensesPage>(`/finance/expenses?${qs.toString()}`)
+    qs.set("limit", String(LIST_PAGE_SIZE));
+    api<Page<Expense>>(`/finance/expenses?${qs.toString()}`)
       .then((res) => {
         setExpenses(res.items);
         setExpensesTotalCount(res.total);
@@ -145,19 +187,31 @@ export default function Finance() {
       .finally(() => setLogLoading(false));
   };
 
-  const reloadAll = () => {
-    loadSummary();
-    loadExpenses();
-  };
-
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(loadSummary, [activeBranchId, from, to]);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(loadExpenses, [activeBranchId, from, to, categoryFilter, page]);
-  // Period/category changes reset the page from their own handlers below;
+
+  // Both drill-down lists load lazily — only once their toggle is actually
+  // open — so picking a period doesn't fire three requests when the owner
+  // only ever looks at the headline numbers.
+  useEffect(() => {
+    if (!incomeExpanded) return;
+    loadIncome();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [incomeExpanded, activeBranchId, from, to, incomePage]);
+
+  useEffect(() => {
+    if (!expensesExpanded) return;
+    loadExpenses();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [expensesExpanded, activeBranchId, from, to, categoryFilter, page]);
+
+  // Period/category changes reset their own page from the handlers below;
   // a branch switch comes from the switcher elsewhere in the shell, so it
-  // needs its own effect to land back on page 1.
-  useEffect(() => setPage(1), [activeBranchId]);
+  // needs its own effect to land both lists back on page 1.
+  useEffect(() => {
+    setPage(1);
+    setIncomePage(1);
+  }, [activeBranchId]);
 
   const handlePresetClick = (key: Preset) => {
     if (key === "custom" && preset !== "custom") {
@@ -166,6 +220,7 @@ export default function Finance() {
     }
     setPreset(key);
     setPage(1);
+    setIncomePage(1);
   };
 
   const handleCategoryFilterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -195,6 +250,18 @@ export default function Finance() {
   };
 
   const closeForm = () => setShowForm(false);
+
+  // Expense create/edit/delete all funnel through here — the list only
+  // actually needs a refetch if it's open; the headline numbers always do.
+  const reloadAfterExpenseChange = () => {
+    loadSummary();
+    if (expensesExpanded) loadExpenses();
+  };
+
+  const reloadAfterSale = () => {
+    loadSummary();
+    if (incomeExpanded) loadIncome();
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -226,7 +293,7 @@ export default function Finance() {
         await api("/finance/expenses", { method: "POST", body: JSON.stringify(payload) });
       }
       setShowForm(false);
-      reloadAll();
+      reloadAfterExpenseChange();
     } catch (err) {
       setFormError(err instanceof ApiError ? err.message : "Не удалось сохранить расход");
     } finally {
@@ -239,22 +306,14 @@ export default function Finance() {
     setDeleteError(null);
     try {
       await api(`/finance/expenses/${id}`, { method: "DELETE" });
-      reloadAll();
+      reloadAfterExpenseChange();
     } catch (err) {
       setDeleteError(err instanceof ApiError ? err.message : "Не удалось удалить расход");
     }
   };
 
-  // Full breakdown for the plain-text P&L list — canonical order, zero
-  // categories skipped so the list stays short and legible.
-  const categoryBreakdown = CATEGORY_KEYS.map((key) => ({
-    key,
-    label: EXPENSE_CATEGORY_LABELS[key],
-    amount: summary?.expensesByCategory[key] ?? 0,
-  })).filter((row) => row.amount > 0);
-
-  // Same data, ranked by size for the supplementary chart — short labels
-  // on the axis (full name lives in the tooltip and in the list above).
+  // Same numbers as the expense table's category column, ranked by size
+  // for the chart — short label on the axis, full name in the tooltip.
   const chartData = !summary
     ? []
     : CATEGORY_KEYS.map((key) => ({
@@ -305,106 +364,72 @@ export default function Finance() {
         <p className="mt-3 text-xs text-graphite">{rangeLabel}</p>
       </div>
 
-      {/* The P&L itself — plain stacked list, arithmetic reads top to bottom */}
+      {/* The three headline numbers */}
       <div className="card mt-4">
-        <p className="eyebrow mb-4">Прибыль и убытки за период</p>
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <p className="eyebrow">Итоги за период</p>
+          <button type="button" onClick={() => setAddChoiceOpen(true)} className="btn-primary">
+            <Plus className="h-4 w-4" />
+            Добавить
+          </button>
+        </div>
 
         {!summary && summaryLoading ? (
           <p className="text-sm text-graphite">Загрузка…</p>
         ) : !summary ? (
           <p className="text-sm text-graphite">Не удалось загрузить данные за период.</p>
         ) : (
-          <div className={summaryLoading ? "opacity-50 transition-opacity" : "transition-opacity"}>
-            <div className="divide-y divide-hairline">
-              <PnlRow label="Выручка" sub={`${summary.orderCount} заказов`} amount={summary.revenue} sign="+" />
-              <PnlRow label="Себестоимость проданного" amount={summary.cogs} sign="−" />
-              <PnlRow label="Валовая прибыль" amount={summary.grossProfit} bold />
-            </div>
-
-            <div className="mt-5">
-              <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-graphite">Расходы</p>
-              {categoryBreakdown.length === 0 ? (
-                <p className="py-2 text-sm text-graphite">Расходов за период не было.</p>
-              ) : (
-                <div className="divide-y divide-hairline">
-                  {categoryBreakdown.map((row) => (
-                    <div key={row.key} className="flex items-baseline justify-between gap-4 py-2 pl-3">
-                      <span className="text-sm text-graphite">{row.label}</span>
-                      <span className="tabular-nums text-sm font-medium text-ink">− {formatUZS(row.amount)}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div className="mt-2 divide-y divide-hairline">
-              <PnlRow label="Итого расходы" amount={summary.expensesTotal} sign="−" />
-              <PnlRow label="Чистая прибыль" amount={summary.netProfit} bold big />
-            </div>
+          <div
+            className={`grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4 ${summaryLoading ? "opacity-50 transition-opacity" : "transition-opacity"}`}
+          >
+            <HeadlineTile label="Поступления" amount={summary.revenue} sub={`${summary.orderCount} заказов`} />
+            <HeadlineTile label="Списания" amount={summary.expensesTotal} signPrefix="−" />
+            <HeadlineTile label="Чистая прибыль" amount={summary.netProfit} emphasize />
           </div>
-        )}
-      </div>
-
-      {/* Supplementary: where the expense money goes, ranked by size */}
-      <div className="card mt-4">
-        <p className="eyebrow mb-4">Расходы по категориям</p>
-        {!summary && summaryLoading ? (
-          <p className="text-sm text-graphite">Загрузка…</p>
-        ) : !summary ? (
-          <p className="text-sm text-graphite">Не удалось загрузить данные.</p>
-        ) : chartData.length === 0 ? (
-          <p className="text-sm text-graphite">Нет расходов за выбранный период.</p>
-        ) : (
-          <ResponsiveContainer width="100%" height={Math.max(160, chartData.length * 44)}>
-            <BarChart data={chartData} layout="vertical" margin={{ top: 4, right: 48, bottom: 4, left: 4 }}>
-              <XAxis type="number" hide />
-              <YAxis type="category" dataKey="label" width={104} tickLine={false} axisLine={false} tick={{ fill: "#5A564F", fontSize: 12 }} />
-              <Tooltip
-                cursor={{ fill: "#FAF9F6" }}
-                separator=": "
-                formatter={(value) => formatUZS(Number(value))}
-                labelFormatter={(label) => chartData.find((d) => d.label === label)?.fullLabel ?? label}
-                contentStyle={{ borderRadius: 2, border: "1px solid #E7E1D6", background: "#FFFFFF", boxShadow: "none", fontSize: 12 }}
-                labelStyle={{ color: "#1A1A1A", fontWeight: 600, marginBottom: 2 }}
-                itemStyle={{ color: "#5A564F" }}
-              />
-              <Bar dataKey="amount" name="Сумма" fill={HERMES_500} radius={[0, 4, 4, 0]} barSize={20}>
-                <LabelList dataKey="amount" position="right" formatter={(value) => formatCompact(Number(value))} style={{ fill: "#1A1A1A", fontSize: 11 }} />
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
         )}
       </div>
 
       {/* A balance as of today, not a flow for the period above — kept
-          visually separate so it never reads as the next line of the P&L. */}
-      <div className="card mt-8">
-        <div className="flex items-start gap-3">
-          <span className="flex h-9 w-9 flex-none items-center justify-center bg-canvas text-graphite">
+          visually smaller than the headline numbers so it never competes
+          with them. */}
+      <div className="card mt-4">
+        <div className="flex items-center gap-3">
+          <span className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-canvas text-graphite">
             <WarehouseIcon className="h-[18px] w-[18px]" />
           </span>
-          <div>
+          <div className="min-w-0">
             <p className="eyebrow">Баланс · на сегодня</p>
-            <p className="mt-1 text-sm font-medium text-ink">Текущая стоимость склада по себестоимости</p>
-            <p className="mt-2 text-2xl font-semibold text-ink">{summary ? formatUZS(summary.inventoryValue) : "—"}</p>
-            <p className="mt-1 text-xs text-graphite">
-              Остаток, «заморожен» в цветах и материалах прямо сейчас — не входит в прибыль за период выше.
-            </p>
+            <p className="mt-1 text-sm font-medium text-ink">{summary ? formatUZS(summary.inventoryValue) : "—"}</p>
+            <p className="text-xs text-graphite">Склад по себестоимости — не входит в прибыль за период выше.</p>
           </div>
         </div>
       </div>
 
-      {/* Expense log + management */}
-      <div className="mt-8">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <h2 className="font-display text-xl font-semibold text-ink">Расходы</h2>
-          <button type="button" onClick={startCreate} className="btn-primary">
-            + Добавить расход
-          </button>
-        </div>
+      {/* Поступления / Списания — click to expand the full list */}
+      <div className="mt-4 flex flex-wrap gap-2">
+        <button type="button" onClick={() => setIncomeExpanded((v) => !v)} className="pill" data-active={incomeExpanded}>
+          Поступления
+        </button>
+        <button type="button" onClick={() => setExpensesExpanded((v) => !v)} className="pill" data-active={expensesExpanded}>
+          Списания
+        </button>
+      </div>
 
-        <div className="mb-4">
-          <label className="block max-w-xs">
+      {incomeExpanded && (
+        <IncomeList
+          orders={incomeOrders}
+          loading={incomeLoading}
+          page={incomePage}
+          pages={incomePages}
+          total={incomeTotal}
+          onPrev={() => setIncomePage((p) => p - 1)}
+          onNext={() => setIncomePage((p) => p + 1)}
+        />
+      )}
+
+      {expensesExpanded && (
+        <div className="mt-3">
+          <label className="mb-3 block max-w-xs">
             <span className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-graphite">Категория</span>
             <select value={categoryFilter} onChange={handleCategoryFilterChange} className="input">
               <option value="">Все категории</option>
@@ -415,193 +440,421 @@ export default function Finance() {
               ))}
             </select>
           </label>
-        </div>
 
-        {deleteError && <p className="mb-4 text-sm text-hermes-600">{deleteError}</p>}
+          {deleteError && <p className="mb-3 text-sm text-hermes-600">{deleteError}</p>}
 
-        {showForm && (
-          <form onSubmit={handleSubmit} className="card mb-6 max-w-2xl space-y-4">
-            <h3 className="font-medium text-ink">{editingId ? "Редактировать расход" : "Новый расход"}</h3>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <label className="block">
-                <span className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-graphite">Категория</span>
-                <select
-                  value={form.category}
-                  onChange={(e) => setForm((prev) => ({ ...prev, category: e.target.value as ExpenseCategory }))}
-                  className="input"
-                >
-                  {CATEGORY_ENTRIES.map(([value, label]) => (
-                    <option key={value} value={value}>
-                      {label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label className="block">
-                <span className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-graphite">
-                  Сумма (сум) <span className="text-hermes-500">*</span>
-                </span>
-                <input
-                  type="number"
-                  min="0.01"
-                  step="any"
-                  required
-                  value={form.amount}
-                  onChange={(e) => setForm((prev) => ({ ...prev, amount: e.target.value }))}
-                  className="input"
-                  placeholder="150000"
-                />
-              </label>
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <label className="block">
-                <span className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-graphite">Дата</span>
-                <input type="date" required value={form.date} onChange={(e) => setForm((prev) => ({ ...prev, date: e.target.value }))} className="input" />
-              </label>
-
-              {activeBranchId === null && (
-                <label className="block">
-                  <span className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-graphite">
-                    Филиал <span className="text-hermes-500">*</span>
-                  </span>
-                  <select value={form.branch} onChange={(e) => setForm((prev) => ({ ...prev, branch: e.target.value }))} className="input">
-                    <option value="">Выберите филиал</option>
-                    {branches.map((b) => (
-                      <option key={b._id} value={b._id}>
-                        {b.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              )}
-            </div>
-
-            <label className="block">
-              <span className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-graphite">Описание</span>
-              <input
-                value={form.description}
-                onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
-                className="input"
-                placeholder="Например: коробки для букетов на свадьбу"
-              />
-            </label>
-
-            <label className="flex items-center gap-2 text-sm text-ink">
-              <input
-                type="checkbox"
-                checked={form.isRecurring}
-                onChange={(e) => setForm((prev) => ({ ...prev, isRecurring: e.target.checked }))}
-              />
-              Повторяющийся расход (аренда, коммунальные и т.п.)
-            </label>
-
-            {formError && <p className="text-sm text-hermes-600">{formError}</p>}
-
-            <div className="flex gap-3">
-              <button type="submit" disabled={saving} className="btn-primary">
-                {saving ? "Сохраняем…" : "Сохранить"}
-              </button>
-              <button type="button" onClick={closeForm} className="btn-secondary">
-                Отмена
-              </button>
-            </div>
-          </form>
-        )}
-
-        <div className="card overflow-x-auto p-0">
-          <table className="admin-table w-full">
-            <thead>
-              <tr>
-                <th>Дата</th>
-                <th>Категория</th>
-                <th>Сумма</th>
-                {showBranchColumn && <th>Филиал</th>}
-                <th>Описание</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {expenses.map((expense) => (
-                <tr key={expense._id}>
-                  <td className="whitespace-nowrap text-graphite">{formatRu(expense.date)}</td>
-                  <td>
-                    {EXPENSE_CATEGORY_LABELS[expense.category]}
-                    {expense.isRecurring && <span className="ml-2 text-xs text-hermes-600">повторяющийся</span>}
-                  </td>
-                  <td className="tabular-nums">{formatUZS(expense.amount)}</td>
-                  {showBranchColumn && <td className="text-graphite">{branchName(expense.branch)}</td>}
-                  <td className="text-graphite">{expense.description || "—"}</td>
-                  <td className="text-right">
-                    <button type="button" onClick={() => startEdit(expense)} className="mr-2 text-sm text-sapphire-600 hover:underline">
-                      Изменить
-                    </button>
-                    <button type="button" onClick={() => handleDelete(expense._id)} className="btn-danger">
-                      Удалить
-                    </button>
-                  </td>
+          <div className="card overflow-x-auto p-0">
+            <table className="admin-table w-full">
+              <thead>
+                <tr>
+                  <th>Дата</th>
+                  <th>Категория</th>
+                  <th>Сумма</th>
+                  {showBranchColumn && <th>Филиал</th>}
+                  <th>Описание</th>
+                  <th />
                 </tr>
-              ))}
-            </tbody>
-          </table>
-          {!logLoading && expenses.length === 0 && <p className="p-6 text-sm text-graphite">Расходов за период не найдено.</p>}
-        </div>
-
-        {pages > 1 && (
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-2 text-sm text-graphite">
-            <button type="button" disabled={page <= 1} onClick={() => setPage((p) => p - 1)} className="btn-secondary disabled:opacity-40">
-              ← Назад
-            </button>
-            <span>
-              Стр. {page} из {pages} · {expensesTotalCount} расходов
-            </span>
-            <button type="button" disabled={page >= pages} onClick={() => setPage((p) => p + 1)} className="btn-secondary disabled:opacity-40">
-              Вперёд →
-            </button>
+              </thead>
+              <tbody>
+                {expenses.map((expense) => (
+                  <tr key={expense._id}>
+                    <td className="whitespace-nowrap text-graphite">{formatRu(expense.date)}</td>
+                    <td>
+                      {EXPENSE_CATEGORY_LABELS[expense.category]}
+                      {expense.isRecurring && <span className="ml-2 text-xs text-hermes-600">повторяющийся</span>}
+                    </td>
+                    <td className="tabular-nums">{formatUZS(expense.amount)}</td>
+                    {showBranchColumn && <td className="text-graphite">{branchName(expense.branch)}</td>}
+                    <td className="text-graphite">{expense.description || "—"}</td>
+                    <td className="text-right">
+                      <button type="button" onClick={() => startEdit(expense)} className="mr-2 text-sm text-sapphire-600 hover:underline">
+                        Изменить
+                      </button>
+                      <button type="button" onClick={() => handleDelete(expense._id)} className="btn-danger">
+                        Удалить
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {!logLoading && expenses.length === 0 && <p className="p-6 text-sm text-graphite">Расходов за период не найдено.</p>}
+            <Pager
+              page={page}
+              pages={pages}
+              total={expensesTotalCount}
+              noun="расходов"
+              onPrev={() => setPage((p) => p - 1)}
+              onNext={() => setPage((p) => p + 1)}
+            />
           </div>
-        )}
+
+          {/* Supplementary: where the expense money goes, ranked by size */}
+          {chartData.length > 0 && (
+            <div className="card mt-3">
+              <p className="eyebrow mb-4">Расходы по категориям</p>
+              <ResponsiveContainer width="100%" height={Math.max(160, chartData.length * 44)}>
+                <BarChart data={chartData} layout="vertical" margin={{ top: 4, right: 48, bottom: 4, left: 4 }}>
+                  <XAxis type="number" hide />
+                  <YAxis type="category" dataKey="label" width={104} tickLine={false} axisLine={false} tick={{ fill: "#5A564F", fontSize: 12 }} />
+                  <Tooltip
+                    cursor={{ fill: "#FAF9F6" }}
+                    separator=": "
+                    formatter={(value) => formatUZS(Number(value))}
+                    labelFormatter={(label) => chartData.find((d) => d.label === label)?.fullLabel ?? label}
+                    contentStyle={{ borderRadius: 2, border: "1px solid #E7E1D6", background: "#FFFFFF", boxShadow: "none", fontSize: 12 }}
+                    labelStyle={{ color: "#1A1A1A", fontWeight: 600, marginBottom: 2 }}
+                    itemStyle={{ color: "#5A564F" }}
+                  />
+                  <Bar dataKey="amount" name="Сумма" fill={HERMES_500} radius={[0, 4, 4, 0]} barSize={20}>
+                    <LabelList dataKey="amount" position="right" formatter={(value) => formatCompact(Number(value))} style={{ fill: "#1A1A1A", fontSize: 11 }} />
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </div>
+      )}
+
+      {addChoiceOpen && (
+        <AddChoiceModal
+          onClose={() => setAddChoiceOpen(false)}
+          onPickExpense={() => {
+            setAddChoiceOpen(false);
+            startCreate();
+          }}
+          onPickSale={() => {
+            setAddChoiceOpen(false);
+            setSaleOpen(true);
+          }}
+        />
+      )}
+
+      {showForm && (
+        <ExpenseFormModal
+          editingId={editingId}
+          form={form}
+          setForm={setForm}
+          formError={formError}
+          saving={saving}
+          branches={branches}
+          showBranchField={activeBranchId === null}
+          onSubmit={handleSubmit}
+          onClose={closeForm}
+        />
+      )}
+
+      {saleOpen && (
+        <QuickSaleModal
+          branches={branches}
+          activeBranchId={activeBranchId}
+          activeBranch={activeBranch}
+          isCEO={isCEO}
+          onClose={() => setSaleOpen(false)}
+          onSuccess={reloadAfterSale}
+        />
+      )}
+    </div>
+  );
+}
+
+function HeadlineTile({
+  label,
+  amount,
+  signPrefix,
+  sub,
+  emphasize,
+}: {
+  label: string;
+  amount: number;
+  signPrefix?: "−";
+  sub?: string;
+  emphasize?: boolean;
+}) {
+  // Only an unsigned figure (net profit) can flag a loss — a signed flow
+  // line (revenue, total expenses) is routine and never colored just for
+  // carrying a sign, same convention the old P&L rows used.
+  const isLoss = !signPrefix && amount < 0;
+  const displayValue = signPrefix ? formatUZS(Math.abs(amount)) : formatUZS(amount);
+
+  return (
+    <div className={`rounded-2xl border bg-paper p-5 ${emphasize ? "border-2 border-ink" : "border-hairline"}`}>
+      <p className="eyebrow">{label}</p>
+      <p
+        className={`mt-2 font-display font-semibold tabular-nums ${emphasize ? "text-3xl sm:text-4xl" : "text-2xl sm:text-3xl"} ${
+          isLoss ? "text-hermes-600" : "text-ink"
+        }`}
+      >
+        {signPrefix ? `${signPrefix} ` : ""}
+        {displayValue}
+      </p>
+      {sub && <p className="mt-1 text-xs text-graphite">{sub}</p>}
+    </div>
+  );
+}
+
+function SourceBadge({ source }: { source: Order["source"] }) {
+  const isPos = source === "pos";
+  const Icon = isPos ? Store : Globe;
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium ${
+        isPos ? "border-navy/20 bg-navy/10 text-navy" : "border-hairline text-graphite"
+      }`}
+    >
+      <Icon className="h-3 w-3" />
+      {ORDER_SOURCE_LABELS[source]}
+    </span>
+  );
+}
+
+function Pager({
+  page,
+  pages,
+  total,
+  noun,
+  onPrev,
+  onNext,
+}: {
+  page: number;
+  pages: number;
+  total: number;
+  noun: string;
+  onPrev: () => void;
+  onNext: () => void;
+}) {
+  if (pages <= 1) return null;
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-2 border-t border-hairline p-4 text-sm text-graphite">
+      <button type="button" disabled={page <= 1} onClick={onPrev} className="btn-secondary disabled:opacity-40">
+        ← Назад
+      </button>
+      <span>
+        Стр. {page} из {pages} · {total} {noun}
+      </span>
+      <button type="button" disabled={page >= pages} onClick={onNext} className="btn-secondary disabled:opacity-40">
+        Вперёд →
+      </button>
+    </div>
+  );
+}
+
+function IncomeList({
+  orders,
+  loading,
+  page,
+  pages,
+  total,
+  onPrev,
+  onNext,
+}: {
+  orders: Order[];
+  loading: boolean;
+  page: number;
+  pages: number;
+  total: number;
+  onPrev: () => void;
+  onNext: () => void;
+}) {
+  if (loading && orders.length === 0) {
+    return <p className="mt-3 text-sm text-graphite">Загрузка…</p>;
+  }
+  return (
+    <div className="card mt-3 overflow-x-auto p-0">
+      <table className="admin-table w-full">
+        <thead>
+          <tr>
+            <th>Дата</th>
+            <th>Клиент</th>
+            <th>Источник</th>
+            <th className="text-right">Сумма</th>
+          </tr>
+        </thead>
+        <tbody>
+          {orders.map((order) => (
+            <tr key={order._id}>
+              <td className="whitespace-nowrap text-graphite">{formatRu(order.createdAt)}</td>
+              <td>{order.customer.name}</td>
+              <td>
+                <SourceBadge source={order.source} />
+              </td>
+              <td className="whitespace-nowrap text-right tabular-nums font-medium">{formatUZS(order.totalAmount)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {orders.length === 0 && <p className="p-6 text-sm text-graphite">Поступлений за период не найдено.</p>}
+      <Pager page={page} pages={pages} total={total} noun="заказов" onPrev={onPrev} onNext={onNext} />
+    </div>
+  );
+}
+
+// First step of the unified "+" entry point — pick which kind of money
+// movement is being recorded before showing either form.
+function AddChoiceModal({
+  onClose,
+  onPickExpense,
+  onPickSale,
+}: {
+  onClose: () => void;
+  onPickExpense: () => void;
+  onPickSale: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4" onClick={onClose}>
+      <div className="card w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="font-display text-lg font-semibold text-ink">Новая запись</h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-full p-1.5 text-graphite transition-colors hover:bg-canvas hover:text-ink"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+        <div className="grid gap-3">
+          <button type="button" onClick={onPickExpense} className="btn-secondary justify-start gap-3 py-4 text-base">
+            <TrendingDown className="h-5 w-5 flex-none text-hermes-600" />
+            Расход
+          </button>
+          <button type="button" onClick={onPickSale} className="btn-secondary justify-start gap-3 py-4 text-base">
+            <TrendingUp className="h-5 w-5 flex-none text-hermes-600" />
+            Продажа
+          </button>
+        </div>
       </div>
     </div>
   );
 }
 
-function PnlRow({
-  label,
-  sub,
-  amount,
-  sign,
-  bold,
-  big,
+function ExpenseFormModal({
+  editingId,
+  form,
+  setForm,
+  formError,
+  saving,
+  branches,
+  showBranchField,
+  onSubmit,
+  onClose,
 }: {
-  label: string;
-  sub?: string;
-  amount: number;
-  sign?: "+" | "−";
-  bold?: boolean;
-  big?: boolean;
+  editingId: string | null;
+  form: ExpenseForm;
+  setForm: React.Dispatch<React.SetStateAction<ExpenseForm>>;
+  formError: string | null;
+  saving: boolean;
+  branches: Branch[];
+  showBranchField: boolean;
+  onSubmit: (e: React.FormEvent) => void;
+  onClose: () => void;
 }) {
-  // Only an unsigned row (a subtotal like "Валовая прибыль"/"Чистая
-  // прибыль") can flag a loss — a signed flow line (revenue, cogs, an
-  // expense line) is routine and never colored just for carrying a sign.
-  const isLoss = sign === undefined && amount < 0;
-  const displayValue = sign ? formatUZS(Math.abs(amount)) : formatUZS(amount);
-
   return (
-    <div className={`flex items-baseline justify-between gap-4 ${big ? "py-3" : "py-2.5"}`}>
-      <span>
-        <span className={bold ? "font-medium text-ink" : "text-sm text-graphite"}>{label}</span>
-        {sub && <span className="ml-2 text-xs text-graphite">({sub})</span>}
-      </span>
-      <span
-        className={`tabular-nums ${big ? "text-xl font-semibold" : bold ? "text-base font-semibold" : "text-sm font-medium"} ${
-          isLoss ? "text-hermes-600" : "text-ink"
-        }`}
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4" onClick={onClose}>
+      <form
+        onSubmit={onSubmit}
+        className="card max-h-[90vh] w-full max-w-lg overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
       >
-        {sign ? `${sign} ` : ""}
-        {displayValue}
-      </span>
+        <div className="mb-4 flex items-center justify-between">
+          <h3 className="font-display text-lg font-semibold text-ink">{editingId ? "Редактировать расход" : "Новый расход"}</h3>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-full p-1.5 text-graphite transition-colors hover:bg-canvas hover:text-ink"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="space-y-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="block">
+              <span className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-graphite">Категория</span>
+              <select
+                value={form.category}
+                onChange={(e) => setForm((prev) => ({ ...prev, category: e.target.value as ExpenseCategory }))}
+                className="input"
+              >
+                {CATEGORY_ENTRIES.map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="block">
+              <span className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-graphite">
+                Сумма (сум) <span className="text-hermes-500">*</span>
+              </span>
+              <input
+                type="number"
+                min="0.01"
+                step="any"
+                required
+                value={form.amount}
+                onChange={(e) => setForm((prev) => ({ ...prev, amount: e.target.value }))}
+                className="input"
+                placeholder="150000"
+              />
+            </label>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="block">
+              <span className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-graphite">Дата</span>
+              <input type="date" required value={form.date} onChange={(e) => setForm((prev) => ({ ...prev, date: e.target.value }))} className="input" />
+            </label>
+
+            {showBranchField && (
+              <label className="block">
+                <span className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-graphite">
+                  Филиал <span className="text-hermes-500">*</span>
+                </span>
+                <select value={form.branch} onChange={(e) => setForm((prev) => ({ ...prev, branch: e.target.value }))} className="input">
+                  <option value="">Выберите филиал</option>
+                  {branches.map((b) => (
+                    <option key={b._id} value={b._id}>
+                      {b.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+          </div>
+
+          <label className="block">
+            <span className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-graphite">Описание</span>
+            <input
+              value={form.description}
+              onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
+              className="input"
+              placeholder="Например: коробки для букетов на свадьбу"
+            />
+          </label>
+
+          <label className="flex items-center gap-2 text-sm text-ink">
+            <input
+              type="checkbox"
+              checked={form.isRecurring}
+              onChange={(e) => setForm((prev) => ({ ...prev, isRecurring: e.target.checked }))}
+            />
+            Повторяющийся расход (аренда, коммунальные и т.п.)
+          </label>
+
+          {formError && <p className="text-sm text-hermes-600">{formError}</p>}
+
+          <div className="flex gap-3">
+            <button type="submit" disabled={saving} className="btn-primary">
+              {saving ? "Сохраняем…" : "Сохранить"}
+            </button>
+            <button type="button" onClick={onClose} className="btn-secondary">
+              Отмена
+            </button>
+          </div>
+        </div>
+      </form>
     </div>
   );
 }
