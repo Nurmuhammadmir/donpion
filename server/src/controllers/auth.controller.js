@@ -1,6 +1,7 @@
 import asyncHandler from "express-async-handler";
 import Admin from "../models/Admin.js";
 import { generateToken } from "../utils/generateToken.js";
+import { notifyAdminLogin } from "../utils/loginAlert.js";
 
 // POST /api/auth/login  (admin panel login)
 export const login = asyncHandler(async (req, res) => {
@@ -11,6 +12,8 @@ export const login = asyncHandler(async (req, res) => {
     res.status(401);
     throw new Error("Invalid email or password");
   }
+
+  notifyAdminLogin(admin, req);
 
   res.json({
     admin: { id: admin._id, name: admin.name, email: admin.email, role: admin.role, branch: admin.branch },

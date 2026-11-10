@@ -18,6 +18,12 @@ const siteSettingsSchema = new mongoose.Schema(
     // Below this stock count, the warehouse page flags a product as
     // running low so the florist knows to reorder before it hits zero.
     lowStockThreshold: { type: Number, default: 5, min: 0 },
+    // Chat id of the owner's own Telegram account (captured automatically
+    // when they /start @donpionadminbot from @Orbitagroupuz — see
+    // utils/adminTelegramBot.js) — where login-alert notifications go.
+    // Bots can't message someone who hasn't messaged them first, so this
+    // has to be captured live rather than just known up front.
+    telegramOwnerChatId: { type: String, default: null },
   },
   { timestamps: true }
 );

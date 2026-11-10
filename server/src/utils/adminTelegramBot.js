@@ -1,8 +1,14 @@
 // @donpionadminbot — a separate bot/token from utils/telegramBot.js (the
-// customer-facing phone-verification one). Its only job: reply to /start
-// with a greeting and a Mini App button straight into the admin panel.
-// pending_update_count on this bot sat unconsumed before this existed —
-// nothing was ever polling it, so /start just went nowhere.
+// customer-facing phone-verification one). Replies to /start with a
+// greeting and a Mini App button into the admin panel, and — when the
+// owner's own @Orbitagroupuz account does so — remembers their chat id so
+// login-alert notifications (see loginAlert.js) have somewhere to go. A
+// bot can't message someone who hasn't messaged it first, so this capture
+// has to happen live; it can't be set up from a username alone.
+import SiteSettings from "../models/SiteSettings.js";
+
+const OWNER_USERNAME = "orbitagroupuz";
+
 const token = process.env.ADMIN_BOT_TOKEN;
 const API_BASE = token ? `https://api.telegram.org/bot${token}` : null;
 
@@ -63,10 +69,32 @@ async function pollOnce() {
     const msg = update.message;
     if (!msg || !msg.text || !/^\/start/.test(msg.text)) continue;
 
+    if ((msg.chat.username || "").toLowerCase() === OWNER_USERNAME) {
+      await SiteSettings.findOneAndUpdate(
+        { key: "homepage" },
+        { telegramOwnerChatId: String(msg.chat.id) },
+        { upsert: false }
+      );
+    }
+
     await sendMessage(
       msg.chat.id,
       "Добро пожаловать в панель DonPion 🌸\n\nЭто бот-доступ к CRM — нажмите кнопку ниже, чтобы открыть панель."
     );
+  }
+}
+
+// Called after a successful admin login (see auth.controller.js) — never
+// awaited there, since a slow or failed Telegram ping must never hold up
+// or fail the login response itself.
+export async function notifyOwner(text) {
+  if (!API_BASE) return;
+  try {
+    const settings = await SiteSettings.findOne({ key: "homepage" }).select("telegramOwnerChatId");
+    if (!settings?.telegramOwnerChatId) return;
+    await sendMessage(settings.telegramOwnerChatId, text);
+  } catch (err) {
+    console.error("Admin bot notifyOwner error:", err.message);
   }
 }
 

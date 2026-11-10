@@ -40,6 +40,11 @@ import "./utils/adminTelegramBot.js";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 
+// Behind nginx — without this, req.ip is nginx's own local address and
+// X-Forwarded-For is ignored, which breaks the login-alert IP/location
+// lookup (see utils/loginAlert.js) and any other real-client-IP use.
+app.set("trust proxy", true);
+
 // Product photos are fetched cross-origin by both the storefront (port 3000)
 // and the admin panel (port 5173), so the default same-origin resource
 // policy has to be relaxed for them to load at all.
