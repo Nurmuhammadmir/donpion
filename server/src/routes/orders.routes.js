@@ -7,6 +7,7 @@ import {
   getOrderById,
   updateOrderStatus,
   getOrderStats,
+  clearOrders,
 } from "../controllers/orders.controller.js";
 import { protectAdmin } from "../middleware/auth.js";
 import { protectCustomer } from "../middleware/customerAuth.js";
@@ -18,6 +19,7 @@ router.get("/mine", protectCustomer, getMyOrders);
 router.get("/stats", protectAdmin, getOrderStats);
 router.post("/pos", protectAdmin, createPosOrder);
 router.get("/", protectAdmin, getOrders);
+router.delete("/", protectAdmin, clearOrders);
 router.get("/:id", protectAdmin, getOrderById);
 router.patch("/:id/status", protectAdmin, updateOrderStatus);
 

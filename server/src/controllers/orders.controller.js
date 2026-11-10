@@ -487,3 +487,12 @@ export const getOrderStats = asyncHandler(async (req, res) => {
     revenueToday: todayAgg[0]?.revenue ?? 0,
   });
 });
+
+// DELETE /api/orders  (admin) — one-time reset, not a routine action.
+// Doesn't touch Customer records or any cashback balance already
+// accrued — only the orders themselves and Финансы's "Поступления",
+// which is sourced from them.
+export const clearOrders = asyncHandler(async (req, res) => {
+  const { deletedCount } = await Order.deleteMany({});
+  res.json({ deletedCount });
+});
