@@ -386,6 +386,14 @@ export default function ProductForm() {
               </div>
             </Field>
 
+            {!isNew && recipe.length === 0 && (
+              <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                У этого букета нет рецепта — его остаток ({form.stock} шт.) оставлен от старых данных и
+                никак не связан со складом. Добавьте цветы и количество ниже, и остаток начнёт считаться
+                от реального наличия.
+              </p>
+            )}
+
             <div>
               <span className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-graphite">
                 Состав букета

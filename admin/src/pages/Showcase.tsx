@@ -259,6 +259,11 @@ function ShowcaseProductCard({ product, index }: { product: Product; index: numb
             Скрыт
           </span>
         )}
+        {product.kind === "bouquet" && product.recipe.length === 0 && (
+          <span className="absolute bottom-0 left-0 bg-amber-600 px-3 py-1.5 text-[10px] font-medium uppercase tracking-wide2 text-white">
+            Без рецепта
+          </span>
+        )}
       </div>
 
       <div className="mt-5 flex flex-col items-center px-2 text-center">
