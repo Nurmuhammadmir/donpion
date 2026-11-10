@@ -176,8 +176,13 @@ export default function ProductForm() {
     if (fileInputRef.current) fileInputRef.current.value = "";
     if (files.length === 0) return;
 
-    const videos = files.filter((f) => f.type.startsWith("video/"));
-    const images = files.filter((f) => !f.type.startsWith("video/"));
+    // Some browsers leave File.type empty for .mov specifically (no clear
+    // MIME mapping on that OS) — falling back to the extension is what
+    // actually catches it; without this, a .mov silently fell into the
+    // image/crop path instead and failed trying to decode it as a photo.
+    const isVideoFile = (f: File) => f.type.startsWith("video/") || /\.(mp4|webm|mov)$/i.test(f.name);
+    const videos = files.filter(isVideoFile);
+    const images = files.filter((f) => !isVideoFile(f));
 
     if (videos.length > 0) uploadFiles(videos);
     if (images.length > 0) setCropQueue((prev) => [...prev, ...images]);
