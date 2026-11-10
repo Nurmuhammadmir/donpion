@@ -120,11 +120,22 @@ table.admin-table td {
   animation: dropdown-in 0.16s ease-out both;
 }
 
+@keyframes card-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+.anim-card {
+  animation: card-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .anim-backdrop,
   .anim-modal,
   .anim-sheet,
-  .anim-dropdown {
+  .anim-dropdown,
+  .anim-card {
     animation: none;
   }
 }

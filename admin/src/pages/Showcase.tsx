@@ -169,7 +169,7 @@ export default function Showcase() {
       <Link
         to="/showcase/new"
         aria-label="Добавить товар"
-        className="fixed right-4 z-20 flex h-14 w-14 items-center justify-center rounded-md bg-hermes-500 text-white transition-colors hover:bg-hermes-600 md:hidden"
+        className="fixed right-4 z-20 flex h-14 w-14 items-center justify-center rounded-md bg-hermes-500 text-white shadow-md transition-all hover:bg-hermes-600 hover:shadow-lg active:scale-95 md:hidden"
         style={{ bottom: "calc(64px + var(--safe-bottom) + 16px)" }}
       >
         <Plus className="h-6 w-6" />
@@ -197,8 +197,8 @@ function ShowcaseSection({ label, products, loading }: { label: string; products
 function ProductGrid({ products, className = "" }: { products: Product[]; className?: string }) {
   return (
     <div className={`grid grid-cols-2 gap-x-6 gap-y-12 sm:gap-x-8 lg:grid-cols-4 ${className}`}>
-      {products.map((product) => (
-        <ShowcaseProductCard key={product._id} product={product} />
+      {products.map((product, index) => (
+        <ShowcaseProductCard key={product._id} product={product} index={index} />
       ))}
     </div>
   );
@@ -208,22 +208,27 @@ function ProductGrid({ products, className = "" }: { products: Product[]; classN
 // pixel-for-pixel — same aspect ratio, badges, crossfade — but the whole
 // card is the edit entry point here, plus two admin-only, unobtrusive
 // signals the customer never sees: the stock count, and a dimmed/grayscale
-// treatment for products hidden from the site.
-function ShowcaseProductCard({ product }: { product: Product }) {
+// treatment for products hidden from the site. The card itself presses on
+// tap and its photo lifts with a soft shadow on desktop hover — the photo
+// crossfade above was already animated, the card around it wasn't.
+function ShowcaseProductCard({ product, index }: { product: Product; index: number }) {
   const [active, setActive] = useState(false);
   const inactive = !product.isActive;
 
   return (
     <Link
       to={`/showcase/${product._id}`}
-      className={`block ${inactive ? "opacity-50" : ""}`}
+      className={`anim-card group block transition-transform duration-150 ease-out active:scale-[0.97] ${inactive ? "opacity-50" : ""}`}
+      style={{ animationDelay: `${Math.min(index, 11) * 0.04}s` }}
       onMouseEnter={() => setActive(true)}
       onMouseLeave={() => setActive(false)}
       onTouchStart={() => setActive(true)}
       onTouchEnd={() => setActive(false)}
       onTouchCancel={() => setActive(false)}
     >
-      <div className={`relative aspect-[3/4] overflow-hidden bg-hermes-50/30 ${inactive ? "grayscale" : ""}`}>
+      <div
+        className={`relative aspect-[3/4] overflow-hidden bg-hermes-50/30 transition-all duration-300 ease-out md:group-hover:-translate-y-1.5 md:group-hover:shadow-lg ${inactive ? "grayscale" : ""}`}
+      >
         <img
           src={resolveImageUrl(product.images[0])}
           alt={product.name}

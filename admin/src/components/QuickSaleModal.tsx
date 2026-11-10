@@ -173,13 +173,13 @@ export default function QuickSaleModal({
               )}
 
               <div className="relative mb-3">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-graphite" />
+                <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-graphite" />
                 <input
                   autoFocus
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder="Поиск товара…"
-                  className="input pl-9"
+                  className="input !pl-10"
                 />
               </div>
 
