@@ -11,6 +11,7 @@ import {
   deleteSupplier,
   getBatches,
   createBatch,
+  getExchangeRate,
 } from "../controllers/warehouse.controller.js";
 import { protectAdmin } from "../middleware/auth.js";
 
@@ -29,5 +30,6 @@ router.delete("/suppliers/:id", protectAdmin, deleteSupplier);
 
 router.get("/batches", protectAdmin, getBatches);
 router.post("/batches", protectAdmin, createBatch);
+router.get("/exchange-rate", protectAdmin, getExchangeRate);
 
 export default router;

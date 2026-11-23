@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Flower2, Package, Search, Trash2 } from "lucide-react";
-import { api, ApiError, createFlower, createPurchaseBatch, getFlowers, resolveImageUrl } from "@/lib/api";
+import { api, ApiError, createFlower, createPurchaseBatch, getExchangeRate, getFlowers, resolveImageUrl } from "@/lib/api";
 import { useBranch } from "@/context/BranchContext";
 import Modal from "@/components/Modal";
 import { Skeleton } from "@/components/Skeleton";
@@ -9,6 +9,7 @@ import PriceInput from "@/components/PriceInput";
 import type {
   Category,
   Flower,
+  FlowerType,
   PurchaseBatch,
   PurchaseBatchItem,
   StockEntry,
@@ -16,7 +17,7 @@ import type {
   WarehouseItem,
   WarehouseOverview,
 } from "@/lib/types";
-import { STOCK_REASON_LABELS } from "@/lib/types";
+import { FLOWER_TYPE_LABELS, STOCK_REASON_LABELS } from "@/lib/types";
 
 function formatUZS(amount: number) {
   return `${new Intl.NumberFormat("ru-RU").format(Math.round(amount))} сум`;
@@ -227,7 +228,9 @@ function FlowerCard({ flower, threshold, onEdit }: { flower: Flower; threshold: 
         </div>
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-medium text-ink">{flower.name}</p>
-          <p className="truncate text-xs text-graphite">{flowerCategoryName(flower)}</p>
+          <p className="truncate text-xs text-graphite">
+            {flowerCategoryName(flower)} · {FLOWER_TYPE_LABELS[flower.type]}
+          </p>
         </div>
         <FlowerStatus flower={flower} threshold={threshold} />
       </div>
@@ -332,6 +335,7 @@ function StockTab({
 
   const [editingFlower, setEditingFlower] = useState<Flower | null>(null);
   const [editName, setEditName] = useState("");
+  const [editType, setEditType] = useState<FlowerType>("flower");
   const [editActive, setEditActive] = useState(true);
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
@@ -339,6 +343,7 @@ function StockTab({
   const startEditFlower = (flower: Flower) => {
     setEditingFlower(flower);
     setEditName(flower.name);
+    setEditType(flower.type ?? "flower");
     setEditActive(flower.isActive);
     setEditError(null);
   };
@@ -355,7 +360,7 @@ function StockTab({
     try {
       await api(`/flowers/${editingFlower._id}`, {
         method: "PUT",
-        body: JSON.stringify({ name: editName.trim(), isActive: editActive }),
+        body: JSON.stringify({ name: editName.trim(), type: editType, isActive: editActive }),
       });
       setEditingFlower(null);
       onChanged();
@@ -471,7 +476,9 @@ function StockTab({
                     </div>
                     <span>{flower.name}</span>
                   </td>
-                  <td>{flowerCategoryName(flower)}</td>
+                  <td>
+                    {flowerCategoryName(flower)} · {FLOWER_TYPE_LABELS[flower.type]}
+                  </td>
                   <td
                     className={
                       flower.stock <= 0
@@ -586,6 +593,17 @@ function StockTab({
             <label className="block">
               <span className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-graphite">Название</span>
               <input value={editName} onChange={(e) => setEditName(e.target.value)} className="input" autoFocus />
+            </label>
+
+            <label className="block">
+              <span className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-graphite">Тип (для отчётов)</span>
+              <select value={editType} onChange={(e) => setEditType(e.target.value as FlowerType)} className="input">
+                {Object.entries(FLOWER_TYPE_LABELS).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
             </label>
 
             <label className="flex items-center gap-2 text-sm text-ink">
@@ -877,10 +895,12 @@ function FlowerPicker({ onPick }: { onPick: (flower: Flower) => void }) {
 
 function BatchLineEditor({
   line,
+  defaultUsdRate,
   onChange,
   onRemove,
 }: {
   line: BatchLine;
+  defaultUsdRate: number | null;
   onChange: (patch: Partial<BatchLine>) => void;
   onRemove: () => void;
 }) {
@@ -945,7 +965,7 @@ function BatchLineEditor({
               type="button"
               className="pill"
               data-active={line.currency === "USD" ? "true" : "false"}
-              onClick={() => onChange({ currency: "USD", exchangeRate: "" })}
+              onClick={() => onChange({ currency: "USD", exchangeRate: defaultUsdRate ? String(defaultUsdRate) : "" })}
             >
               USD
             </button>
@@ -999,6 +1019,41 @@ function BatchForm({
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const nextKey = useRef(0);
+
+  // Central Bank's USD rate for the batch's own date (ТЗ п.1.1) — fetched
+  // whenever the date changes, then used to pre-fill every USD line/charge
+  // below instead of making the admin look it up by hand. Only overwrites a
+  // field that's still blank or still holds the *previous* auto-filled
+  // value — a rate the admin typed in by hand is never silently replaced.
+  const [batchRate, setBatchRate] = useState<{ rate: number | null; needsReview: boolean } | null>(null);
+  const lastAutoRateRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!date) return;
+    let cancelled = false;
+    getExchangeRate(date)
+      .then((res) => {
+        if (cancelled) return;
+        setBatchRate({ rate: res.rate, needsReview: res.needsReview });
+        if (!res.rate) return;
+        const newRate = res.rate;
+        const wasAutoFilled = (value: string) => {
+          const trimmed = value.trim();
+          return trimmed === "" || (lastAutoRateRef.current !== null && Number(trimmed) === lastAutoRateRef.current);
+        };
+        setLines((prev) =>
+          prev.map((l) => (l.currency === "USD" && wasAutoFilled(l.exchangeRate) ? { ...l, exchangeRate: String(newRate) } : l)),
+        );
+        setAdditionalCostExchangeRate((prev) => (wasAutoFilled(prev) ? String(newRate) : prev));
+        lastAutoRateRef.current = newRate;
+      })
+      .catch(() => {
+        if (!cancelled) setBatchRate(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [date]);
 
   const addLine = (flower: Flower) => {
     nextKey.current += 1;
@@ -1079,6 +1134,7 @@ function BatchForm({
         additionalCost: additionalCostNum > 0 ? additionalCostNum : undefined,
         additionalCostCurrency: additionalCostNum > 0 ? additionalCostCurrency : undefined,
         additionalCostExchangeRate: additionalCostNum > 0 && additionalCostCurrency === "USD" ? Number(additionalCostExchangeRate) : undefined,
+        rateNeedsReview: batchRate?.needsReview ?? false,
       });
       onSaved();
     } catch (err) {
@@ -1128,6 +1184,17 @@ function BatchForm({
         </Field>
       </div>
 
+      {date && (
+        <p className={`-mt-2 text-xs ${batchRate?.needsReview ? "font-medium text-amber-600" : "text-graphite"}`}>
+          {batchRate === null
+            ? "Загружаем курс ЦБ на эту дату…"
+            : batchRate.rate
+              ? `Курс ЦБ на ${new Date(date).toLocaleDateString("ru-RU")}: ${new Intl.NumberFormat("ru-RU").format(batchRate.rate)} сум за $1` +
+                (batchRate.needsReview ? " — не удалось получить курс именно на эту дату, подставлен последний известный. Проверьте курс." : "")
+              : "Не удалось получить курс ЦБ — укажите курс вручную для позиций в $."}
+        </p>
+      )}
+
       <Field label="Заметка">
         <input value={notes} onChange={(e) => setNotes(e.target.value)} className="input" placeholder="Необязательно" />
       </Field>
@@ -1140,7 +1207,13 @@ function BatchForm({
       {lines.length > 0 && (
         <div className="space-y-3">
           {lines.map((line) => (
-            <BatchLineEditor key={line.key} line={line} onChange={(patch) => updateLine(line.key, patch)} onRemove={() => removeLine(line.key)} />
+            <BatchLineEditor
+              key={line.key}
+              line={line}
+              defaultUsdRate={batchRate?.rate ?? null}
+              onChange={(patch) => updateLine(line.key, patch)}
+              onRemove={() => removeLine(line.key)}
+            />
           ))}
         </div>
       )}
@@ -1179,7 +1252,7 @@ function BatchForm({
                 data-active={additionalCostCurrency === "USD" ? "true" : "false"}
                 onClick={() => {
                   setAdditionalCostCurrency("USD");
-                  setAdditionalCostExchangeRate("");
+                  setAdditionalCostExchangeRate(batchRate?.rate ? String(batchRate.rate) : "");
                 }}
               >
                 USD
@@ -1307,6 +1380,7 @@ function BatchesTab({
                   {batch.items.length} {batch.items.length === 1 ? "позиция" : "позиций"}
                   {batch.invoiceNumber ? ` · накладная ${batch.invoiceNumber}` : ""}
                 </p>
+                {batch.rateNeedsReview && <p className="mt-1 text-xs font-medium text-amber-600">⚠ Проверить курс</p>}
                 {expandedId === batch._id && (
                   <div className="mt-3 space-y-1.5 border-t border-hairline pt-3">
                     {batch.items.map((item, idx) => (
@@ -1340,7 +1414,14 @@ function BatchesTab({
                       <td>{supplierName(batch.supplier)}</td>
                       <td>{branchName(batch.branch)}</td>
                       <td>{batch.items.length}</td>
-                      <td className="font-medium text-ink">{formatUZS(batch.totalCostUZS)}</td>
+                      <td className="font-medium text-ink">
+                        {formatUZS(batch.totalCostUZS)}
+                        {batch.rateNeedsReview && (
+                          <span className="ml-1.5 text-amber-600" title="Курс ЦБ не удалось получить на эту дату — проверьте">
+                            ⚠
+                          </span>
+                        )}
+                      </td>
                       <td className="text-right">
                         <button
                           type="button"

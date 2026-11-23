@@ -41,6 +41,11 @@ const purchaseBatchSchema = new mongoose.Schema(
     // additionalCost*additionalCostExchangeRate — computed server-side on
     // create, never trusted from the client.
     totalCostUZS: { type: Number, required: true, min: 0 },
+    // Set when at least one USD line/additionalCost here couldn't get a
+    // same-day rate from the Central Bank and fell back to the last known
+    // one (see utils/cbuExchangeRate.js) — a note to double-check it later,
+    // never a block on saving the batch itself.
+    rateNeedsReview: { type: Boolean, default: false },
     notes: { type: String, default: "" },
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "Admin" },
   },

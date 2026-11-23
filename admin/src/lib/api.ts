@@ -110,8 +110,20 @@ export function createPurchaseBatch(payload: {
   additionalCost?: number;
   additionalCostCurrency?: "UZS" | "USD";
   additionalCostExchangeRate?: number;
+  // True if any USD rate below came from the fallback (last known) path
+  // rather than that exact date's own Central Bank rate — see
+  // getExchangeRate below.
+  rateNeedsReview?: boolean;
 }) {
   return api("/warehouse/batches", { method: "POST", body: JSON.stringify(payload) });
+}
+
+// The Central Bank's USD rate for a given date (ТЗ п.1.1) — auto-fills a
+// batch's exchange rate instead of making the admin look it up by hand.
+export function getExchangeRate(date: string) {
+  return api<{ rate: number | null; source: "cbu" | "fallback"; resolvedDate: string | null; needsReview: boolean }>(
+    `/warehouse/exchange-rate?date=${encodeURIComponent(date)}`,
+  );
 }
 
 // Flowers — the individual, piece-imported raw material a bouquet's
@@ -122,7 +134,12 @@ export function getFlowers(search?: string) {
   return api(`/flowers${qs}`);
 }
 
-export function createFlower(payload: { name: string; category?: string; unit?: string }) {
+export function createFlower(payload: {
+  name: string;
+  category?: string;
+  unit?: string;
+  type?: "flower" | "greenery" | "packaging" | "ribbon" | "basket";
+}) {
   return api("/flowers", { method: "POST", body: JSON.stringify(payload) });
 }
 

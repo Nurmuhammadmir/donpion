@@ -7,6 +7,20 @@ import PurchaseBatch from "../models/PurchaseBatch.js";
 import Branch from "../models/Branch.js";
 import Flower from "../models/Flower.js";
 import { recomputeBouquetsUsingFlower } from "../utils/bouquetStock.js";
+import { getUsdRateForDate } from "../utils/cbuExchangeRate.js";
+
+// GET /api/warehouse/exchange-rate?date=YYYY-MM-DD  (admin) — the Central
+// Bank's USD rate for a purchase batch's date, auto-fetched so the admin
+// never has to look it up by hand (see utils/cbuExchangeRate.js).
+export const getExchangeRate = asyncHandler(async (req, res) => {
+  const { date } = req.query;
+  if (!date) {
+    res.status(400);
+    throw new Error("Укажите дату");
+  }
+  const result = await getUsdRateForDate(date);
+  res.json(result);
+});
 
 // GET /api/warehouse/overview  (admin) — every product's current stock,
 // lowest first, flagged against the admin's low-stock threshold (see
@@ -109,7 +123,8 @@ export const getBatches = asyncHandler(async (req, res) => {
 // just richer. This is the real "приход" — individual flowers, never
 // finished bouquets; a bouquet's own stock is only ever derived from this.
 export const createBatch = asyncHandler(async (req, res) => {
-  const { branchId, supplierId, invoiceNumber, date, items, notes, additionalCost, additionalCostCurrency, additionalCostExchangeRate } = req.body;
+  const { branchId, supplierId, invoiceNumber, date, items, notes, additionalCost, additionalCostCurrency, additionalCostExchangeRate, rateNeedsReview } =
+    req.body;
 
   if (!branchId) {
     res.status(400);
@@ -178,6 +193,7 @@ export const createBatch = asyncHandler(async (req, res) => {
     additionalCostCurrency: extraCurrency,
     additionalCostExchangeRate: extraRate,
     totalCostUZS,
+    rateNeedsReview: Boolean(rateNeedsReview),
     notes: notes || "",
     createdBy: req.admin._id,
   });

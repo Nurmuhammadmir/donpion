@@ -58,10 +58,21 @@ export interface SiteSettings {
   lowStockThreshold: number;
 }
 
+export type FlowerType = "flower" | "greenery" | "packaging" | "ribbon" | "basket";
+
+export const FLOWER_TYPE_LABELS: Record<FlowerType, string> = {
+  flower: "Цветок",
+  greenery: "Зелень",
+  packaging: "Упаковка",
+  ribbon: "Лента",
+  basket: "Корзина/коробка",
+};
+
 export interface Flower {
   _id: string;
   name: string;
   category: { _id: string; name: string } | string | null;
+  type: FlowerType;
   stock: number;
   costPrice: number;
   unit: string;
@@ -242,6 +253,10 @@ export interface PurchaseBatch {
   date: string;
   items: PurchaseBatchItem[];
   totalCostUZS: number;
+  // True when at least one USD line/charge in this batch couldn't get a
+  // same-day rate from the Central Bank and fell back to the last known
+  // one — a flag to double-check it later, not a block on saving now.
+  rateNeedsReview: boolean;
   notes: string;
   createdAt: string;
 }
