@@ -93,7 +93,7 @@ function marginPeriodKey(date, groupBy) {
 // snapshot taken at sale time (Order.items[].costSnapshot), never
 // recomputed from current product/flower data. Shared by the JSON report
 // below and its CSV export, so they can never drift from each other.
-async function buildMarginReport({ branch, from, to, groupBy }) {
+export async function buildMarginReport({ branch, from, to, groupBy }) {
   const filter = { createdAt: { $gte: from, $lte: to }, status: { $ne: "cancelled" } };
   if (branch) filter.branch = branch;
 
