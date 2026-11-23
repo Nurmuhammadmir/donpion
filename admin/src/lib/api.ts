@@ -97,6 +97,44 @@ export function getFinanceSummary(params: { branch?: string | null; from?: strin
   return api(`/finance/summary${query ? `?${query}` : ""}`);
 }
 
+function marginReportQuery(params: { branch?: string | null; from?: string; to?: string; groupBy?: "day" | "week" | "month" }) {
+  const qs = new URLSearchParams();
+  if (params.branch) qs.set("branch", params.branch);
+  if (params.from) qs.set("from", params.from);
+  if (params.to) qs.set("to", params.to);
+  if (params.groupBy) qs.set("groupBy", params.groupBy);
+  return qs.toString();
+}
+
+// ТЗ 1.4 — выручка/закупка/сборка/доставка/маржа за период, по заказам,
+// по букетам и по филиалам.
+export function getMarginReport(params: { branch?: string | null; from?: string; to?: string; groupBy?: "day" | "week" | "month" }) {
+  return api(`/finance/margin-report?${marginReportQuery(params)}`);
+}
+
+// CSV (Excel opens it natively) — a plain <a href> can't carry the auth
+// header, so this fetches it as the logged-in admin and hands the browser
+// a Blob to save instead.
+export async function downloadMarginReportCsv(params: { branch?: string | null; from?: string; to?: string; groupBy?: "day" | "week" | "month" }) {
+  const token = getToken();
+  const res = await fetch(`${API_URL}/finance/margin-report/export?${marginReportQuery(params)}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  });
+  if (!res.ok) {
+    if (res.status === 401) onUnauthorized?.();
+    throw new ApiError("Не удалось выгрузить отчёт", res.status);
+  }
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = res.headers.get("Content-Disposition")?.match(/filename="(.+)"/)?.[1] || "marzha.csv";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
 export function createPurchaseBatch(payload: {
   branchId: string;
   supplierId?: string | null;

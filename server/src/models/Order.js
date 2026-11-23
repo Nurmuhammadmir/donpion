@@ -8,6 +8,17 @@ const orderItemSchema = new mongoose.Schema(
     image: { type: String, required: true },
     price: { type: Number, required: true },
     quantity: { type: Number, required: true, min: 1 },
+    // Snapshot of this item's own cost breakdown at the moment of sale
+    // (ТЗ 1.4: "в каждом заказе сохраняется снимок себестоимости... цены
+    // склада потом меняются") — already scaled by quantity, so a margin
+    // report just sums these rather than recomputing from (possibly since-
+    // changed) product/flower data. Margin itself = price×quantity minus
+    // these three. Zero/zero for an addon (no сборка/доставка concept).
+    costSnapshot: {
+      purchaseTotal: { type: Number, default: 0 },
+      assembly: { type: Number, default: 0 },
+      deliveryFee: { type: Number, default: 0 },
+    },
   },
   { _id: false }
 );

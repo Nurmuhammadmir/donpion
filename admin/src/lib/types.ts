@@ -330,3 +330,27 @@ export interface FinanceSummary {
   netProfit: number;
   inventoryValue: number;
 }
+
+// ТЗ 1.4 — margin report. Every bucket (totals/perOrder/byPeriod/byProduct/
+// byBranch) shares this same shape.
+export interface MarginBucket {
+  revenue: number;
+  purchaseTotal: number;
+  assembly: number;
+  deliveryFee: number;
+  cost: number;
+  margin: number;
+  marginPercent: number;
+  quantity: number;
+  orderCount: number;
+}
+
+export interface MarginReport {
+  range: { from: string; to: string };
+  groupBy: "day" | "week" | "month";
+  totals: MarginBucket;
+  perOrder: (MarginBucket & { _id: string; orderNumber: string; createdAt: string; branch: string })[];
+  byPeriod: (MarginBucket & { period: string })[];
+  byProduct: (MarginBucket & { name: string })[];
+  byBranch: (MarginBucket & { name: string })[];
+}

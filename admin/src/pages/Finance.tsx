@@ -1,8 +1,8 @@
 import { lazy, Suspense, useEffect, useState } from "react";
 import { Globe, Plus, Store, TrendingDown, TrendingUp, Warehouse as WarehouseIcon, X } from "lucide-react";
-import { api, ApiError, getFinanceSummary } from "@/lib/api";
+import { api, ApiError, downloadMarginReportCsv, getFinanceSummary, getMarginReport } from "@/lib/api";
 import { useBranch } from "@/context/BranchContext";
-import type { Branch, Expense, ExpenseCategory, FinanceSummary, Order } from "@/lib/types";
+import type { Branch, Expense, ExpenseCategory, FinanceSummary, MarginReport, Order } from "@/lib/types";
 import { EXPENSE_CATEGORY_LABELS, ORDER_SOURCE_LABELS } from "@/lib/types";
 import { Skeleton } from "@/components/Skeleton";
 import PriceInput from "@/components/PriceInput";
@@ -104,6 +104,15 @@ export default function Finance() {
 
   // "Списания" drill-down — the expense log (unchanged logic from before,
   // just gated behind the toggle instead of always visible).
+  // "Маржа" drill-down (ТЗ 1.4) — same lazy-on-expand pattern as the two
+  // lists below, plus its own day/week/month grouping and a CSV export.
+  const [marginExpanded, setMarginExpanded] = useState(false);
+  const [marginReport, setMarginReport] = useState<MarginReport | null>(null);
+  const [marginLoading, setMarginLoading] = useState(true);
+  const [marginGroupBy, setMarginGroupBy] = useState<"day" | "week" | "month">("day");
+  const [marginExporting, setMarginExporting] = useState(false);
+  const [marginExportError, setMarginExportError] = useState<string | null>(null);
+
   const [expensesExpanded, setExpensesExpanded] = useState(false);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [expensesTotalCount, setExpensesTotalCount] = useState(0);
@@ -156,6 +165,26 @@ export default function Finance() {
       .finally(() => setIncomeLoading(false));
   };
 
+  const loadMargin = () => {
+    setMarginLoading(true);
+    getMarginReport({ branch: activeBranchId, from, to, groupBy: marginGroupBy })
+      .then((data) => setMarginReport(data as MarginReport))
+      .catch(() => setMarginReport(null))
+      .finally(() => setMarginLoading(false));
+  };
+
+  const handleExportMargin = async () => {
+    setMarginExporting(true);
+    setMarginExportError(null);
+    try {
+      await downloadMarginReportCsv({ branch: activeBranchId, from, to, groupBy: marginGroupBy });
+    } catch (err) {
+      setMarginExportError(err instanceof ApiError ? err.message : "Не удалось выгрузить отчёт");
+    } finally {
+      setMarginExporting(false);
+    }
+  };
+
   const loadExpenses = () => {
     setLogLoading(true);
     const qs = new URLSearchParams();
@@ -196,6 +225,12 @@ export default function Finance() {
     loadExpenses();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [expensesExpanded, activeBranchId, from, to, categoryFilter, page]);
+
+  useEffect(() => {
+    if (!marginExpanded) return;
+    loadMargin();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [marginExpanded, activeBranchId, from, to, marginGroupBy]);
 
   // Period/category changes reset their own page from the handlers below;
   // a branch switch comes from the switcher elsewhere in the shell, so it
@@ -253,6 +288,7 @@ export default function Finance() {
   const reloadAfterSale = () => {
     loadSummary();
     if (incomeExpanded) loadIncome();
+    if (marginExpanded) loadMargin();
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -412,6 +448,9 @@ export default function Finance() {
         <button type="button" onClick={() => setExpensesExpanded((v) => !v)} className="pill" data-active={expensesExpanded}>
           Списания
         </button>
+        <button type="button" onClick={() => setMarginExpanded((v) => !v)} className="pill" data-active={marginExpanded}>
+          Маржа
+        </button>
       </div>
 
       {incomeExpanded && (
@@ -499,6 +538,18 @@ export default function Finance() {
               </Suspense>
             </div>
           )}
+        </div>
+      )}
+
+      {marginExpanded && (
+        <div className="anim-dropdown mt-3">
+          <MarginSection report={marginReport} loading={marginLoading} groupBy={marginGroupBy} onGroupByChange={setMarginGroupBy} showBranchColumn={showBranchColumn} />
+          <div className="mt-3 flex items-center gap-3">
+            <button type="button" onClick={handleExportMargin} disabled={marginExporting} className="btn-secondary">
+              {marginExporting ? "Готовим файл…" : "Выгрузить в Excel"}
+            </button>
+            {marginExportError && <p className="text-sm text-hermes-600">{marginExportError}</p>}
+          </div>
         </div>
       )}
 
@@ -679,6 +730,140 @@ function IncomeList({
       </table>
       {orders.length === 0 && <p className="p-6 text-sm text-graphite">Поступлений за период не найдено.</p>}
       <Pager page={page} pages={pages} total={total} noun="заказов" onPrev={onPrev} onNext={onNext} />
+    </div>
+  );
+}
+
+const MARGIN_GROUP_BY_LABELS: Record<"day" | "week" | "month", string> = { day: "По дням", week: "По неделям", month: "По месяцам" };
+const PERIOD_LABELS: Record<"day" | "week" | "month", (period: string) => string> = {
+  day: (period) => formatRu(period),
+  week: (period) => `нед. с ${formatRu(period)}`,
+  month: (period) => {
+    const [y, m] = period.split("-").map(Number);
+    return new Date(y, m - 1, 1).toLocaleDateString("ru-RU", { month: "long", year: "numeric" });
+  },
+};
+
+// Маржа (ТЗ 1.4) — revenue vs. закупка/сборка/доставка, by period, by
+// bouquet, by branch, and per order (the acceptance test is literally "a
+// day with 3 orders shows each one's margin and the total").
+function MarginSection({
+  report,
+  loading,
+  groupBy,
+  onGroupByChange,
+  showBranchColumn,
+}: {
+  report: MarginReport | null;
+  loading: boolean;
+  groupBy: "day" | "week" | "month";
+  onGroupByChange: (g: "day" | "week" | "month") => void;
+  showBranchColumn: boolean;
+}) {
+  if (loading && !report) {
+    return (
+      <div className="card space-y-3 p-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <Skeleton key={i} className="h-4 w-full" />
+        ))}
+      </div>
+    );
+  }
+  if (!report) return <p className="card text-sm text-graphite">Не удалось загрузить отчёт по марже.</p>;
+
+  const periodLabel = PERIOD_LABELS[groupBy];
+
+  return (
+    <div>
+      <div className="flex flex-wrap gap-2">
+        {(Object.keys(MARGIN_GROUP_BY_LABELS) as ("day" | "week" | "month")[]).map((g) => (
+          <button key={g} type="button" onClick={() => onGroupByChange(g)} className="pill" data-active={groupBy === g}>
+            {MARGIN_GROUP_BY_LABELS[g]}
+          </button>
+        ))}
+      </div>
+
+      <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <MarginTile label="Выручка" value={report.totals.revenue} />
+        <MarginTile label="Закупка" value={report.totals.purchaseTotal} />
+        <MarginTile label="Сборка" value={report.totals.assembly} />
+        <MarginTile label="Доставка" value={report.totals.deliveryFee} />
+        <MarginTile label="Маржа" value={report.totals.margin} emphasize />
+        <MarginTile label="Маржа, %" value={report.totals.marginPercent} isPercent emphasize />
+      </div>
+
+      <p className="eyebrow mt-5 mb-2">{MARGIN_GROUP_BY_LABELS[groupBy]}</p>
+      <MarginTable
+        rows={report.byPeriod.map((p) => ({ key: p.period, label: periodLabel(p.period), bucket: p }))}
+        emptyText="Нет данных за период."
+      />
+
+      <p className="eyebrow mt-5 mb-2">По заказам</p>
+      <MarginTable
+        rows={report.perOrder.map((o) => ({ key: o._id, label: `${o.orderNumber} · ${formatRu(o.createdAt)}${showBranchColumn ? ` · ${o.branch}` : ""}`, bucket: o }))}
+        emptyText="Заказов за период не найдено."
+      />
+
+      <p className="eyebrow mt-5 mb-2">По букетам</p>
+      <MarginTable rows={report.byProduct.map((p) => ({ key: p.name, label: p.name, bucket: p }))} emptyText="Нет данных." />
+
+      {showBranchColumn && (
+        <>
+          <p className="eyebrow mt-5 mb-2">По филиалам</p>
+          <MarginTable rows={report.byBranch.map((b) => ({ key: b.name, label: b.name, bucket: b }))} emptyText="Нет данных." />
+        </>
+      )}
+    </div>
+  );
+}
+
+function MarginTile({ label, value, isPercent, emphasize }: { label: string; value: number; isPercent?: boolean; emphasize?: boolean }) {
+  return (
+    <div className="card p-3">
+      <p className="text-xs font-medium uppercase tracking-wide text-graphite">{label}</p>
+      <p className={`mt-1 text-sm font-medium ${emphasize ? "text-hermes-600" : "text-ink"}`}>
+        {isPercent ? `${value.toFixed(1)}%` : formatUZS(value)}
+      </p>
+    </div>
+  );
+}
+
+function MarginTable({
+  rows,
+  emptyText,
+}: {
+  rows: { key: string; label: string; bucket: { revenue: number; purchaseTotal: number; assembly: number; deliveryFee: number; margin: number; marginPercent: number } }[];
+  emptyText: string;
+}) {
+  return (
+    <div className="card overflow-x-auto p-0">
+      <table className="admin-table w-full">
+        <thead>
+          <tr>
+            <th></th>
+            <th className="text-right">Выручка</th>
+            <th className="text-right">Закупка</th>
+            <th className="text-right">Сборка</th>
+            <th className="text-right">Доставка</th>
+            <th className="text-right">Маржа</th>
+            <th className="text-right">Маржа, %</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.key}>
+              <td className="max-w-[220px] truncate">{row.label}</td>
+              <td className="whitespace-nowrap text-right tabular-nums">{formatUZS(row.bucket.revenue)}</td>
+              <td className="whitespace-nowrap text-right tabular-nums text-graphite">{formatUZS(row.bucket.purchaseTotal)}</td>
+              <td className="whitespace-nowrap text-right tabular-nums text-graphite">{formatUZS(row.bucket.assembly)}</td>
+              <td className="whitespace-nowrap text-right tabular-nums text-graphite">{formatUZS(row.bucket.deliveryFee)}</td>
+              <td className="whitespace-nowrap text-right tabular-nums font-medium">{formatUZS(row.bucket.margin)}</td>
+              <td className="whitespace-nowrap text-right tabular-nums font-medium">{row.bucket.marginPercent.toFixed(1)}%</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {rows.length === 0 && <p className="p-6 text-sm text-graphite">{emptyText}</p>}
     </div>
   );
 }

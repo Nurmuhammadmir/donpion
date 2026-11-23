@@ -7,6 +7,7 @@ import StockEntry from "../models/StockEntry.js";
 import Branch from "../models/Branch.js";
 import { sendTelegramMessage } from "../utils/telegramBot.js";
 import { deductFlowersForSale, restoreFlowersForCancel } from "../utils/bouquetStock.js";
+import { loadPricingDefaults, buildItemCostSnapshot } from "../utils/bouquetPricing.js";
 import { parseRange } from "../utils/dateRange.js";
 
 const PAYMENT_METHOD_LABELS = { cash: "Наличными", card: "Картой", online: "Онлайн" };
@@ -96,6 +97,7 @@ export const createOrder = asyncHandler(async (req, res) => {
   const productIds = items.map((i) => i.productId);
   const products = await Product.find({ _id: { $in: productIds } });
   const productMap = new Map(products.map((p) => [String(p._id), p]));
+  const pricingSettings = await loadPricingDefaults();
 
   let subtotal = 0;
   // "Под заказ" items with nothing on hand right now (ТЗ 1.3) — collected
@@ -118,6 +120,9 @@ export const createOrder = asyncHandler(async (req, res) => {
       image: product.images[0],
       price: product.price,
       quantity,
+      // ТЗ 1.4 — permanent cost record at sale time, before anything later
+      // changes the product's own costPrice/packaging/overrides.
+      costSnapshot: buildItemCostSnapshot(product, quantity, pricingSettings),
     };
   });
 
@@ -271,6 +276,7 @@ export const createPosOrder = asyncHandler(async (req, res) => {
   const productIds = items.map((i) => i.productId);
   const products = await Product.find({ _id: { $in: productIds } });
   const productMap = new Map(products.map((p) => [String(p._id), p]));
+  const pricingSettings = await loadPricingDefaults();
 
   let subtotal = 0;
   const orderItems = items.map((i) => {
@@ -288,6 +294,7 @@ export const createPosOrder = asyncHandler(async (req, res) => {
       image: product.images[0],
       price: product.price,
       quantity,
+      costSnapshot: buildItemCostSnapshot(product, quantity, pricingSettings),
     };
   });
 

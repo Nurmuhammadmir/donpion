@@ -66,6 +66,173 @@ export const getFinanceSummary = asyncHandler(async (req, res) => {
   });
 });
 
+function emptyMarginBucket() {
+  return { revenue: 0, purchaseTotal: 0, assembly: 0, deliveryFee: 0, quantity: 0, orderCount: 0 };
+}
+
+function finalizeMarginBucket(bucket) {
+  const cost = bucket.purchaseTotal + bucket.assembly + bucket.deliveryFee;
+  const margin = bucket.revenue - cost;
+  return { ...bucket, cost, margin, marginPercent: bucket.revenue > 0 ? (margin / bucket.revenue) * 100 : 0 };
+}
+
+function marginPeriodKey(date, groupBy) {
+  const d = new Date(date);
+  if (groupBy === "month") return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  if (groupBy === "week") {
+    // Monday of that week, as a plain calendar date.
+    const monday = new Date(d);
+    const isoDay = (monday.getDay() + 6) % 7; // 0 = Monday ... 6 = Sunday
+    monday.setDate(monday.getDate() - isoDay);
+    return monday.toISOString().slice(0, 10);
+  }
+  return d.toISOString().slice(0, 10);
+}
+
+// Маржа в финансах (ТЗ 1.4) — revenue vs. the permanent per-item cost
+// snapshot taken at sale time (Order.items[].costSnapshot), never
+// recomputed from current product/flower data. Shared by the JSON report
+// below and its CSV export, so they can never drift from each other.
+async function buildMarginReport({ branch, from, to, groupBy }) {
+  const filter = { createdAt: { $gte: from, $lte: to }, status: { $ne: "cancelled" } };
+  if (branch) filter.branch = branch;
+
+  const orders = await Order.find(filter)
+    .populate("branch", "name")
+    .select("orderNumber createdAt totalAmount branch items")
+    .sort({ createdAt: 1 })
+    .lean();
+
+  const totals = emptyMarginBucket();
+  const byPeriodMap = new Map();
+  const byProductMap = new Map();
+  const byBranchMap = new Map();
+  const perOrder = [];
+
+  for (const order of orders) {
+    const orderBucket = emptyMarginBucket();
+    orderBucket.revenue = order.totalAmount;
+    orderBucket.orderCount = 1;
+
+    for (const item of order.items) {
+      const snap = item.costSnapshot || { purchaseTotal: 0, assembly: 0, deliveryFee: 0 };
+      orderBucket.purchaseTotal += snap.purchaseTotal;
+      orderBucket.assembly += snap.assembly;
+      orderBucket.deliveryFee += snap.deliveryFee;
+      orderBucket.quantity += item.quantity;
+
+      if (!byProductMap.has(item.name)) byProductMap.set(item.name, emptyMarginBucket());
+      const productBucket = byProductMap.get(item.name);
+      productBucket.revenue += item.price * item.quantity;
+      productBucket.purchaseTotal += snap.purchaseTotal;
+      productBucket.assembly += snap.assembly;
+      productBucket.deliveryFee += snap.deliveryFee;
+      productBucket.quantity += item.quantity;
+      productBucket.orderCount += 1;
+    }
+
+    const period = marginPeriodKey(order.createdAt, groupBy);
+    if (!byPeriodMap.has(period)) byPeriodMap.set(period, emptyMarginBucket());
+    const branchName = order.branch?.name ?? "Без филиала";
+    if (!byBranchMap.has(branchName)) byBranchMap.set(branchName, emptyMarginBucket());
+
+    for (const bucket of [totals, byPeriodMap.get(period), byBranchMap.get(branchName)]) {
+      bucket.revenue += orderBucket.revenue;
+      bucket.purchaseTotal += orderBucket.purchaseTotal;
+      bucket.assembly += orderBucket.assembly;
+      bucket.deliveryFee += orderBucket.deliveryFee;
+      bucket.quantity += orderBucket.quantity;
+      bucket.orderCount += 1;
+    }
+
+    perOrder.push({
+      _id: order._id,
+      orderNumber: order.orderNumber,
+      createdAt: order.createdAt,
+      branch: branchName,
+      ...finalizeMarginBucket(orderBucket),
+    });
+  }
+
+  return {
+    totals: finalizeMarginBucket(totals),
+    perOrder,
+    byPeriod: [...byPeriodMap.entries()]
+      .map(([period, bucket]) => ({ period, ...finalizeMarginBucket(bucket) }))
+      .sort((a, b) => a.period.localeCompare(b.period)),
+    byProduct: [...byProductMap.entries()]
+      .map(([name, bucket]) => ({ name, ...finalizeMarginBucket(bucket) }))
+      .sort((a, b) => b.revenue - a.revenue),
+    byBranch: [...byBranchMap.entries()]
+      .map(([name, bucket]) => ({ name, ...finalizeMarginBucket(bucket) }))
+      .sort((a, b) => b.revenue - a.revenue),
+  };
+}
+
+// GET /api/finance/margin-report?branch=&from=&to=&groupBy=day|week|month  (admin)
+export const getMarginReport = asyncHandler(async (req, res) => {
+  const { branch, groupBy = "day" } = req.query;
+  const { from, to } = parseRange(req.query);
+  const report = await buildMarginReport({ branch, from, to, groupBy });
+  res.json({ range: { from, to }, groupBy, ...report });
+});
+
+function csvEscape(value) {
+  const str = String(value ?? "");
+  return /[",\n;]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
+}
+
+function csvRow(values) {
+  return values.map(csvEscape).join(";");
+}
+
+// GET /api/finance/margin-report/export?branch=&from=&to=&groupBy=  (admin)
+// CSV, not a .xlsx binary — Excel opens it natively with no extra library
+// on either end, same practical result as "Выгрузка в Excel" (ТЗ 1.4).
+export const exportMarginReport = asyncHandler(async (req, res) => {
+  const { branch, groupBy = "day" } = req.query;
+  const { from, to } = parseRange(req.query);
+  const report = await buildMarginReport({ branch, from, to, groupBy });
+
+  const lines = [];
+  lines.push(csvRow(["Заказ", "Дата", "Филиал", "Выручка", "Закупка", "Сборка", "Доставка", "Маржа", "Маржа %"]));
+  for (const o of report.perOrder) {
+    lines.push(
+      csvRow([
+        o.orderNumber,
+        new Date(o.createdAt).toLocaleString("ru-RU"),
+        o.branch,
+        o.revenue,
+        o.purchaseTotal,
+        o.assembly,
+        o.deliveryFee,
+        Math.round(o.margin),
+        o.marginPercent.toFixed(1),
+      ])
+    );
+  }
+  lines.push([]);
+  lines.push(csvRow(["ИТОГО", "", "", report.totals.revenue, report.totals.purchaseTotal, report.totals.assembly, report.totals.deliveryFee, Math.round(report.totals.margin), report.totals.marginPercent.toFixed(1)]));
+
+  lines.push([]);
+  lines.push(csvRow(["По букетам", "Кол-во", "Выручка", "Закупка", "Сборка", "Доставка", "Маржа", "Маржа %"]));
+  for (const p of report.byProduct) {
+    lines.push(csvRow([p.name, p.quantity, p.revenue, p.purchaseTotal, p.assembly, p.deliveryFee, Math.round(p.margin), p.marginPercent.toFixed(1)]));
+  }
+
+  lines.push([]);
+  lines.push(csvRow(["По филиалам", "Заказов", "Выручка", "Закупка", "Сборка", "Доставка", "Маржа", "Маржа %"]));
+  for (const b of report.byBranch) {
+    lines.push(csvRow([b.name, b.orderCount, b.revenue, b.purchaseTotal, b.assembly, b.deliveryFee, Math.round(b.margin), b.marginPercent.toFixed(1)]));
+  }
+
+  // BOM so Excel detects UTF-8 (otherwise Cyrillic text shows as mojibake).
+  const csv = "﻿" + lines.join("\n");
+  res.setHeader("Content-Type", "text/csv; charset=utf-8");
+  res.setHeader("Content-Disposition", `attachment; filename="marzha-${from.toISOString().slice(0, 10)}-${to.toISOString().slice(0, 10)}.csv"`);
+  res.send(csv);
+});
+
 // GET /api/finance/expenses?branch=&category=&from=&to=&page=&limit=  (admin)
 export const getExpenses = asyncHandler(async (req, res) => {
   const { branch, category, page = 1, limit = 30 } = req.query;
