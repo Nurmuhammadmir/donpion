@@ -62,7 +62,8 @@ async function createOrderWithUniqueNumber(data, attempts = 5) {
 
 // POST /api/orders  (public — created from the checkout page)
 export const createOrder = asyncHandler(async (req, res) => {
-  const { customer, items, deliveryDate, deliveryTime, deliveryZone, paymentMethod, location, redeemPoints, branchId } = req.body;
+  const { customer, items, deliveryDate, deliveryTime, deliveryZone, postcardText, ribbonColor, paymentMethod, location, redeemPoints, branchId } =
+    req.body;
   const fulfillmentMethod = req.body.fulfillmentMethod === "pickup" ? "pickup" : "delivery";
 
   if (!items || items.length === 0) {
@@ -182,6 +183,8 @@ export const createOrder = asyncHandler(async (req, res) => {
       deliveryDate,
       deliveryTime,
       deliveryZone: deliveryZone || "",
+      postcardText: postcardText ? String(postcardText).slice(0, 300) : "",
+      ribbonColor: ribbonColor || "",
       paymentMethod: effectivePaymentMethod,
       subtotal,
       pointsRedeemed,

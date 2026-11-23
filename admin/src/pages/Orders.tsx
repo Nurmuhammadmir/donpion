@@ -76,6 +76,15 @@ const DELIVERY_ZONE_LABELS: Record<string, string> = {
   yangihayot: "Янгихаёт",
 };
 
+// ТЗ 3.3 — matches server's Order.ribbonColor enum.
+const RIBBON_COLOR_LABELS: Record<string, string> = {
+  red: "Красная",
+  white: "Белая",
+  pink: "Розовая",
+  gold: "Золотая",
+  black: "Чёрная",
+};
+
 // The colored status control doubles as the status badge the brief asks
 // for — built from plain utilities rather than the shared `.input`/`.pill`
 // classes, since those hardcode their own border/text colors that a
@@ -213,6 +222,15 @@ function OrderDetail({
           </p>
         )}
         {order.customer.comment && <p className="mt-1 text-sm text-graphite">Комментарий: {order.customer.comment}</p>}
+        {order.ribbonColor && (
+          <p className="mt-1 text-sm text-ink">Лента: {RIBBON_COLOR_LABELS[order.ribbonColor] ?? order.ribbonColor}</p>
+        )}
+        {order.postcardText && (
+          <div className="mt-2 border border-hairline bg-canvas p-3">
+            <p className="text-xs font-medium uppercase tracking-wide text-graphite">Открытка</p>
+            <p className="mt-1 text-sm text-ink">{order.postcardText}</p>
+          </div>
+        )}
 
         <p className={`mt-4 ${LABEL_CLASS}`}>Оплата</p>
         <p className="mt-1 text-sm text-ink">

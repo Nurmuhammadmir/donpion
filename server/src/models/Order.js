@@ -70,6 +70,11 @@ const orderSchema = new mongoose.Schema(
     // plan the route; delivery itself stays free for the customer either
     // way (the cost already sits inside the bouquet's own price, see 1.2).
     deliveryZone: { type: String, default: "" },
+    // Открытка и лента (ТЗ 3.3) — customer-entered, shown to the florist
+    // assembling the order; ribbonColor is a small fixed list of what
+    // DonPion actually stocks ribbon in, not a free-text color name.
+    postcardText: { type: String, default: "", maxlength: 300 },
+    ribbonColor: { type: String, enum: ["red", "white", "pink", "gold", "black", ""], default: "" },
     // Only set when fulfillmentMethod is "pickup" — snapshot of the Branch
     // at order time (name/address), same denormalization reason as
     // orderItemSchema above: still reads correctly if the branch is later

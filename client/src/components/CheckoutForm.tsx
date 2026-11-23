@@ -47,6 +47,10 @@ const DELIVERY_ZONES = [
   "yangihayot",
 ] as const;
 
+// Цвет ленты Don Pion (ТЗ 3.3) — what the florist actually stocks ribbon
+// in, not an open color picker.
+const RIBBON_COLORS = ["red", "white", "pink", "gold", "black"] as const;
+
 type Status = "idle" | "submitting" | "success" | "error";
 
 interface PlacedOrder {
@@ -156,6 +160,8 @@ export default function CheckoutForm() {
       deliveryDate: `${y}-${m}-${d}`,
       deliveryTime: t("deliveryAsapValue"),
       deliveryZone: "",
+      postcardText: "",
+      ribbonColor: "",
       // Delivery is online-only, pickup is cash/card in person — these two
       // defaults match what each fulfillment method forces/offers below.
       paymentMethod: "online" as "cash" | "card" | "online",
@@ -245,6 +251,8 @@ export default function CheckoutForm() {
           deliveryDate: form.deliveryDate,
           deliveryTime: form.deliveryTime,
           deliveryZone: form.fulfillmentMethod === "delivery" ? form.deliveryZone : undefined,
+          postcardText: form.postcardText,
+          ribbonColor: form.ribbonColor,
           paymentMethod: form.paymentMethod,
           items: items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
           redeemPoints,
@@ -604,6 +612,27 @@ export default function CheckoutForm() {
               ))}
             </div>
           )}
+        </Field>
+
+        <Field label={t("postcardLabel")}>
+          <textarea
+            value={form.postcardText}
+            onChange={update("postcardText")}
+            maxLength={300}
+            className="input min-h-24"
+            placeholder={t("postcardPlaceholder")}
+          />
+        </Field>
+
+        <Field label={t("ribbonLabel")}>
+          <select value={form.ribbonColor} onChange={(e) => setForm((prev) => ({ ...prev, ribbonColor: e.target.value }))} className="input">
+            <option value="">{t("ribbonPlaceholder")}</option>
+            {RIBBON_COLORS.map((color) => (
+              <option key={color} value={color}>
+                {t(`ribbon_${color}`)}
+              </option>
+            ))}
+          </select>
         </Field>
 
         <Field label={t("commentLabel")}>

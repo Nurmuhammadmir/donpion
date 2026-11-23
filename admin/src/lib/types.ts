@@ -198,6 +198,8 @@ export interface Order {
   deliveryDate?: string;
   deliveryTime?: string;
   deliveryZone?: string;
+  postcardText?: string;
+  ribbonColor?: string;
   subtotal: number;
   totalAmount: number;
   pointsRedeemed: number;
