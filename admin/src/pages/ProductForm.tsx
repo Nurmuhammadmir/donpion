@@ -29,6 +29,7 @@ const emptyForm = {
   stock: "",
   images: [] as string[],
   shortDescription: "",
+  story: "",
   composition: "",
   careInstructions: "",
   isFeatured: false,
@@ -115,6 +116,7 @@ export default function ProductForm() {
           stock: String(p.stock),
           images: p.images,
           shortDescription: p.shortDescription,
+          story: p.story ?? "",
           composition: p.composition.join("\n"),
           careInstructions: p.careInstructions,
           isFeatured: p.isFeatured,
@@ -246,17 +248,24 @@ export default function ProductForm() {
     setError(null);
 
     // Slug is intentionally not sent — the server always derives it from
-    // the name. For a bouquet, category/characters/SEO/isFeatured/stock/
-    // costPrice/story/composition are all server-computed (story from
-    // shortDescription, composition from `recipe`) and overwritten if sent
-    // anyway, so they're simply left out below.
+    // the name. For a bouquet with a recipe, category/characters/stock/
+    // costPrice/composition still get overwritten server-side from the
+    // recipe right after save (see recomputeBouquet) — category/composition
+    // below are only the fallback/base value for a bouquet with no recipe
+    // yet, or the real value for an addon.
     const shared = {
       name: form.name,
       kind,
+      category: form.category,
       price: Number(form.price),
       oldPrice: form.oldPrice ? Number(form.oldPrice) : null,
       images: form.images,
       shortDescription: form.shortDescription,
+      story: form.story,
+      composition: form.composition
+        .split("\n")
+        .map((s) => s.trim())
+        .filter(Boolean),
       careInstructions: form.careInstructions,
       isActive: form.isActive,
     };
@@ -270,14 +279,9 @@ export default function ProductForm() {
           }
         : {
             ...shared,
-            category: form.category,
             addonCategories: form.addonCategories,
             stock: Number(form.stock),
             isFeatured: form.isFeatured,
-            composition: form.composition
-              .split("\n")
-              .map((s) => s.trim())
-              .filter(Boolean),
           };
 
     try {
@@ -437,6 +441,31 @@ export default function ProductForm() {
           <input required value={form.shortDescription} onChange={update("shortDescription")} className="input" />
         </Field>
 
+        <Field label="Полный текст описания (для страницы товара)">
+          <textarea
+            value={form.story}
+            onChange={update("story")}
+            placeholder="Если оставить пустым — используется короткое описание"
+            className="input min-h-28"
+          />
+        </Field>
+
+        <Field label="Категория">
+          <select value={form.category} onChange={update("category")} className="input">
+            <option value="">Выберите категорию</option>
+            {categories.map((c) => (
+              <option key={c._id} value={c._id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+          {kind === "bouquet" && (
+            <p className="mt-1 text-xs text-graphite">
+              Если в составе есть цветы с заполненной категорией — она подставится сама и имеет приоритет.
+            </p>
+          )}
+        </Field>
+
         {kind === "bouquet" ? (
           <>
             <Field label="Повод">
@@ -528,17 +557,6 @@ export default function ProductForm() {
               </div>
             </Field>
 
-            <Field label="Категория">
-              <select value={form.category} onChange={update("category")} className="input">
-                <option value="">Выберите категорию</option>
-                {categories.map((c) => (
-                  <option key={c._id} value={c._id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </Field>
-
             {!isNew && savedCostPrice !== null && (
               <div className="flex items-center justify-between rounded-xl border border-hairline bg-canvas px-4 py-3">
                 <span className="text-xs font-medium uppercase tracking-wide text-graphite">Себестоимость (авто)</span>
@@ -548,11 +566,14 @@ export default function ProductForm() {
           </>
         )}
 
-        {kind === "addon" && (
-          <Field label="Состав (по одной позиции на строку)">
-            <textarea value={form.composition} onChange={update("composition")} className="input min-h-20" />
-          </Field>
-        )}
+        <Field label="Состав (по одной позиции на строку)">
+          <textarea value={form.composition} onChange={update("composition")} className="input min-h-20" />
+          {kind === "bouquet" && recipe.length > 0 && (
+            <p className="mt-1 text-xs text-graphite">
+              Для букета с рецептом эта строка перезаписывается автоматически из состава выше при сохранении.
+            </p>
+          )}
+        </Field>
 
         <Field label="Инструкция по уходу">
           <textarea value={form.careInstructions} onChange={update("careInstructions")} className="input min-h-20" />

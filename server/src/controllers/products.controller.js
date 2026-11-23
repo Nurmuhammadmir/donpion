@@ -105,7 +105,14 @@ export const getProducts = asyncHandler(async (req, res) => {
     Product.find(filter)
       .populate("category", "name slug")
       .populate("characters", "name slug")
-      .sort({ createdAt: -1 })
+      // Cheapest first by default — a newest-first catalog kept pushing a
+      // random expensive bouquet to the top of every section regardless of
+      // price, which read as arbitrary to customers browsing by budget.
+      .sort({ price: 1 })
+      // costPrice/recipe are internal — how much we paid and exactly which
+      // flowers/quantities a bouquet is built from — never for a public
+      // response, same reasoning as the admin-only pricing fields in ТЗ 1.2.
+      .select("-costPrice -recipe")
       .skip(skip)
       .limit(Number(limit)),
     Product.countDocuments(filter),
@@ -123,7 +130,8 @@ export const getProducts = asyncHandler(async (req, res) => {
 export const getProductBySlug = asyncHandler(async (req, res) => {
   const product = await Product.findOne({ slug: req.params.slug, isActive: true })
     .populate("category", "name slug")
-    .populate("addonCategories", "name slug");
+    .populate("addonCategories", "name slug")
+    .select("-costPrice -recipe");
   if (!product) {
     res.status(404);
     throw new Error("Product not found");
@@ -197,9 +205,10 @@ export const createProduct = asyncHandler(async (req, res) => {
     characters,
     seoTitle,
     seoDescription,
-    // The admin only ever writes the short description once — the long
-    // "story" text is the same copy, not a second thing to compose.
-    story: body.shortDescription,
+    // Long story text is independent copy — default it to the short
+    // description only when the admin hasn't written one yet, instead of
+    // always mirroring shortDescription (that used to erase a real story).
+    story: body.story && body.story.trim() ? body.story : body.shortDescription,
     isFeatured,
   });
   if (hasRecipe) product = await recomputeBouquet(product);
@@ -228,7 +237,12 @@ export const updateProduct = asyncHandler(async (req, res) => {
   const derived = deriveSeoFields(body.name ?? product.name, body.shortDescription ?? product.shortDescription);
   body.seoTitle = derived.seoTitle;
   body.seoDescription = derived.seoDescription;
-  body.story = body.shortDescription ?? product.shortDescription;
+  // Long story text is independent of shortDescription — only touch it when
+  // the admin actually submitted one, and fall back to shortDescription
+  // only if they left it blank (not on every unrelated save).
+  if (body.story !== undefined) {
+    body.story = body.story.trim() ? body.story : body.shortDescription ?? product.shortDescription;
+  }
 
   Object.assign(product, body);
   await product.save();
