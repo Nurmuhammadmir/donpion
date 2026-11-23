@@ -164,6 +164,27 @@ export function getExchangeRate(date: string) {
   );
 }
 
+// "Списать" (ТЗ 2.1) — either a flower (flowerId) or a directly-stocked
+// addon (productId), never both. `photo` is already an uploaded URL from
+// uploadProductImages, not a File.
+export function createWriteoff(payload: {
+  flowerId?: string;
+  productId?: string;
+  quantity: number;
+  reason: "defect_on_receipt" | "wilted" | "broken" | "other";
+  note?: string;
+  photo?: string;
+}) {
+  return api("/warehouse/writeoffs", { method: "POST", body: JSON.stringify(payload) });
+}
+
+export function getWriteoffReport(params: { from?: string; to?: string }) {
+  const qs = new URLSearchParams();
+  if (params.from) qs.set("from", params.from);
+  if (params.to) qs.set("to", params.to);
+  return api(`/warehouse/writeoffs/report?${qs.toString()}`);
+}
+
 // Flowers — the individual, piece-imported raw material a bouquet's
 // recipe is built from. Used both by the Приход/Партии flow above and by
 // a bouquet's recipe editor.

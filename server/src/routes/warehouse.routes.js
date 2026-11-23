@@ -12,6 +12,8 @@ import {
   getBatches,
   createBatch,
   getExchangeRate,
+  createWriteoff,
+  getWriteoffReport,
 } from "../controllers/warehouse.controller.js";
 import { protectAdmin } from "../middleware/auth.js";
 
@@ -22,6 +24,8 @@ router.get("/entries", protectAdmin, getEntries);
 router.delete("/entries", protectAdmin, clearEntries);
 router.post("/receipts", protectAdmin, createReceipt);
 router.post("/adjustments", protectAdmin, createAdjustment);
+router.post("/writeoffs", protectAdmin, createWriteoff);
+router.get("/writeoffs/report", protectAdmin, getWriteoffReport);
 
 router.get("/suppliers", protectAdmin, getSuppliers);
 router.post("/suppliers", protectAdmin, createSupplier);

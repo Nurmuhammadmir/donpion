@@ -231,12 +231,23 @@ export interface WarehouseOverview {
   items: WarehouseItem[];
 }
 
+export type WriteoffReason = "defect_on_receipt" | "wilted" | "broken" | "other";
+
+export const WRITEOFF_REASON_LABELS: Record<WriteoffReason, string> = {
+  defect_on_receipt: "Брак при приёмке",
+  wilted: "Увяли",
+  broken: "Сломались",
+  other: "Другое",
+};
+
 export interface StockEntry {
   _id: string;
   product: { _id: string; name: string; slug: string } | null;
   flower: { _id: string; name: string; unit?: string } | null;
   quantity: number;
-  reason: "receipt" | "sale" | "cancel_restock" | "adjustment";
+  reason: "receipt" | "sale" | "cancel_restock" | "adjustment" | "writeoff";
+  writeoffReason?: WriteoffReason | null;
+  photo?: string;
   note: string;
   branch?: string | { _id: string; name: string } | null;
   batch?: string | null;
@@ -249,7 +260,16 @@ export const STOCK_REASON_LABELS: Record<StockEntry["reason"], string> = {
   sale: "Продажа",
   cancel_restock: "Возврат (отмена заказа)",
   adjustment: "Корректировка",
+  writeoff: "Списание",
 };
+
+// ТЗ 2.1 — Отчет по списаниям за период в сумах.
+export interface WriteoffReport {
+  range: { from: string; to: string };
+  total: number;
+  byReason: Partial<Record<WriteoffReason, number>>;
+  entries: StockEntry[];
+}
 
 export interface OrderStats {
   revenue30d: number;

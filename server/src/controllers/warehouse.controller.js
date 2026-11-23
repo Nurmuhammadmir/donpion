@@ -8,6 +8,7 @@ import Branch from "../models/Branch.js";
 import Flower from "../models/Flower.js";
 import { recomputeBouquetsUsingFlower } from "../utils/bouquetStock.js";
 import { getUsdRateForDate } from "../utils/cbuExchangeRate.js";
+import { parseRange } from "../utils/dateRange.js";
 
 // GET /api/warehouse/exchange-rate?date=YYYY-MM-DD  (admin) — the Central
 // Bank's USD rate for a purchase batch's date, auto-fetched so the admin
@@ -296,6 +297,90 @@ export const createAdjustment = asyncHandler(async (req, res) => {
 
   const entry = await StockEntry.create({ product: productId, quantity: qty, reason: "adjustment", note: note.trim() });
   res.status(201).json({ product, entry });
+});
+
+const WRITEOFF_REASON_LABELS = {
+  defect_on_receipt: "Брак при приёмке",
+  wilted: "Увяли",
+  broken: "Сломались",
+  other: "Другое",
+};
+
+// POST /api/warehouse/writeoffs  (admin) — "Списать" (ТЗ 2.1): either a
+// flower or a directly-stocked addon, a quantity to remove, one of a few
+// named reasons, and an optional photo (already-uploaded URL from
+// POST /api/uploads). Never pushes stock below zero.
+export const createWriteoff = asyncHandler(async (req, res) => {
+  const { flowerId, productId, quantity, reason, note, photo } = req.body;
+  const qty = Math.max(0, Math.trunc(Number(quantity) || 0));
+  if (!qty) {
+    res.status(400);
+    throw new Error("Укажите количество для списания");
+  }
+  if (!WRITEOFF_REASON_LABELS[reason]) {
+    res.status(400);
+    throw new Error("Укажите причину списания");
+  }
+
+  const entryBase = {
+    quantity: -qty,
+    reason: "writeoff",
+    writeoffReason: reason,
+    note: note ? note.trim() : "",
+    photo: photo || "",
+  };
+
+  if (flowerId) {
+    const flower = await Flower.findById(flowerId);
+    if (!flower) {
+      res.status(404);
+      throw new Error("Цветок не найден");
+    }
+    flower.stock = Math.max(0, flower.stock - qty);
+    await flower.save();
+    const entry = await StockEntry.create({ ...entryBase, flower: flower._id, unitCost: flower.costPrice });
+    await recomputeBouquetsUsingFlower(flower._id);
+    return res.status(201).json({ flower, entry });
+  }
+
+  if (productId) {
+    const product = await Product.findById(productId);
+    if (!product) {
+      res.status(404);
+      throw new Error("Товар не найден");
+    }
+    if (product.kind === "bouquet") {
+      res.status(400);
+      throw new Error("У букета нет собственного остатка — списание делается на цветы в «Партиях»");
+    }
+    product.stock = Math.max(0, product.stock - qty);
+    await product.save();
+    const entry = await StockEntry.create({ ...entryBase, product: product._id, unitCost: product.costPrice });
+    return res.status(201).json({ product, entry });
+  }
+
+  res.status(400);
+  throw new Error("Укажите цветок или товар");
+});
+
+// GET /api/warehouse/writeoffs/report?from=&to=  (admin) — Отчет по
+// списаниям за период в сумах (ТЗ 2.1), total and by reason.
+export const getWriteoffReport = asyncHandler(async (req, res) => {
+  const { from, to } = parseRange(req.query);
+  const entries = await StockEntry.find({ reason: "writeoff", createdAt: { $gte: from, $lte: to } })
+    .populate("product", "name")
+    .populate("flower", "name")
+    .sort({ createdAt: -1 });
+
+  const byReason = {};
+  let total = 0;
+  for (const entry of entries) {
+    const amount = Math.abs(entry.quantity) * (entry.unitCost || 0);
+    total += amount;
+    byReason[entry.writeoffReason] = (byReason[entry.writeoffReason] || 0) + amount;
+  }
+
+  res.json({ range: { from, to }, total, byReason, entries });
 });
 
 // GET /api/warehouse/entries  (admin) — movement history, newest first;

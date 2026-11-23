@@ -1,7 +1,18 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Flower2, Package, Search, Trash2 } from "lucide-react";
-import { api, ApiError, createFlower, createPurchaseBatch, getExchangeRate, getFlowers, resolveImageUrl } from "@/lib/api";
+import {
+  api,
+  ApiError,
+  createFlower,
+  createPurchaseBatch,
+  createWriteoff,
+  getExchangeRate,
+  getFlowers,
+  getWriteoffReport,
+  resolveImageUrl,
+  uploadProductImages,
+} from "@/lib/api";
 import { useBranch } from "@/context/BranchContext";
 import Modal from "@/components/Modal";
 import { Skeleton } from "@/components/Skeleton";
@@ -16,8 +27,10 @@ import type {
   Supplier,
   WarehouseItem,
   WarehouseOverview,
+  WriteoffReason,
+  WriteoffReport,
 } from "@/lib/types";
-import { FLOWER_TYPE_LABELS, STOCK_REASON_LABELS } from "@/lib/types";
+import { FLOWER_TYPE_LABELS, STOCK_REASON_LABELS, WRITEOFF_REASON_LABELS } from "@/lib/types";
 
 function formatUZS(amount: number) {
   return `${new Intl.NumberFormat("ru-RU").format(Math.round(amount))} сум`;
@@ -52,12 +65,13 @@ function Field({ label, required, children }: { label: string; required?: boolea
   );
 }
 
-type Tab = "stock" | "batches" | "suppliers";
+type Tab = "stock" | "batches" | "suppliers" | "writeoffs";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "stock", label: "Остатки" },
   { id: "batches", label: "Партии" },
   { id: "suppliers", label: "Поставщики" },
+  { id: "writeoffs", label: "Списания" },
 ];
 
 // The warehouse module: current stock + cost price per product ("Остатки"),
@@ -169,6 +183,7 @@ export default function Warehouse() {
           />
         )}
         {tab === "suppliers" && <SuppliersTab suppliers={suppliers} loading={suppliersLoading} onChanged={loadSuppliers} />}
+        {tab === "writeoffs" && <WriteoffsTab />}
       </div>
 
       <p className="mt-8 text-xs text-graphite">
@@ -219,7 +234,17 @@ function FlowerStatus({ flower, threshold }: { flower: Flower; threshold: number
   return <span className="pill">В наличии</span>;
 }
 
-function FlowerCard({ flower, threshold, onEdit }: { flower: Flower; threshold: number; onEdit: () => void }) {
+function FlowerCard({
+  flower,
+  threshold,
+  onEdit,
+  onWriteoff,
+}: {
+  flower: Flower;
+  threshold: number;
+  onEdit: () => void;
+  onWriteoff: () => void;
+}) {
   return (
     <div className="card p-3">
       <div className="flex items-center gap-3">
@@ -249,13 +274,18 @@ function FlowerCard({ flower, threshold, onEdit }: { flower: Flower; threshold: 
           Себест.: <span className="font-medium text-ink">{formatUZS(flower.costPrice)}</span>
         </span>
       </div>
-      <button
-        type="button"
-        onClick={onEdit}
-        className="mt-3 w-full rounded-md border border-hairline px-3 py-2 text-xs font-medium text-graphite transition-colors hover:border-ink hover:text-ink"
-      >
-        Изменить
-      </button>
+      <div className="mt-3 flex gap-2">
+        <button
+          type="button"
+          onClick={onEdit}
+          className="flex-1 rounded-md border border-hairline px-3 py-2 text-xs font-medium text-graphite transition-colors hover:border-ink hover:text-ink"
+        >
+          Изменить
+        </button>
+        <button type="button" onClick={onWriteoff} className="flex-1 btn-danger">
+          Списать
+        </button>
+      </div>
     </div>
   );
 }
@@ -264,10 +294,12 @@ function StockItemCard({
   item,
   onReceipt,
   onAdjust,
+  onWriteoff,
 }: {
   item: WarehouseItem;
   onReceipt: (item: WarehouseItem) => void;
   onAdjust: (item: WarehouseItem) => void;
+  onWriteoff: (item: WarehouseItem) => void;
 }) {
   return (
     <div className="card p-3">
@@ -305,6 +337,9 @@ function StockItemCard({
         >
           Корректировка
         </button>
+        <button type="button" onClick={() => onWriteoff(item)} className="flex-1 btn-danger">
+          Списать
+        </button>
       </div>
     </div>
   );
@@ -332,6 +367,12 @@ function StockTab({
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // "Списать" (ТЗ 2.1) — one modal shared by flowers and addon products,
+  // since the only real difference is which id the request carries.
+  const [writeoffTarget, setWriteoffTarget] = useState<{ kind: "flower" | "product"; id: string; name: string; unit: string } | null>(
+    null
+  );
 
   const [editingFlower, setEditingFlower] = useState<Flower | null>(null);
   const [editName, setEditName] = useState("");
@@ -439,7 +480,13 @@ function StockTab({
         {/* mobile: card-per-flower */}
         <div className="mt-3 space-y-3 md:hidden">
           {flowers.map((flower) => (
-            <FlowerCard key={flower._id} flower={flower} threshold={threshold} onEdit={() => startEditFlower(flower)} />
+            <FlowerCard
+              key={flower._id}
+              flower={flower}
+              threshold={threshold}
+              onEdit={() => startEditFlower(flower)}
+              onWriteoff={() => setWriteoffTarget({ kind: "flower", id: flower._id, name: flower.name, unit: flower.unit })}
+            />
           ))}
           {flowersLoading &&
             flowers.length === 0 &&
@@ -494,9 +541,16 @@ function StockTab({
                   <td>
                     <FlowerStatus flower={flower} threshold={threshold} />
                   </td>
-                  <td className="text-right">
-                    <button type="button" onClick={() => startEditFlower(flower)} className="text-sm text-sapphire-600 hover:underline">
+                  <td className="whitespace-nowrap text-right">
+                    <button type="button" onClick={() => startEditFlower(flower)} className="mr-3 text-sm text-sapphire-600 hover:underline">
                       Изменить
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setWriteoffTarget({ kind: "flower", id: flower._id, name: flower.name, unit: flower.unit })}
+                      className="text-sm text-hermes-600 hover:underline"
+                    >
+                      Списать
                     </button>
                   </td>
                 </tr>
@@ -625,12 +679,29 @@ function StockTab({
         </Modal>
       )}
 
+      {writeoffTarget && (
+        <WriteoffModal
+          target={writeoffTarget}
+          onClose={() => setWriteoffTarget(null)}
+          onSaved={() => {
+            setWriteoffTarget(null);
+            onChanged();
+          }}
+        />
+      )}
+
       <h2 className="mt-8 font-display text-lg font-semibold text-ink">Доп. товары</h2>
 
       {/* mobile: card-per-product */}
       <div className="mt-3 space-y-3 md:hidden">
         {items.map((item) => (
-          <StockItemCard key={item._id} item={item} onReceipt={startReceipt} onAdjust={startAdjustment} />
+          <StockItemCard
+            key={item._id}
+            item={item}
+            onReceipt={startReceipt}
+            onAdjust={startAdjustment}
+            onWriteoff={(i) => setWriteoffTarget({ kind: "product", id: i._id, name: i.name, unit: "шт" })}
+          />
         ))}
         {loading &&
           items.length === 0 &&
@@ -675,8 +746,15 @@ function StockTab({
                   <button type="button" onClick={() => startReceipt(item)} className="mr-3 text-sm text-sapphire-600 hover:underline">
                     + Приход
                   </button>
-                  <button type="button" onClick={() => startAdjustment(item)} className="text-sm text-graphite hover:underline">
+                  <button type="button" onClick={() => startAdjustment(item)} className="mr-3 text-sm text-graphite hover:underline">
                     Корректировка
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setWriteoffTarget({ kind: "product", id: item._id, name: item.name, unit: "шт" })}
+                    className="text-sm text-hermes-600 hover:underline"
+                  >
+                    Списать
                   </button>
                 </td>
               </tr>
@@ -763,6 +841,231 @@ function StockTab({
         </table>
         {!loading && entries.length === 0 && <p className="hidden p-6 text-sm text-graphite md:block">Движений пока не было.</p>}
       </div>
+    </div>
+  );
+}
+
+// "Списать" (ТЗ 2.1) — quantity, one of a few named reasons, and an
+// optional photo; shared by both flowers and addon products.
+function WriteoffModal({
+  target,
+  onClose,
+  onSaved,
+}: {
+  target: { kind: "flower" | "product"; id: string; name: string; unit: string };
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [quantity, setQuantity] = useState("");
+  const [reason, setReason] = useState<WriteoffReason>("wilted");
+  const [note, setNote] = useState("");
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handlePhotoSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] ?? null;
+    setPhotoFile(file);
+    setPhotoPreview(file ? URL.createObjectURL(file) : null);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const qty = Number(quantity);
+    if (!Number.isFinite(qty) || qty <= 0) {
+      setError("Укажите количество больше нуля");
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    try {
+      let photoUrl: string | undefined;
+      if (photoFile) {
+        const [url] = await uploadProductImages([photoFile], target.name);
+        photoUrl = url;
+      }
+      await createWriteoff({
+        [target.kind === "flower" ? "flowerId" : "productId"]: target.id,
+        quantity: qty,
+        reason,
+        note: note.trim() || undefined,
+        photo: photoUrl,
+      });
+      onSaved();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Не удалось списать");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Modal onClose={onClose}>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <h2 className="font-medium text-ink">Списать: {target.name}</h2>
+
+        <label className="block">
+          <span className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-graphite">Количество, {target.unit}</span>
+          <input
+            type="number"
+            min={1}
+            value={quantity}
+            onChange={(e) => setQuantity(e.target.value)}
+            className="input"
+            autoFocus
+          />
+        </label>
+
+        <label className="block">
+          <span className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-graphite">Причина</span>
+          <select value={reason} onChange={(e) => setReason(e.target.value as WriteoffReason)} className="input">
+            {Object.entries(WRITEOFF_REASON_LABELS).map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="block">
+          <span className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-graphite">Комментарий</span>
+          <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Необязательно" className="input" />
+        </label>
+
+        <div>
+          <span className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-graphite">Фото</span>
+          {photoPreview ? (
+            <div className="relative inline-block">
+              <img src={photoPreview} alt="" className="h-20 w-20 rounded-xl object-cover" />
+              <button
+                type="button"
+                onClick={() => {
+                  setPhotoFile(null);
+                  setPhotoPreview(null);
+                }}
+                aria-label="Убрать фото"
+                className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-ink/70 text-xs text-white hover:bg-hermes-600"
+              >
+                ×
+              </button>
+            </div>
+          ) : (
+            <button type="button" onClick={() => fileInputRef.current?.click()} className="btn-secondary">
+              Добавить фото
+            </button>
+          )}
+          <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp,image/avif" onChange={handlePhotoSelected} className="hidden" />
+        </div>
+
+        {error && <p className="text-sm text-hermes-600">{error}</p>}
+
+        <div className="flex gap-3">
+          <button type="submit" disabled={saving} className="btn-primary">
+            {saving ? "Списываем…" : "Списать"}
+          </button>
+          <button type="button" onClick={onClose} className="btn-secondary">
+            Отмена
+          </button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+// ---- Списания --------------------------------------------------------
+
+function WriteoffsTab() {
+  const [from, setFrom] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 29);
+    return d.toISOString().slice(0, 10);
+  });
+  const [to, setTo] = useState(() => new Date().toISOString().slice(0, 10));
+  const [report, setReport] = useState<WriteoffReport | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setLoading(true);
+    getWriteoffReport({ from, to })
+      .then((data) => setReport(data as WriteoffReport))
+      .catch(() => setReport(null))
+      .finally(() => setLoading(false));
+  }, [from, to]);
+
+  return (
+    <div>
+      <div className="flex flex-wrap items-end gap-3">
+        <label className="block">
+          <span className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-graphite">С</span>
+          <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="input" />
+        </label>
+        <label className="block">
+          <span className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-graphite">По</span>
+          <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="input" />
+        </label>
+      </div>
+
+      {loading ? (
+        <div className="card mt-4 space-y-3 p-4">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className="h-4 w-full" />
+          ))}
+        </div>
+      ) : !report ? (
+        <p className="card mt-4 text-sm text-graphite">Не удалось загрузить отчёт.</p>
+      ) : (
+        <>
+          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-5">
+            <div className="card p-3">
+              <p className="text-xs font-medium uppercase tracking-wide text-graphite">Всего списано</p>
+              <p className="mt-1 text-sm font-medium text-hermes-600">{formatUZS(report.total)}</p>
+            </div>
+            {Object.entries(WRITEOFF_REASON_LABELS).map(([value, label]) => (
+              <div key={value} className="card p-3">
+                <p className="text-xs font-medium uppercase tracking-wide text-graphite">{label}</p>
+                <p className="mt-1 text-sm font-medium text-ink">{formatUZS(report.byReason[value as WriteoffReason] ?? 0)}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="card mt-4 overflow-x-auto p-0">
+            <table className="admin-table w-full">
+              <thead>
+                <tr>
+                  <th>Дата</th>
+                  <th>Позиция</th>
+                  <th>Количество</th>
+                  <th>Причина</th>
+                  <th>Сумма</th>
+                  <th>Комментарий</th>
+                </tr>
+              </thead>
+              <tbody>
+                {report.entries.map((entry) => (
+                  <tr key={entry._id}>
+                    <td className="whitespace-nowrap text-graphite">{formatDate(entry.createdAt)}</td>
+                    <td>{entry.product?.name ?? entry.flower?.name ?? "—"}</td>
+                    <td>{Math.abs(entry.quantity)}</td>
+                    <td>{entry.writeoffReason ? WRITEOFF_REASON_LABELS[entry.writeoffReason] : "—"}</td>
+                    <td className="whitespace-nowrap">{formatUZS(Math.abs(entry.quantity) * (entry.unitCost || 0))}</td>
+                    <td className="text-graphite">
+                      {entry.note || "—"}
+                      {entry.photo && (
+                        <a href={resolveImageUrl(entry.photo)} target="_blank" rel="noreferrer" className="ml-2 text-sapphire-600 hover:underline">
+                          фото
+                        </a>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {report.entries.length === 0 && <p className="p-6 text-sm text-graphite">Списаний за период не найдено.</p>}
+          </div>
+        </>
+      )}
     </div>
   );
 }

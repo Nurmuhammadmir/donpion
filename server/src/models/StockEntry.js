@@ -17,9 +17,14 @@ const stockEntrySchema = new mongoose.Schema(
     quantity: { type: Number, required: true },
     reason: {
       type: String,
-      enum: ["receipt", "sale", "cancel_restock", "adjustment"],
+      enum: ["receipt", "sale", "cancel_restock", "adjustment", "writeoff"],
       required: true,
     },
+    // Only set when reason is "writeoff" (ТЗ 2.1 — «Списать»: количество,
+    // причина, фото) — a short fixed list rather than free text, so a
+    // write-off report can actually group/filter by it.
+    writeoffReason: { type: String, enum: ["defect_on_receipt", "wilted", "broken", "other"], default: null },
+    photo: { type: String, default: "" },
     note: { type: String, default: "" },
     order: { type: mongoose.Schema.Types.ObjectId, ref: "Order" },
     // Which branch this movement is attributed to (POS sale, pickup order,
