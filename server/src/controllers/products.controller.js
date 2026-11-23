@@ -89,7 +89,11 @@ export const getProducts = asyncHandler(async (req, res) => {
   // priceConfirmed: a brand-new bouquet with no price ever confirmed yet
   // stays unlisted here (ТЗ 1.2: "новый букет не публикуется") — existing
   // products default to true so none of them are affected by this.
-  const filter = { isActive: true, priceConfirmed: true };
+  // $ne: false (not just `true`) — a MongoDB query filter never sees
+  // Mongoose's schema `default`, only what's actually stored, and none of
+  // the products that existed before this field was added have it
+  // persisted at all. `true` alone matched zero of them live on prod.
+  const filter = { isActive: true, priceConfirmed: { $ne: false } };
 
   if (category) {
     const cat = await Category.findOne({ slug: category });
@@ -155,7 +159,7 @@ export const getProducts = asyncHandler(async (req, res) => {
 
 // GET /api/products/:slug  (public)
 export const getProductBySlug = asyncHandler(async (req, res) => {
-  const product = await Product.findOne({ slug: req.params.slug, isActive: true, priceConfirmed: true })
+  const product = await Product.findOne({ slug: req.params.slug, isActive: true, priceConfirmed: { $ne: false } })
     .populate("category", "name slug")
     .populate("addonCategories", "name slug")
     .select("-costPrice -recipe -packagingCost -ribbonCost -assemblyPercent -markupMultiplier -deliveryFee -priceConfirmed -priceHistory");
