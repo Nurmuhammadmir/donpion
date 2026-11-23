@@ -80,6 +80,11 @@ export default function ProductCard({ product, showFromPrice }: ProductCardProps
             {t("outOfStock")}
           </span>
         )}
+        {product.availability === "PreOrder" && (
+          <span className="absolute right-0 top-0 bg-ink/80 px-3 py-1.5 text-[10px] font-medium uppercase tracking-wide2 text-white">
+            {t("preOrder")}
+          </span>
+        )}
         {product.oldPrice && (
           <span className="absolute left-0 top-0 bg-navy px-3 py-1.5 text-[10px] font-medium uppercase tracking-wide2 text-white">
             {t("sale")}

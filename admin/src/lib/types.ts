@@ -140,6 +140,7 @@ export interface Product {
   seoDescription: string;
   isFeatured: boolean;
   isActive: boolean;
+  isPreOrder: boolean;
   rating: number;
   reviewsCount: number;
 }
@@ -180,6 +181,10 @@ export interface Order {
   status: "new" | "confirmed" | "delivering" | "completed" | "cancelled";
   paymentMethod: "cash" | "card" | "online";
   paymentStatus: "pending" | "paid" | "failed";
+  // ТЗ 1.3 — set when a "под заказ" item here had no flowers on hand at
+  // order time; procurementNote names which one(s).
+  needsProcurement: boolean;
+  procurementNote: string;
   createdAt: string;
 }
 

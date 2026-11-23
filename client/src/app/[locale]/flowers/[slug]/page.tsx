@@ -122,7 +122,7 @@ export default async function ProductPage({ params: { locale, slug } }: PageProp
 
           <p className="mt-3 flex items-center gap-2 text-xs uppercase tracking-wide2 text-graphite">
             <span className={`h-1.5 w-1.5 ${product.availability === "InStock" ? "bg-hermes-500" : "bg-graphite"}`} />
-            {product.availability === "InStock" ? tc("inStock") : tc("outOfStock")}
+            {product.availability === "InStock" ? tc("inStock") : product.availability === "PreOrder" ? tc("preOrder") : tc("outOfStock")}
           </p>
 
           <p className="mt-8 max-w-md text-sm leading-relaxed text-graphite">{product.shortDescription}</p>

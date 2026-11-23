@@ -103,6 +103,10 @@ const productSchema = new mongoose.Schema(
 
     isFeatured: { type: Boolean, default: false },
     isActive: { type: Boolean, default: true },
+    // "Под заказ" (ТЗ 1.3) — stays visible/orderable on the site even at
+    // stock 0 (see the `availability` virtual below), instead of reading
+    // as sold out just because no flowers for it are on hand right now.
+    isPreOrder: { type: Boolean, default: false },
 
     rating: { type: Number, default: 4.8, min: 0, max: 5 },
     reviewsCount: { type: Number, default: 0 },
@@ -136,7 +140,8 @@ productSchema.pre(["find", "findOne", "countDocuments"], excludeDeletedByDefault
 productSchema.index({ name: "text", shortDescription: "text" });
 
 productSchema.virtual("availability").get(function availability() {
-  return this.stock > 0 ? "InStock" : "OutOfStock";
+  if (this.stock > 0) return "InStock";
+  return this.isPreOrder ? "PreOrder" : "OutOfStock";
 });
 
 productSchema.set("toJSON", { virtuals: true });

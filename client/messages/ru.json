@@ -31,6 +31,7 @@
     "loading": "Загрузка…",
     "inStock": "В наличии",
     "outOfStock": "Нет в наличии",
+    "preOrder": "Под заказ",
     "sale": "Скидка",
     "breadcrumbLabel": "Хлебные крошки",
     "nameLabel": "Имя",

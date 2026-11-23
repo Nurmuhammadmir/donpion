@@ -120,6 +120,12 @@ const orderSchema = new mongoose.Schema(
     // must never double-restore stock.
     stockDeducted: { type: Boolean, default: false },
     stockRestored: { type: Boolean, default: false },
+    // Set when this order included a "под заказ" bouquet that had no
+    // flowers on hand at order time (ТЗ 1.3: "заказ создаёт задачу на
+    // закупку") — a visible flag for the florist to go source flowers for,
+    // not a blocker on the order itself.
+    needsProcurement: { type: Boolean, default: false },
+    procurementNote: { type: String, default: "" },
     status: {
       type: String,
       enum: ["new", "confirmed", "delivering", "completed", "cancelled"],

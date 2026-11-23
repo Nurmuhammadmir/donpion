@@ -31,6 +31,7 @@ function buildOrderAlertText(order) {
     lines.push(`${order.fulfillmentMethod === "pickup" ? "Время самовывоза" : "Доставка"}: ${order.deliveryDate}${order.deliveryTime ? `, ${order.deliveryTime}` : ""}`);
   }
   lines.push(`Оплата: ${PAYMENT_METHOD_LABELS[order.paymentMethod] || order.paymentMethod}`);
+  if (order.needsProcurement) lines.push("", `⚠️ ${order.procurementNote}`);
   lines.push("", itemsText, "");
   lines.push(`Сумма заказа: ${order.subtotal.toLocaleString("ru-RU")} сум`);
   if (order.pointsRedeemed > 0) lines.push(`Списано Пионов: ${order.pointsRedeemed.toLocaleString("ru-RU")}`);
@@ -97,6 +98,10 @@ export const createOrder = asyncHandler(async (req, res) => {
   const productMap = new Map(products.map((p) => [String(p._id), p]));
 
   let subtotal = 0;
+  // "Под заказ" items with nothing on hand right now (ТЗ 1.3) — collected
+  // here, while `product.stock` still reflects the pre-order state, since
+  // the deduction loop below runs after the order already exists.
+  const procurementNames = [];
   const orderItems = items.map((i) => {
     const product = productMap.get(String(i.productId));
     if (!product) {
@@ -105,6 +110,7 @@ export const createOrder = asyncHandler(async (req, res) => {
     }
     const quantity = Math.max(1, Number(i.quantity) || 1);
     subtotal += product.price * quantity;
+    if (product.isPreOrder && product.stock <= 0) procurementNames.push(product.name);
     return {
       product: product._id,
       name: product.name,
@@ -174,6 +180,8 @@ export const createOrder = asyncHandler(async (req, res) => {
       pointsRedeemed,
       totalAmount,
       pointsEarned,
+      needsProcurement: procurementNames.length > 0,
+      procurementNote: procurementNames.length > 0 ? `Нет на складе, нужна закупка: ${procurementNames.join(", ")}` : "",
     });
   } catch (err) {
     // The order never actually got created — give back whatever points

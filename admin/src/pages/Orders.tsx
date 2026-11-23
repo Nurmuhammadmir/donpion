@@ -230,6 +230,12 @@ function OrderCard({
         {resolvedBranch && <BranchTag name={resolvedBranch} />}
       </div>
 
+      {order.needsProcurement && (
+        <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800">
+          ⚠ {order.procurementNote}
+        </p>
+      )}
+
       <button
         type="button"
         onClick={onToggle}
@@ -397,7 +403,14 @@ export default function Orders() {
               return (
                 <Fragment key={order._id}>
                   <tr>
-                    <td className="font-medium">{order.orderNumber}</td>
+                    <td className="font-medium">
+                      {order.orderNumber}
+                      {order.needsProcurement && (
+                        <span className="ml-1.5 text-amber-600" title={order.procurementNote}>
+                          ⚠
+                        </span>
+                      )}
+                    </td>
                     <td className="whitespace-nowrap">{formatDate(order.createdAt)}</td>
                     <td>
                       <div>{order.customer.name}</div>

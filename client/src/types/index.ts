@@ -72,7 +72,7 @@ export interface Product {
   oldPrice: number | null;
   currency: string;
   stock: number;
-  availability: "InStock" | "OutOfStock";
+  availability: "InStock" | "OutOfStock" | "PreOrder";
   images: string[];
   shortDescription: string;
   story: string;

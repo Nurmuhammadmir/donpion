@@ -44,6 +44,7 @@ const emptyForm = {
   careInstructions: "",
   isFeatured: false,
   isActive: true,
+  isPreOrder: false,
   // ТЗ 1.2 — defaults for a brand-new bouquet; loaded from the saved
   // product otherwise. The three overrides are "" when the bouquet just
   // uses the current global default (see pricingDefaults below).
@@ -154,6 +155,7 @@ export default function ProductForm() {
           careInstructions: p.careInstructions,
           isFeatured: p.isFeatured,
           isActive: p.isActive,
+          isPreOrder: p.isPreOrder ?? false,
           packagingCost: String(p.packagingCost ?? 100000),
           ribbonCost: String(p.ribbonCost ?? 50000),
           assemblyPercentOverride: p.assemblyPercent === null || p.assemblyPercent === undefined ? "" : String(p.assemblyPercent),
@@ -360,6 +362,7 @@ export default function ProductForm() {
             ...shared,
             occasions: form.occasions,
             recipe: validRecipeRows.map((r) => ({ flower: r.flowerId, quantity: Number(r.quantity) })),
+            isPreOrder: form.isPreOrder,
             packagingCost: Number(form.packagingCost) || 0,
             ribbonCost: Number(form.ribbonCost) || 0,
             assemblyPercent: form.assemblyPercentOverride !== "" ? Number(form.assemblyPercentOverride) : null,
@@ -562,6 +565,21 @@ export default function ProductForm() {
 
         {kind === "bouquet" ? (
           <>
+            <label className="flex items-start gap-2 text-sm text-ink">
+              <input
+                type="checkbox"
+                checked={form.isPreOrder}
+                onChange={(e) => setForm((prev) => ({ ...prev, isPreOrder: e.target.checked }))}
+                className="mt-0.5"
+              />
+              <span>
+                Под заказ
+                <span className="mt-0.5 block text-xs font-normal text-graphite">
+                  Виден на сайте и заказывается, даже если цветов нет на складе — заказ пометит, что нужна закупка.
+                </span>
+              </span>
+            </label>
+
             <Field label="Повод">
               <div className="flex flex-wrap gap-x-5 gap-y-2">
                 {occasions.map((occasion) => (
