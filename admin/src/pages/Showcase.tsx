@@ -254,6 +254,11 @@ function ShowcaseProductCard({ product, index }: { product: Product; index: numb
             Скидка
           </span>
         )}
+        {product.kind === "bouquet" && !product.priceConfirmed && (
+          <span className="absolute bottom-0 left-0 bg-amber-600 px-3 py-1.5 text-[10px] font-medium uppercase tracking-wide2 text-white">
+            Цена не подтверждена
+          </span>
+        )}
         {inactive && (
           <span className="absolute bottom-0 right-0 bg-ink px-3 py-1.5 text-[10px] font-medium uppercase tracking-wide2 text-white">
             Скрыт

@@ -24,6 +24,14 @@ const siteSettingsSchema = new mongoose.Schema(
     // Bots can't message someone who hasn't messaged them first, so this
     // has to be captured live rather than just known up front.
     telegramOwnerChatId: { type: String, default: null },
+
+    // Bouquet pricing formula defaults (ТЗ 1.2) — admin-only, never exposed
+    // through the public GET /settings. Every bouquet starts from these but
+    // can override any of them individually (see Product.assemblyPercent/
+    // markupMultiplier/deliveryFee).
+    assemblyPercent: { type: Number, default: 10, min: 0 },
+    markupMultiplier: { type: Number, default: 2, min: 0 },
+    deliveryFee: { type: Number, default: 50000, min: 0 },
   },
   { timestamps: true }
 );

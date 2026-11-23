@@ -7,16 +7,32 @@ const DEFAULT_HERO_IMAGE =
 
 // GET /api/settings  (public)
 export const getSettings = asyncHandler(async (req, res) => {
-  let settings = await SiteSettings.findOne({ key: "homepage" });
+  let settings = await SiteSettings.findOne({ key: "homepage" }).select("-assemblyPercent -markupMultiplier -deliveryFee");
   if (!settings) {
     settings = await SiteSettings.create({ key: "homepage", heroImage: DEFAULT_HERO_IMAGE });
   }
   res.json(settings);
 });
 
+// GET /api/settings/pricing  (admin) — bouquet pricing formula defaults
+// (ТЗ 1.2), kept off the public endpoint above since they're the same kind
+// of internal-only number as a product's own costPrice.
+export const getPricingSettings = asyncHandler(async (req, res) => {
+  let settings = await SiteSettings.findOne({ key: "homepage" }).select("assemblyPercent markupMultiplier deliveryFee");
+  if (!settings) {
+    settings = await SiteSettings.create({ key: "homepage", heroImage: DEFAULT_HERO_IMAGE });
+  }
+  res.json({
+    assemblyPercent: settings.assemblyPercent,
+    markupMultiplier: settings.markupMultiplier,
+    deliveryFee: settings.deliveryFee,
+  });
+});
+
 // PUT /api/settings  (admin)
 export const updateSettings = asyncHandler(async (req, res) => {
-  const { heroImage, heroImageTablet, heroImageMobile, cashbackPercent, lowStockThreshold } = req.body;
+  const { heroImage, heroImageTablet, heroImageMobile, cashbackPercent, lowStockThreshold, assemblyPercent, markupMultiplier, deliveryFee } =
+    req.body;
 
   const update = {};
   if (heroImage !== undefined) update.heroImage = heroImage;
@@ -37,6 +53,30 @@ export const updateSettings = asyncHandler(async (req, res) => {
       throw new Error("Порог низкого остатка не может быть отрицательным");
     }
     update.lowStockThreshold = threshold;
+  }
+  if (assemblyPercent !== undefined) {
+    const percent = Number(assemblyPercent);
+    if (!Number.isFinite(percent) || percent < 0) {
+      res.status(400);
+      throw new Error("Процент сборки не может быть отрицательным");
+    }
+    update.assemblyPercent = percent;
+  }
+  if (markupMultiplier !== undefined) {
+    const multiplier = Number(markupMultiplier);
+    if (!Number.isFinite(multiplier) || multiplier < 0) {
+      res.status(400);
+      throw new Error("Множитель наценки не может быть отрицательным");
+    }
+    update.markupMultiplier = multiplier;
+  }
+  if (deliveryFee !== undefined) {
+    const fee = Number(deliveryFee);
+    if (!Number.isFinite(fee) || fee < 0) {
+      res.status(400);
+      throw new Error("Стоимость доставки не может быть отрицательной");
+    }
+    update.deliveryFee = fee;
   }
 
   const settings = await SiteSettings.findOneAndUpdate(

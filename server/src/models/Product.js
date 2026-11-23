@@ -43,6 +43,46 @@ const productSchema = new mongoose.Schema(
     oldPrice: { type: Number, min: 0, default: null },
     currency: { type: String, default: "UZS" },
 
+    // Packaging/ribbon (ТЗ 1.2) — flat admin-entered amounts, deliberately
+    // NOT tracked through the warehouse like a recipe's flowers (a basket
+    // goes in the recipe instead, same as a flower — see bouquetStock.js):
+    // these two default from SiteSettings for a new bouquet but are always
+    // a simple per-bouquet number, since precisely metering how much
+    // wrapping paper or ribbon one bouquet used isn't the point.
+    packagingCost: { type: Number, default: 0, min: 0 },
+    ribbonCost: { type: Number, default: 0, min: 0 },
+    // Per-bouquet overrides of the global pricing defaults (SiteSettings
+    // assemblyPercent/markupMultiplier/deliveryFee) — null means "use the
+    // current global default", not "zero".
+    assemblyPercent: { type: Number, default: null, min: 0 },
+    markupMultiplier: { type: Number, default: null, min: 0 },
+    deliveryFee: { type: Number, default: null, min: 0 },
+    // Gates whether `price` has ever been deliberately set via one of the
+    // two confirm actions (see products.controller.js confirmPrice) rather
+    // than just carried over from creation. Defaults true so every bouquet
+    // that existed before this feature stays published exactly as-is;
+    // explicitly set to false only when a brand-new bouquet is created, so
+    // it stays unpublished (ТЗ: "новый букет не публикуется") until the
+    // admin actually confirms a price for it at least once.
+    priceConfirmed: { type: Boolean, default: true },
+    // One entry per confirm action — who, when, what the formula
+    // recommended at that moment vs. what was actually set, and by how
+    // much they differ. Admin-only audit trail (ТЗ: "в истории товара
+    // видно..."), never recomputed or edited after the fact.
+    priceHistory: {
+      type: [
+        {
+          at: { type: Date, default: Date.now },
+          by: { type: mongoose.Schema.Types.ObjectId, ref: "Admin" },
+          recommendedPrice: { type: Number, required: true },
+          finalPrice: { type: Number, required: true },
+          diffPercent: { type: Number, required: true },
+        },
+      ],
+      default: [],
+      _id: false,
+    },
+
     stock: { type: Number, required: true, default: 0, min: 0 },
     // Себестоимость — weighted-average import cost per unit, always in UZS
     // regardless of what currency a given purchase batch was priced in.

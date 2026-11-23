@@ -1,8 +1,18 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Plus, Trash2 } from "lucide-react";
-import { api, ApiError, createFlower, getFlowers, isVideoUrl, resolveImageUrl, uploadProductImages } from "@/lib/api";
-import type { AddonCategory, Category, Flower, Occasion, Product } from "@/lib/types";
+import {
+  api,
+  ApiError,
+  confirmPrice as confirmPriceRequest,
+  createFlower,
+  getFlowers,
+  getPricingSettings,
+  isVideoUrl,
+  resolveImageUrl,
+  uploadProductImages,
+} from "@/lib/api";
+import type { AddonCategory, Category, Flower, Occasion, PriceHistoryEntry, Product } from "@/lib/types";
 import ShowcaseTabs from "@/components/ShowcaseTabs";
 import PriceInput from "@/components/PriceInput";
 import ImageCropModal from "@/components/ImageCropModal";
@@ -34,6 +44,14 @@ const emptyForm = {
   careInstructions: "",
   isFeatured: false,
   isActive: true,
+  // ТЗ 1.2 — defaults for a brand-new bouquet; loaded from the saved
+  // product otherwise. The three overrides are "" when the bouquet just
+  // uses the current global default (see pricingDefaults below).
+  packagingCost: "100000",
+  ribbonCost: "50000",
+  assemblyPercentOverride: "",
+  markupMultiplierOverride: "",
+  deliveryFeeOverride: "",
 };
 
 // A recipe row carries the flower's own current name/unit/cost/stock
@@ -71,6 +89,18 @@ export default function ProductForm() {
   // Addon only — weighted-average import cost from warehouse receipts,
   // display-only, never part of the save payload.
   const [savedCostPrice, setSavedCostPrice] = useState<number | null>(null);
+  // ТЗ 1.2 — pricing formula state. pricingDefaults is the current global
+  // Settings (assembly%/markup/delivery); priceConfirmed/priceHistory
+  // mirror what's actually saved, refreshed after every confirm.
+  const [pricingDefaults, setPricingDefaults] = useState<{ assemblyPercent: number; markupMultiplier: number; deliveryFee: number } | null>(
+    null
+  );
+  const [priceConfirmed, setPriceConfirmed] = useState(true);
+  const [priceHistory, setPriceHistory] = useState<PriceHistoryEntry[]>([]);
+  const [customPriceMode, setCustomPriceMode] = useState(false);
+  const [customPriceInput, setCustomPriceInput] = useState("");
+  const [confirming, setConfirming] = useState(false);
+  const [confirmError, setConfirmError] = useState<string | null>(null);
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -89,6 +119,9 @@ export default function ProductForm() {
     api<Category[]>("/categories").then(setCategories).catch(() => setCategories([]));
     api<AddonCategory[]>("/addon-categories").then(setAddonCategories).catch(() => setAddonCategories([]));
     api<Occasion[]>("/occasions").then(setOccasions).catch(() => setOccasions([]));
+    getPricingSettings()
+      .then(setPricingDefaults)
+      .catch(() => setPricingDefaults({ assemblyPercent: 10, markupMultiplier: 2, deliveryFee: 50000 }));
   }, []);
 
   function newRecipeRow(): RecipeRow {
@@ -121,7 +154,14 @@ export default function ProductForm() {
           careInstructions: p.careInstructions,
           isFeatured: p.isFeatured,
           isActive: p.isActive,
+          packagingCost: String(p.packagingCost ?? 100000),
+          ribbonCost: String(p.ribbonCost ?? 50000),
+          assemblyPercentOverride: p.assemblyPercent === null || p.assemblyPercent === undefined ? "" : String(p.assemblyPercent),
+          markupMultiplierOverride: p.markupMultiplier === null || p.markupMultiplier === undefined ? "" : String(p.markupMultiplier),
+          deliveryFeeOverride: p.deliveryFee === null || p.deliveryFee === undefined ? "" : String(p.deliveryFee),
         });
+        setPriceConfirmed(p.priceConfirmed ?? true);
+        setPriceHistory(p.priceHistory ?? []);
         setRecipe(
           (p.recipe ?? []).map((line) => {
             const flowerId = typeof line.flower === "string" ? line.flower : line.flower._id;
@@ -241,6 +281,47 @@ export default function ProductForm() {
       ? 0
       : Math.max(0, Math.floor(Math.min(...validRecipeRows.map((r) => r.stock / Number(r.quantity)))));
 
+  // ТЗ 1.2 — same formula as server/src/utils/bouquetPricing.js, computed
+  // live from the form so the admin sees it update as they type; confirming
+  // always recomputes this again server-side from exactly what gets sent.
+  const effectiveAssemblyPercent =
+    form.assemblyPercentOverride !== "" ? Number(form.assemblyPercentOverride) || 0 : (pricingDefaults?.assemblyPercent ?? 10);
+  const effectiveMarkupMultiplier =
+    form.markupMultiplierOverride !== "" ? Number(form.markupMultiplierOverride) || 0 : (pricingDefaults?.markupMultiplier ?? 2);
+  const effectiveDeliveryFee =
+    form.deliveryFeeOverride !== "" ? Number(form.deliveryFeeOverride) || 0 : (pricingDefaults?.deliveryFee ?? 50000);
+  const purchaseTotal = previewCost + (Number(form.packagingCost) || 0) + (Number(form.ribbonCost) || 0);
+  const assemblyAmount = purchaseTotal * (effectiveAssemblyPercent / 100);
+  const costBasis = purchaseTotal + assemblyAmount;
+  const priceWithMarkup = costBasis * effectiveMarkupMultiplier;
+  const recommendedPrice = priceWithMarkup + effectiveDeliveryFee;
+
+  const handleConfirmPrice = async (mode: "recommended" | "custom", customPrice?: number) => {
+    if (!id) return;
+    setConfirming(true);
+    setConfirmError(null);
+    try {
+      const updated = (await confirmPriceRequest(id, {
+        mode,
+        price: mode === "custom" ? customPrice : undefined,
+        packagingCost: Number(form.packagingCost) || 0,
+        ribbonCost: Number(form.ribbonCost) || 0,
+        assemblyPercent: form.assemblyPercentOverride !== "" ? Number(form.assemblyPercentOverride) : null,
+        markupMultiplier: form.markupMultiplierOverride !== "" ? Number(form.markupMultiplierOverride) : null,
+        deliveryFee: form.deliveryFeeOverride !== "" ? Number(form.deliveryFeeOverride) : null,
+      })) as Product;
+      setForm((prev) => ({ ...prev, price: String(updated.price) }));
+      setPriceConfirmed(updated.priceConfirmed);
+      setPriceHistory(updated.priceHistory ?? []);
+      setCustomPriceMode(false);
+      setCustomPriceInput("");
+    } catch (err) {
+      setConfirmError(err instanceof ApiError ? err.message : "Не удалось подтвердить цену");
+    } finally {
+      setConfirming(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!kind) return;
@@ -257,7 +338,6 @@ export default function ProductForm() {
       name: form.name,
       kind,
       category: form.category,
-      price: Number(form.price),
       oldPrice: form.oldPrice ? Number(form.oldPrice) : null,
       images: form.images,
       shortDescription: form.shortDescription,
@@ -268,6 +348,10 @@ export default function ProductForm() {
         .filter(Boolean),
       careInstructions: form.careInstructions,
       isActive: form.isActive,
+      // An existing bouquet's price only ever changes through "Подтвердить"
+      // below, never through a plain save — otherwise editing an unrelated
+      // field here could silently bypass the confirm/history workflow.
+      ...(kind === "bouquet" && !isNew ? {} : { price: Number(form.price) }),
     };
 
     const payload =
@@ -276,6 +360,11 @@ export default function ProductForm() {
             ...shared,
             occasions: form.occasions,
             recipe: validRecipeRows.map((r) => ({ flower: r.flowerId, quantity: Number(r.quantity) })),
+            packagingCost: Number(form.packagingCost) || 0,
+            ribbonCost: Number(form.ribbonCost) || 0,
+            assemblyPercent: form.assemblyPercentOverride !== "" ? Number(form.assemblyPercentOverride) : null,
+            markupMultiplier: form.markupMultiplierOverride !== "" ? Number(form.markupMultiplierOverride) : null,
+            deliveryFee: form.deliveryFeeOverride !== "" ? Number(form.deliveryFeeOverride) : null,
           }
         : {
             ...shared,
@@ -425,7 +514,12 @@ export default function ProductForm() {
 
         <div className={`grid gap-5 ${kind === "addon" ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
           <Field label="Цена, сум" required>
-            <PriceInput required value={form.price} onChange={(v) => setForm((prev) => ({ ...prev, price: v }))} />
+            {kind === "bouquet" && !isNew ? (
+              <div className="input flex items-center bg-canvas text-graphite">{formatUZS(Number(form.price) || 0)}</div>
+            ) : (
+              <PriceInput required value={form.price} onChange={(v) => setForm((prev) => ({ ...prev, price: v }))} />
+            )}
+            {kind === "bouquet" && !isNew && <p className="mt-1 text-xs text-graphite">Меняется через подтверждение цены ниже.</p>}
           </Field>
           <Field label="Старая цена (для скидки)">
             <PriceInput value={form.oldPrice} onChange={(v) => setForm((prev) => ({ ...prev, oldPrice: v }))} />
@@ -529,6 +623,144 @@ export default function ProductForm() {
                 </div>
               </div>
             </div>
+
+            <div className="rounded-xl border border-hairline p-4">
+              <p className="text-xs font-medium uppercase tracking-wide text-graphite">Цена (видно только в админке)</p>
+
+              <div className="mt-3 grid grid-cols-2 gap-3">
+                <Field label="Упаковка, сум">
+                  <PriceInput
+                    value={form.packagingCost}
+                    onChange={(v) => setForm((prev) => ({ ...prev, packagingCost: v }))}
+                  />
+                </Field>
+                <Field label="Лента, сум">
+                  <PriceInput value={form.ribbonCost} onChange={(v) => setForm((prev) => ({ ...prev, ribbonCost: v }))} />
+                </Field>
+                <Field label={`Сборка, % (по умолчанию ${pricingDefaults?.assemblyPercent ?? 10})`}>
+                  <input
+                    type="number"
+                    min={0}
+                    value={form.assemblyPercentOverride}
+                    onChange={(e) => setForm((prev) => ({ ...prev, assemblyPercentOverride: e.target.value }))}
+                    placeholder={String(pricingDefaults?.assemblyPercent ?? 10)}
+                    className="input"
+                  />
+                </Field>
+                <Field label={`Наценка, × (по умолчанию ${pricingDefaults?.markupMultiplier ?? 2})`}>
+                  <input
+                    type="number"
+                    min={0}
+                    step="any"
+                    value={form.markupMultiplierOverride}
+                    onChange={(e) => setForm((prev) => ({ ...prev, markupMultiplierOverride: e.target.value }))}
+                    placeholder={String(pricingDefaults?.markupMultiplier ?? 2)}
+                    className="input"
+                  />
+                </Field>
+                <Field label={`Доставка, сум (по умолчанию ${formatUZS(pricingDefaults?.deliveryFee ?? 50000)})`}>
+                  <input
+                    type="number"
+                    min={0}
+                    value={form.deliveryFeeOverride}
+                    onChange={(e) => setForm((prev) => ({ ...prev, deliveryFeeOverride: e.target.value }))}
+                    placeholder={String(pricingDefaults?.deliveryFee ?? 50000)}
+                    className="input"
+                  />
+                </Field>
+              </div>
+
+              <div className="mt-4 space-y-1.5 border-t border-hairline pt-3 text-sm">
+                <PriceRow label="Закупка" value={purchaseTotal} />
+                <PriceRow label={`Сборка букета (${effectiveAssemblyPercent}%)`} value={assemblyAmount} />
+                <PriceRow label="Себестоимость" value={costBasis} />
+                <PriceRow label={`Цена с наценкой (×${effectiveMarkupMultiplier})`} value={priceWithMarkup} />
+                <PriceRow label="Доставка" value={effectiveDeliveryFee} />
+                <PriceRow label="Рекомендованная цена" value={recommendedPrice} bold />
+              </div>
+
+              <div className="mt-4 border-t border-hairline pt-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-ink">
+                    Текущая цена на сайте: <span className="font-medium">{formatUZS(Number(form.price) || 0)}</span>
+                  </span>
+                  {priceConfirmed ? (
+                    <span className="pill border-sapphire-100 bg-sapphire-50 text-sapphire-700">Подтверждена</span>
+                  ) : (
+                    <span className="pill border-amber-200 bg-amber-50 text-amber-700">Не подтверждена — не видна на сайте</span>
+                  )}
+                </div>
+
+                {!isNew && (
+                  <div className="mt-3">
+                    {!customPriceMode ? (
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          disabled={confirming}
+                          onClick={() => handleConfirmPrice("recommended")}
+                          className="btn-primary"
+                        >
+                          {confirming ? "Сохраняем…" : "Подтвердить рекомендованную"}
+                        </button>
+                        <button type="button" disabled={confirming} onClick={() => setCustomPriceMode(true)} className="btn-secondary">
+                          Ввести свою цену
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex flex-wrap items-center gap-2">
+                        <PriceInput value={customPriceInput} onChange={setCustomPriceInput} placeholder="Своя цена" />
+                        <button
+                          type="button"
+                          disabled={confirming || !customPriceInput}
+                          onClick={() => handleConfirmPrice("custom", Number(customPriceInput))}
+                          className="btn-primary flex-none"
+                        >
+                          {confirming ? "Сохраняем…" : "Подтвердить"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCustomPriceMode(false);
+                            setCustomPriceInput("");
+                          }}
+                          className="btn-secondary flex-none"
+                        >
+                          Отмена
+                        </button>
+                      </div>
+                    )}
+                    {confirmError && <p className="mt-2 text-xs text-hermes-600">{confirmError}</p>}
+                  </div>
+                )}
+                {isNew && <p className="mt-2 text-xs text-graphite">Подтвердить цену можно после создания товара.</p>}
+              </div>
+
+              {priceHistory.length > 0 && (
+                <div className="mt-4 border-t border-hairline pt-3">
+                  <p className="text-xs font-medium uppercase tracking-wide text-graphite">История цены</p>
+                  <div className="mt-2 space-y-2">
+                    {[...priceHistory]
+                      .slice()
+                      .reverse()
+                      .map((h, i) => (
+                        <div key={i} className="text-xs text-graphite">
+                          {new Date(h.at).toLocaleString("ru-RU", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                          {" · "}
+                          {typeof h.by === "object" && h.by ? h.by.name : "—"}
+                          {" · рекомендовано "}
+                          {formatUZS(h.recommendedPrice)}
+                          {" → поставлено "}
+                          {formatUZS(h.finalPrice)}
+                          {" ("}
+                          {h.diffPercent > 0 ? "+" : ""}
+                          {h.diffPercent.toFixed(1)}%)
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </>
         ) : (
           <>
@@ -629,6 +861,15 @@ function Field({ label, required, children }: { label: string; required?: boolea
       </span>
       {children}
     </label>
+  );
+}
+
+function PriceRow({ label, value, bold }: { label: string; value: number; bold?: boolean }) {
+  return (
+    <div className="flex items-center justify-between">
+      <span className={bold ? "font-medium text-ink" : "text-graphite"}>{label}</span>
+      <span className={bold ? "font-display text-base font-medium text-ink" : "text-ink"}>{formatUZS(value)}</span>
+    </div>
   );
 }
 

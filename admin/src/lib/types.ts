@@ -58,6 +58,16 @@ export interface SiteSettings {
   lowStockThreshold: number;
 }
 
+// ТЗ 1.2 — bouquet pricing formula defaults. Kept off GET /settings (the
+// public endpoint SiteSettings above describes) since these are the same
+// kind of internal-only number as a product's own costPrice; fetched
+// separately via the admin-only GET /settings/pricing.
+export interface PricingSettings {
+  assemblyPercent: number;
+  markupMultiplier: number;
+  deliveryFee: number;
+}
+
 export type FlowerType = "flower" | "greenery" | "packaging" | "ribbon" | "basket";
 
 export const FLOWER_TYPE_LABELS: Record<FlowerType, string> = {
@@ -84,6 +94,14 @@ export interface RecipeLine {
   quantity: number;
 }
 
+export interface PriceHistoryEntry {
+  at: string;
+  by: { _id: string; name: string } | string | null;
+  recommendedPrice: number;
+  finalPrice: number;
+  diffPercent: number;
+}
+
 export interface Product {
   _id: string;
   name: string;
@@ -102,6 +120,16 @@ export interface Product {
   oldPrice: number | null;
   stock: number;
   costPrice: number;
+  // ТЗ 1.2 — pricing formula inputs/state, admin-only (never in the
+  // public API). The three overrides are null when the bouquet just uses
+  // the current global SiteSettings default.
+  packagingCost: number;
+  ribbonCost: number;
+  assemblyPercent: number | null;
+  markupMultiplier: number | null;
+  deliveryFee: number | null;
+  priceConfirmed: boolean;
+  priceHistory: PriceHistoryEntry[];
   availability: "InStock" | "OutOfStock";
   images: string[];
   shortDescription: string;

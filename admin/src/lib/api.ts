@@ -166,3 +166,27 @@ export async function uploadProductImages(files: File[], nameHint: string): Prom
   const data = (await res.json()) as { urls: string[] };
   return data.urls;
 }
+
+// Bouquet pricing formula (ТЗ 1.2) — the global defaults (admin-only,
+// separate from the public GET /settings), and confirming a bouquet's own
+// price. confirmPrice also carries the pricing-input fields so confirming
+// always acts on exactly what's in the form, not whatever was last saved.
+export function getPricingSettings() {
+  return api<{ assemblyPercent: number; markupMultiplier: number; deliveryFee: number }>("/settings/pricing");
+}
+
+export function confirmPrice(
+  productId: string,
+  payload:
+    | {
+        mode: "recommended" | "custom";
+        price?: number;
+        packagingCost: number;
+        ribbonCost: number;
+        assemblyPercent: number | null;
+        markupMultiplier: number | null;
+        deliveryFee: number | null;
+      }
+) {
+  return api(`/products/${productId}/confirm-price`, { method: "POST", body: JSON.stringify(payload) });
+}

@@ -7,6 +7,7 @@ import Occasion from "../models/Occasion.js";
 import { slugifyRu } from "../utils/slugify.js";
 import { notifyRevalidate } from "../utils/notifyRevalidate.js";
 import { recomputeBouquet } from "../utils/bouquetStock.js";
+import { computeRecommendedPrice } from "../utils/bouquetPricing.js";
 
 // Every product tags every active Character — the admin never picks this
 // (there's nothing to decide: it's not "which personality does this suit",
@@ -70,7 +71,10 @@ export const getProducts = asyncHandler(async (req, res) => {
   const search = asQueryString(req.query.search);
   const featured = asQueryString(req.query.featured);
 
-  const filter = { isActive: true };
+  // priceConfirmed: a brand-new bouquet with no price ever confirmed yet
+  // stays unlisted here (ТЗ 1.2: "новый букет не публикуется") — existing
+  // products default to true so none of them are affected by this.
+  const filter = { isActive: true, priceConfirmed: true };
 
   if (category) {
     const cat = await Category.findOne({ slug: category });
@@ -109,10 +113,10 @@ export const getProducts = asyncHandler(async (req, res) => {
       // random expensive bouquet to the top of every section regardless of
       // price, which read as arbitrary to customers browsing by budget.
       .sort({ price: 1 })
-      // costPrice/recipe are internal — how much we paid and exactly which
-      // flowers/quantities a bouquet is built from — never for a public
-      // response, same reasoning as the admin-only pricing fields in ТЗ 1.2.
-      .select("-costPrice -recipe")
+      // costPrice/recipe/pricing-formula inputs are internal — how much we
+      // paid, exactly which flowers a bouquet is built from, and the
+      // margin math behind its price — never for a public response (ТЗ 1.2).
+      .select("-costPrice -recipe -packagingCost -ribbonCost -assemblyPercent -markupMultiplier -deliveryFee -priceConfirmed -priceHistory")
       .skip(skip)
       .limit(Number(limit)),
     Product.countDocuments(filter),
@@ -128,10 +132,10 @@ export const getProducts = asyncHandler(async (req, res) => {
 
 // GET /api/products/:slug  (public)
 export const getProductBySlug = asyncHandler(async (req, res) => {
-  const product = await Product.findOne({ slug: req.params.slug, isActive: true })
+  const product = await Product.findOne({ slug: req.params.slug, isActive: true, priceConfirmed: true })
     .populate("category", "name slug")
     .populate("addonCategories", "name slug")
-    .select("-costPrice -recipe");
+    .select("-costPrice -recipe -packagingCost -ribbonCost -assemblyPercent -markupMultiplier -deliveryFee -priceConfirmed -priceHistory");
   if (!product) {
     res.status(404);
     throw new Error("Product not found");
@@ -210,6 +214,12 @@ export const createProduct = asyncHandler(async (req, res) => {
     // always mirroring shortDescription (that used to erase a real story).
     story: body.story && body.story.trim() ? body.story : body.shortDescription,
     isFeatured,
+    // A brand-new bouquet has no price confirmed yet — stays unpublished
+    // (see the public-endpoint filters below) until the admin explicitly
+    // confirms one via confirmPrice. Doesn't apply to an addon at all — it
+    // has no pricing-formula/confirm UI, so gating it the same way would
+    // leave it permanently unpublishable with no way to ever confirm it.
+    priceConfirmed: body.kind !== "bouquet",
   });
   if (hasRecipe) product = await recomputeBouquet(product);
 
@@ -249,6 +259,59 @@ export const updateProduct = asyncHandler(async (req, res) => {
   await recomputeBouquet(product);
   notifyRevalidate();
   res.json(product);
+});
+
+// POST /api/admin/products/:id/confirm-price  (admin) — the only place
+// `price` (the one customers see) actually changes once a bouquet has been
+// created. Also applies the pricing-input fields (packaging/ribbon/the
+// three overrides) from the same request, so confirming always acts on
+// exactly what's in the form rather than requiring a separate save first.
+// body: { mode: "recommended" | "custom", price?, packagingCost?,
+// ribbonCost?, assemblyPercent?, markupMultiplier?, deliveryFee? }.
+export const confirmPrice = asyncHandler(async (req, res) => {
+  const product = await Product.findById(req.params.id);
+  if (!product) {
+    res.status(404);
+    throw new Error("Product not found");
+  }
+
+  const { packagingCost, ribbonCost, assemblyPercent, markupMultiplier, deliveryFee } = req.body;
+  if (packagingCost !== undefined) product.packagingCost = Math.max(0, Number(packagingCost) || 0);
+  if (ribbonCost !== undefined) product.ribbonCost = Math.max(0, Number(ribbonCost) || 0);
+  product.assemblyPercent = assemblyPercent === "" || assemblyPercent === undefined || assemblyPercent === null ? null : Number(assemblyPercent);
+  product.markupMultiplier =
+    markupMultiplier === "" || markupMultiplier === undefined || markupMultiplier === null ? null : Number(markupMultiplier);
+  product.deliveryFee = deliveryFee === "" || deliveryFee === undefined || deliveryFee === null ? null : Number(deliveryFee);
+
+  const { recommendedPrice } = await computeRecommendedPrice(product);
+
+  let finalPrice;
+  if (req.body.mode === "custom") {
+    finalPrice = Number(req.body.price);
+    if (!Number.isFinite(finalPrice) || finalPrice < 0) {
+      res.status(400);
+      throw new Error("Укажите корректную цену");
+    }
+  } else {
+    finalPrice = recommendedPrice;
+  }
+
+  const diffPercent = recommendedPrice > 0 ? ((finalPrice - recommendedPrice) / recommendedPrice) * 100 : 0;
+
+  product.price = finalPrice;
+  product.priceConfirmed = true;
+  product.priceHistory.push({
+    at: new Date(),
+    by: req.admin._id,
+    recommendedPrice,
+    finalPrice,
+    diffPercent,
+  });
+  await product.save();
+  notifyRevalidate();
+
+  const populated = await Product.findById(product._id).populate("priceHistory.by", "name");
+  res.json(populated);
 });
 
 // DELETE /api/admin/products/:id  (admin) — soft delete: flips deletedAt
