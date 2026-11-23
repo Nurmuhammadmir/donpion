@@ -59,6 +59,23 @@ const FULFILLMENT_LABELS: Record<NonNullable<Order["fulfillmentMethod"]>, string
   in_store: "Продажа в магазине",
 };
 
+// ТЗ 3.2 — matches server/src/controllers/orders.controller.js's
+// deliveryZone values (admin has no i18n — see AGENTS.md).
+const DELIVERY_ZONE_LABELS: Record<string, string> = {
+  bektemir: "Бектемир",
+  chilanzar: "Чиланзар",
+  yashnabad: "Яшнабад",
+  mirabad: "Мирабад",
+  mirzo_ulugbek: "Мирзо-Улугбек",
+  olmazor: "Алмазар",
+  sergeli: "Сергели",
+  shaykhantaur: "Шайхантаур",
+  uchtepa: "Учтепа",
+  yakkasaray: "Яккасарай",
+  yunusabad: "Юнусабад",
+  yangihayot: "Янгихаёт",
+};
+
 // The colored status control doubles as the status badge the brief asks
 // for — built from plain utilities rather than the shared `.input`/`.pill`
 // classes, since those hardcode their own border/text colors that a
@@ -192,6 +209,7 @@ function OrderDetail({
         {method === "delivery" && order.customer.address && (
           <p className="mt-1 text-sm text-ink">
             {order.customer.city}, {order.customer.address}
+            {order.deliveryZone && ` (${DELIVERY_ZONE_LABELS[order.deliveryZone] ?? order.deliveryZone})`}
           </p>
         )}
         {order.customer.comment && <p className="mt-1 text-sm text-graphite">Комментарий: {order.customer.comment}</p>}

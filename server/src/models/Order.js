@@ -66,6 +66,10 @@ const orderSchema = new mongoose.Schema(
     branch: { type: mongoose.Schema.Types.ObjectId, ref: "Branch", default: null },
     deliveryDate: { type: String, default: "" },
     deliveryTime: { type: String, default: "" },
+    // Район Ташкента (ТЗ 3.2) — informational, for the florist/courier to
+    // plan the route; delivery itself stays free for the customer either
+    // way (the cost already sits inside the bouquet's own price, see 1.2).
+    deliveryZone: { type: String, default: "" },
     // Only set when fulfillmentMethod is "pickup" — snapshot of the Branch
     // at order time (name/address), same denormalization reason as
     // orderItemSchema above: still reads correctly if the branch is later

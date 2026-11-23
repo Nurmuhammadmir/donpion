@@ -29,6 +29,24 @@ const AddressMapPicker = dynamic(() => import("@/components/AddressMapPicker"), 
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4100/api";
 
+// Район Ташкента (ТЗ 3.2) — informational only (for the florist/courier
+// to plan the route), the real 12 city districts rather than an invented
+// delivery-zone scheme.
+const DELIVERY_ZONES = [
+  "bektemir",
+  "chilanzar",
+  "yashnabad",
+  "mirabad",
+  "mirzo_ulugbek",
+  "olmazor",
+  "sergeli",
+  "shaykhantaur",
+  "uchtepa",
+  "yakkasaray",
+  "yunusabad",
+  "yangihayot",
+] as const;
+
 type Status = "idle" | "submitting" | "success" | "error";
 
 interface PlacedOrder {
@@ -118,17 +136,30 @@ export default function CheckoutForm() {
     }
   }, [status]);
 
-  const [form, setForm] = useState({
-    name: "",
-    phone: "+998",
-    comment: "",
-    fulfillmentMethod: "delivery" as "delivery" | "pickup",
-    branchId: "",
-    deliveryDate: "",
-    deliveryTime: "",
-    // Delivery is online-only, pickup is cash/card in person — these two
-    // defaults match what each fulfillment method forces/offers below.
-    paymentMethod: "online" as "cash" | "card" | "online",
+  // "В течение 2 часов" / "к часу" (ТЗ 3.2) — two delivery speeds rather
+  // than only the exact-slot picker: ASAP is the default (matches the
+  // bot's own "от 1 часа" promise), reusing deliveryTime's existing plain-
+  // string field for the human-readable value instead of a new one.
+  const [deliveryMode, setDeliveryMode] = useState<"asap" | "scheduled">("asap");
+
+  const [form, setForm] = useState(() => {
+    const today = new Date();
+    const y = today.getFullYear();
+    const m = String(today.getMonth() + 1).padStart(2, "0");
+    const d = String(today.getDate()).padStart(2, "0");
+    return {
+      name: "",
+      phone: "+998",
+      comment: "",
+      fulfillmentMethod: "delivery" as "delivery" | "pickup",
+      branchId: "",
+      deliveryDate: `${y}-${m}-${d}`,
+      deliveryTime: t("deliveryAsapValue"),
+      deliveryZone: "",
+      // Delivery is online-only, pickup is cash/card in person — these two
+      // defaults match what each fulfillment method forces/offers below.
+      paymentMethod: "online" as "cash" | "card" | "online",
+    };
   });
 
   const [branches, setBranches] = useState<Branch[]>([]);
@@ -213,6 +244,7 @@ export default function CheckoutForm() {
           branchId: form.fulfillmentMethod === "pickup" ? form.branchId : undefined,
           deliveryDate: form.deliveryDate,
           deliveryTime: form.deliveryTime,
+          deliveryZone: form.fulfillmentMethod === "delivery" ? form.deliveryZone : undefined,
           paymentMethod: form.paymentMethod,
           items: items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
           redeemPoints,
@@ -473,15 +505,62 @@ export default function CheckoutForm() {
           </div>
         </Field>
 
-        <DeliverySlotPicker
-          date={form.deliveryDate}
-          time={form.deliveryTime}
-          onChange={({ date, time }) => setForm((prev) => ({ ...prev, deliveryDate: date, deliveryTime: time }))}
-        />
+        <Field label={t("deliverySpeedLabel")}>
+          <div className="grid grid-cols-2 gap-2">
+            {(["asap", "scheduled"] as const).map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => {
+                  setDeliveryMode(mode);
+                  if (mode === "asap") {
+                    const today = new Date();
+                    const y = today.getFullYear();
+                    const mo = String(today.getMonth() + 1).padStart(2, "0");
+                    const d = String(today.getDate()).padStart(2, "0");
+                    setForm((prev) => ({ ...prev, deliveryDate: `${y}-${mo}-${d}`, deliveryTime: t("deliveryAsapValue") }));
+                  } else {
+                    setForm((prev) => ({ ...prev, deliveryTime: "" }));
+                  }
+                }}
+                className={`border px-2 py-3 text-center text-sm transition-colors ${
+                  deliveryMode === mode
+                    ? "border-hermes-500 bg-hermes-500/25 text-white [text-shadow:0_1px_4px_rgba(0,0,0,0.7)]"
+                    : "border-hairline text-graphite hover:border-ink hover:text-ink"
+                }`}
+              >
+                {t(mode === "asap" ? "deliveryAsap" : "deliveryScheduled")}
+              </button>
+            ))}
+          </div>
+        </Field>
+
+        {deliveryMode === "scheduled" && (
+          <DeliverySlotPicker
+            date={form.deliveryDate}
+            time={form.deliveryTime}
+            onChange={({ date, time }) => setForm((prev) => ({ ...prev, deliveryDate: date, deliveryTime: time }))}
+          />
+        )}
 
         {form.fulfillmentMethod === "delivery" ? (
           <div>
-            <span className="mb-2 block text-xs font-medium uppercase tracking-wide2 text-graphite">
+            <Field label={t("deliveryZoneLabel")}>
+              <select
+                value={form.deliveryZone}
+                onChange={(e) => setForm((prev) => ({ ...prev, deliveryZone: e.target.value }))}
+                className="input"
+              >
+                <option value="">{t("deliveryZonePlaceholder")}</option>
+                {DELIVERY_ZONES.map((zone) => (
+                  <option key={zone} value={zone}>
+                    {t(`zone_${zone}`)}
+                  </option>
+                ))}
+              </select>
+            </Field>
+
+            <span className="mb-2 mt-5 block text-xs font-medium uppercase tracking-wide2 text-graphite">
               {t("addressLabel")}
             </span>
             <AddressMapPicker value={location} onChange={setLocation} />

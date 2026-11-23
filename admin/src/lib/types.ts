@@ -197,6 +197,7 @@ export interface Order {
   branch?: string | { _id: string; name: string } | null;
   deliveryDate?: string;
   deliveryTime?: string;
+  deliveryZone?: string;
   subtotal: number;
   totalAmount: number;
   pointsRedeemed: number;

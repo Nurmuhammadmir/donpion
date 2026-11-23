@@ -24,6 +24,7 @@ function buildOrderAlertText(order) {
     if (order.pickupBranch?.name) lines.push(`Самовывоз: ${order.pickupBranch.name} (${order.pickupBranch.address})`);
   } else {
     if (order.customer.address) lines.push(`Адрес: ${order.customer.address}`);
+    if (order.deliveryZone) lines.push(`Район: ${order.deliveryZone}`);
     if (order.location?.lat && order.location?.lng) {
       lines.push(`Карта: https://www.google.com/maps?q=${order.location.lat},${order.location.lng}`);
     }
@@ -61,7 +62,7 @@ async function createOrderWithUniqueNumber(data, attempts = 5) {
 
 // POST /api/orders  (public — created from the checkout page)
 export const createOrder = asyncHandler(async (req, res) => {
-  const { customer, items, deliveryDate, deliveryTime, paymentMethod, location, redeemPoints, branchId } = req.body;
+  const { customer, items, deliveryDate, deliveryTime, deliveryZone, paymentMethod, location, redeemPoints, branchId } = req.body;
   const fulfillmentMethod = req.body.fulfillmentMethod === "pickup" ? "pickup" : "delivery";
 
   if (!items || items.length === 0) {
@@ -180,6 +181,7 @@ export const createOrder = asyncHandler(async (req, res) => {
       branch: pickupBranch?.branchId ?? null,
       deliveryDate,
       deliveryTime,
+      deliveryZone: deliveryZone || "",
       paymentMethod: effectivePaymentMethod,
       subtotal,
       pointsRedeemed,
