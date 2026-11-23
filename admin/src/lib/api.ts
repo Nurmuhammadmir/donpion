@@ -78,6 +78,11 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
 // Thin, non-magic wrappers around api<T>() — purely so every module page
 // builds the same request shape instead of each one re-deriving it.
 
+// "Фото можно отправить клиенту одной кнопкой" (ТЗ 2.2).
+export function sendAssemblyPhoto(orderId: string) {
+  return api(`/orders/${orderId}/send-photo`, { method: "POST" });
+}
+
 export function createPosOrder(payload: {
   items: { productId: string; quantity: number }[];
   paymentMethod: "cash" | "card";

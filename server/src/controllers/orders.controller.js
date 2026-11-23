@@ -5,7 +5,7 @@ import Customer from "../models/Customer.js";
 import SiteSettings from "../models/SiteSettings.js";
 import StockEntry from "../models/StockEntry.js";
 import Branch from "../models/Branch.js";
-import { sendTelegramMessage } from "../utils/telegramBot.js";
+import { sendTelegramMessage, sendTelegramPhoto } from "../utils/telegramBot.js";
 import { deductFlowersForSale, restoreFlowersForCancel } from "../utils/bouquetStock.js";
 import { loadPricingDefaults, buildItemCostSnapshot } from "../utils/bouquetPricing.js";
 import { parseRange } from "../utils/dateRange.js";
@@ -392,14 +392,27 @@ export const getOrderById = asyncHandler(async (req, res) => {
 
 // PATCH /api/admin/orders/:id/status  (admin)
 export const updateOrderStatus = asyncHandler(async (req, res) => {
-  const { status } = req.body;
+  const { status, assembledBy, assemblyPhoto } = req.body;
   const order = await Order.findById(req.params.id);
   if (!order) {
     res.status(404);
     throw new Error("Order not found");
   }
 
-  order.status = status;
+  if (assembledBy !== undefined) order.assembledBy = assembledBy;
+  if (assemblyPhoto !== undefined) order.assemblyPhoto = assemblyPhoto;
+
+  // "Передан курьеру" (delivering) requires a photo of the finished
+  // bouquet already on record — either from this same request or a
+  // previous one (ТЗ 2.2: обязательное поле перед этим статусом).
+  if (status === "delivering" && !order.assemblyPhoto) {
+    res.status(400);
+    throw new Error("Сначала добавьте фото готового букета");
+  }
+
+  // status is optional here — this endpoint also doubles as "save
+  // florist/photo without changing status yet" (see the OrderDetail form).
+  if (status !== undefined) order.status = status;
   await order.save();
 
   // Cashback credit — fires once, the first time an order reaches
@@ -470,6 +483,35 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
 
   const fresh = await Order.findById(order._id);
   res.json(fresh);
+});
+
+// POST /api/admin/orders/:id/send-photo  (admin) — "Фото можно отправить
+// клиенту одной кнопкой" (ТЗ 2.2).
+export const sendAssemblyPhoto = asyncHandler(async (req, res) => {
+  const order = await Order.findById(req.params.id);
+  if (!order) {
+    res.status(404);
+    throw new Error("Order not found");
+  }
+  if (!order.assemblyPhoto) {
+    res.status(400);
+    throw new Error("У заказа ещё нет фото готового букета");
+  }
+
+  const customer = order.customerId ? await Customer.findById(order.customerId) : null;
+  if (!customer?.telegramChatId) {
+    res.status(400);
+    throw new Error("У клиента не привязан Telegram — отправить фото нельзя");
+  }
+
+  const serverUrl = process.env.SERVER_PUBLIC_URL || "";
+  const absolutePhotoUrl = order.assemblyPhoto.startsWith("http") ? order.assemblyPhoto : `${serverUrl}${order.assemblyPhoto}`;
+  const sent = await sendTelegramPhoto(customer.telegramChatId, absolutePhotoUrl, `Ваш букет готов! 🌸 Заказ ${order.orderNumber}`);
+  if (!sent) {
+    res.status(502);
+    throw new Error("Не удалось отправить фото в Telegram — проверьте, что сервер доступен извне (SERVER_PUBLIC_URL)");
+  }
+  res.json({ message: "Фото отправлено" });
 });
 
 // GET /api/orders/stats  (admin) — small dashboard rollup: revenue over the

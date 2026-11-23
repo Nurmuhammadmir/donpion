@@ -54,6 +54,28 @@ export async function sendTelegramMessage(chatId, text, { withMiniAppButton = fa
   }
 }
 
+// "Фото готового букета" one-click send (ТЗ 2.2) — Telegram fetches the
+// photo itself from this URL server-side, so a relative /uploads/... path
+// has to be made absolute first (see SERVER_PUBLIC_URL).
+export async function sendTelegramPhoto(chatId, photoUrl, caption) {
+  if (!API_BASE) return false;
+  try {
+    const res = await fetch(`${API_BASE}/sendPhoto`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chat_id: chatId, photo: photoUrl, ...(caption ? { caption } : {}) }),
+    });
+    if (!res.ok) {
+      console.error("Telegram sendPhoto failed:", await res.text());
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error("Telegram sendPhoto error:", err.message);
+    return false;
+  }
+}
+
 export function isBotConfigured() {
   return Boolean(API_BASE);
 }

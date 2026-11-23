@@ -6,6 +6,7 @@ import {
   getOrders,
   getOrderById,
   updateOrderStatus,
+  sendAssemblyPhoto,
   getOrderStats,
   clearOrders,
 } from "../controllers/orders.controller.js";
@@ -22,5 +23,6 @@ router.get("/", protectAdmin, getOrders);
 router.delete("/", protectAdmin, clearOrders);
 router.get("/:id", protectAdmin, getOrderById);
 router.patch("/:id/status", protectAdmin, updateOrderStatus);
+router.post("/:id/send-photo", protectAdmin, sendAssemblyPhoto);
 
 export default router;

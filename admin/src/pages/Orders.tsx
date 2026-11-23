@@ -1,6 +1,6 @@
-import { Fragment, lazy, Suspense, useEffect, useMemo, useState } from "react";
+import { Fragment, lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, ChevronUp, Globe, MapPin, Store } from "lucide-react";
-import { api, ApiError } from "@/lib/api";
+import { api, ApiError, resolveImageUrl, sendAssemblyPhoto, uploadProductImages } from "@/lib/api";
 import type { Branch, Order } from "@/lib/types";
 import { ORDER_SOURCE_LABELS, ORDER_STATUS_LABELS, PAYMENT_METHOD_LABELS, PAYMENT_STATUS_LABELS } from "@/lib/types";
 import { useBranch } from "@/context/BranchContext";
@@ -109,9 +109,70 @@ function BranchTag({ name }: { name: string }) {
   );
 }
 
-function OrderDetail({ order, branches }: { order: Order; branches: Branch[] }) {
+function OrderDetail({
+  order,
+  branches,
+  onUpdated,
+}: {
+  order: Order;
+  branches: Branch[];
+  onUpdated: (patch: Partial<Order>) => void;
+}) {
   const method = order.fulfillmentMethod ?? "delivery";
   const resolvedBranch = resolveBranchName(order, branches);
+
+  // "Готовый букет в заказе" (ТЗ 2.2) — local draft, saved explicitly
+  // (not on every keystroke) since a photo upload already round-trips.
+  const [assembledBy, setAssembledBy] = useState(order.assembledBy);
+  const [photoUrl, setPhotoUrl] = useState(order.assemblyPhoto);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [savingAssembly, setSavingAssembly] = useState(false);
+  const [assemblyError, setAssemblyError] = useState<string | null>(null);
+  const [sending, setSending] = useState(false);
+  const [sendResult, setSendResult] = useState<string | null>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
+
+  const handlePhotoSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (photoInputRef.current) photoInputRef.current.value = "";
+    if (!file) return;
+    setUploadingPhoto(true);
+    setAssemblyError(null);
+    try {
+      const [url] = await uploadProductImages([file], order.orderNumber);
+      setPhotoUrl(url);
+    } catch (err) {
+      setAssemblyError(err instanceof ApiError ? err.message : "Не удалось загрузить фото");
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
+  const handleSaveAssembly = async () => {
+    setSavingAssembly(true);
+    setAssemblyError(null);
+    try {
+      await api(`/orders/${order._id}/status`, { method: "PATCH", body: JSON.stringify({ assembledBy, assemblyPhoto: photoUrl }) });
+      onUpdated({ assembledBy, assemblyPhoto: photoUrl });
+    } catch (err) {
+      setAssemblyError(err instanceof ApiError ? err.message : "Не удалось сохранить");
+    } finally {
+      setSavingAssembly(false);
+    }
+  };
+
+  const handleSendPhoto = async () => {
+    setSending(true);
+    setSendResult(null);
+    try {
+      await sendAssemblyPhoto(order._id);
+      setSendResult("Отправлено клиенту в Telegram.");
+    } catch (err) {
+      setSendResult(err instanceof ApiError ? err.message : "Не удалось отправить");
+    } finally {
+      setSending(false);
+    }
+  };
 
   return (
     <div className="grid gap-5 py-3 sm:grid-cols-2">
@@ -185,6 +246,46 @@ function OrderDetail({ order, branches }: { order: Order; branches: Branch[] }) 
             )}
           </div>
         )}
+
+        <div className="mt-4 border-t border-hairline pt-3">
+          <p className={LABEL_CLASS}>Готовый букет</p>
+          <label className="mt-2 block max-w-xs">
+            <span className="mb-1 block text-xs text-graphite">Флорист, кто собрал</span>
+            <input value={assembledBy} onChange={(e) => setAssembledBy(e.target.value)} placeholder="Имя" className="input" />
+          </label>
+
+          <div className="mt-2 flex items-center gap-3">
+            {photoUrl ? (
+              <img src={resolveImageUrl(photoUrl)} alt="" className="h-16 w-16 flex-none rounded-lg object-cover" />
+            ) : (
+              <div className="flex h-16 w-16 flex-none items-center justify-center rounded-lg border border-dashed border-hairline text-center text-[10px] text-graphite">
+                Нет фото
+              </div>
+            )}
+            <button type="button" onClick={() => photoInputRef.current?.click()} disabled={uploadingPhoto} className="btn-secondary">
+              {uploadingPhoto ? "Грузим…" : photoUrl ? "Заменить фото" : "Добавить фото"}
+            </button>
+            <input
+              ref={photoInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/avif"
+              onChange={handlePhotoSelected}
+              className="hidden"
+            />
+          </div>
+
+          {assemblyError && <p className="mt-2 text-xs text-hermes-600">{assemblyError}</p>}
+
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button type="button" onClick={handleSaveAssembly} disabled={savingAssembly} className="btn-primary">
+              {savingAssembly ? "Сохраняем…" : "Сохранить"}
+            </button>
+            <button type="button" onClick={handleSendPhoto} disabled={sending || !photoUrl} className="btn-secondary">
+              {sending ? "Отправляем…" : "Отправить фото клиенту"}
+            </button>
+          </div>
+          {sendResult && <p className="mt-2 text-xs text-graphite">{sendResult}</p>}
+        </div>
       </div>
     </div>
   );
@@ -197,6 +298,7 @@ function OrderCard({
   expanded,
   onToggle,
   onStatusChange,
+  onUpdated,
 }: {
   order: Order;
   branches: Branch[];
@@ -204,6 +306,7 @@ function OrderCard({
   expanded: boolean;
   onToggle: () => void;
   onStatusChange: (status: Order["status"]) => void;
+  onUpdated: (patch: Partial<Order>) => void;
 }) {
   const resolvedBranch = showBranch ? resolveBranchName(order, branches) : null;
 
@@ -247,7 +350,7 @@ function OrderCard({
 
       {expanded && (
         <div className="border-t border-hairline">
-          <OrderDetail order={order} branches={branches} />
+          <OrderDetail order={order} branches={branches} onUpdated={onUpdated} />
         </div>
       )}
     </div>
@@ -315,6 +418,12 @@ export default function Orders() {
     }
   };
 
+  // ТЗ 2.2 — after saving the florist name/photo, reflect it in the list
+  // immediately (the PATCH itself already happened inside OrderDetail).
+  const handleOrderUpdated = (id: string, patch: Partial<Order>) => {
+    setOrders((prev) => prev.map((o) => (o._id === id ? { ...o, ...patch } : o)));
+  };
+
   const toggleExpanded = (id: string) => setExpanded((prev) => (prev === id ? null : id));
 
   return (
@@ -358,6 +467,7 @@ export default function Orders() {
             expanded={expanded === order._id}
             onToggle={() => toggleExpanded(order._id)}
             onStatusChange={(status) => handleStatusChange(order._id, status)}
+            onUpdated={(patch) => handleOrderUpdated(order._id, patch)}
           />
         ))}
         {loading && filteredOrders.length === 0 && (
@@ -440,7 +550,7 @@ export default function Orders() {
                   {expanded === order._id && (
                     <tr>
                       <td colSpan={columnCount} className="bg-canvas">
-                        <OrderDetail order={order} branches={branches} />
+                        <OrderDetail order={order} branches={branches} onUpdated={(patch) => handleOrderUpdated(order._id, patch)} />
                       </td>
                     </tr>
                   )}

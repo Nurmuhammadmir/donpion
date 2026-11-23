@@ -185,6 +185,10 @@ export interface Order {
   // order time; procurementNote names which one(s).
   needsProcurement: boolean;
   procurementNote: string;
+  // ТЗ 2.2 — кто собрал, фото готового букета (обязательно перед
+  // "delivering" — see updateOrderStatus).
+  assembledBy: string;
+  assemblyPhoto: string;
   createdAt: string;
 }
 

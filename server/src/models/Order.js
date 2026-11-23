@@ -137,6 +137,13 @@ const orderSchema = new mongoose.Schema(
     // not a blocker on the order itself.
     needsProcurement: { type: Boolean, default: false },
     procurementNote: { type: String, default: "" },
+    // "Готовый букет в заказе" (ТЗ 2.2) — who physically assembled it, and
+    // a photo of the finished bouquet. assemblyPhoto is required before the
+    // order can move to "delivering" ("Передан курьеру" — see
+    // updateOrderStatus) and can be sent to the customer's Telegram chat
+    // with one click from the admin Orders page.
+    assembledBy: { type: String, default: "" },
+    assemblyPhoto: { type: String, default: "" },
     status: {
       type: String,
       enum: ["new", "confirmed", "delivering", "completed", "cancelled"],
