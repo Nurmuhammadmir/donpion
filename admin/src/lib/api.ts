@@ -169,6 +169,27 @@ export function getExchangeRate(date: string) {
   );
 }
 
+// Клиенты (ТЗ 2.3).
+export function getCustomers(params: { search?: string; page?: number; limit?: number }) {
+  const qs = new URLSearchParams();
+  if (params.search) qs.set("search", params.search);
+  if (params.page) qs.set("page", String(params.page));
+  if (params.limit) qs.set("limit", String(params.limit));
+  return api(`/customers?${qs.toString()}`);
+}
+
+export function getCustomer(id: string) {
+  return api(`/customers/${id}`);
+}
+
+export function updateCustomer(id: string, payload: { name?: string; importantDates?: { occasion: string; date: string; recipient: string }[] }) {
+  return api(`/customers/${id}`, { method: "PUT", body: JSON.stringify(payload) });
+}
+
+export function getUpcomingDates(days = 3) {
+  return api(`/customers/upcoming-dates?days=${days}`);
+}
+
 // "Списать" (ТЗ 2.1) — either a flower (flowerId) or a directly-stocked
 // addon (productId), never both. `photo` is already an uploaded URL from
 // uploadProductImages, not a File.

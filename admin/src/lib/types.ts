@@ -267,6 +267,33 @@ export const STOCK_REASON_LABELS: Record<StockEntry["reason"], string> = {
   writeoff: "Списание",
 };
 
+// ТЗ 2.3 — карточка клиента.
+export interface ImportantDate {
+  occasion: string;
+  date: string; // "MM-DD"
+  recipient: string;
+}
+
+export interface Customer {
+  _id: string;
+  name: string;
+  phone: string;
+  telegramChatId: string;
+  pointsBalance: number;
+  importantDates: ImportantDate[];
+  createdAt: string;
+}
+
+export interface UpcomingDate {
+  customerId: string;
+  name: string;
+  phone: string;
+  occasion: string;
+  recipient: string;
+  date: string;
+  inDays: number;
+}
+
 // ТЗ 2.1 — Отчет по списаниям за период в сумах.
 export interface WriteoffReport {
   range: { from: string; to: string };

@@ -1,15 +1,16 @@
 import { NavLink, Outlet } from "react-router-dom";
-import { ClipboardList, Flower2, LayoutDashboard, Settings, Wallet, Warehouse } from "lucide-react";
+import { ClipboardList, Flower2, LayoutDashboard, Settings, Users, Wallet, Warehouse } from "lucide-react";
 import BranchSwitcher from "@/components/BranchSwitcher";
 import { BranchProvider } from "@/context/BranchContext";
 
-// The five sections the whole admin is organized around — same set, same
+// The six sections the whole admin is organized around — same set, same
 // order, on the desktop sidebar and the mobile bottom tab bar, so the app
 // reads as one product instead of two separate layouts.
 const NAV = [
   { to: "/", label: "Дашборд", icon: LayoutDashboard, end: true },
   { to: "/showcase", label: "Витрина", icon: Flower2, end: false },
   { to: "/orders", label: "Заказы", icon: ClipboardList, end: false },
+  { to: "/customers", label: "Клиенты", icon: Users, end: false },
   { to: "/finance", label: "Финансы", icon: Wallet, end: false },
   { to: "/warehouse", label: "Склад", icon: Warehouse, end: false },
 ] as const;
