@@ -24,12 +24,6 @@ interface StoredRegistration {
   expiresAt: number;
 }
 
-declare global {
-  interface Window {
-    Telegram?: { WebApp?: { openTelegramLink?: (url: string) => void } };
-  }
-}
-
 // Gates checkout and the account page: name + phone, then a code confirms
 // the number and signs the visitor in. The server sends through both
 // Telegram channels at once when available — Gateway (instant, no bot

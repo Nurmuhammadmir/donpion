@@ -7,6 +7,7 @@ import { Link } from "@/i18n/Link";
 import { useCustomerAuth } from "@/components/CustomerAuthProvider";
 import { formatUZS } from "@/lib/format";
 import { buildClickPayUrl, buildPaymePayUrl } from "@/lib/payments";
+import { openExternalLink } from "@/lib/telegramWebApp";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4100/api";
 const ACTIVE_STATUSES = ["new", "confirmed", "delivering"];
@@ -118,7 +119,7 @@ export default function CartCurrentOrder() {
                 {clickUrl && (
                   <button
                     type="button"
-                    onClick={() => (window.location.href = clickUrl)}
+                    onClick={() => openExternalLink(clickUrl)}
                     className="block w-full overflow-hidden rounded-xl transition-opacity hover:opacity-90"
                   >
                     <Image src="/pay-button-click.png" alt={tCheckout("payWithClickButton")} width={1774} height={887} className="h-auto w-full" />
@@ -127,7 +128,7 @@ export default function CartCurrentOrder() {
                 {paymeUrl && (
                   <button
                     type="button"
-                    onClick={() => (window.location.href = paymeUrl)}
+                    onClick={() => openExternalLink(paymeUrl)}
                     className="block w-full overflow-hidden rounded-xl transition-opacity hover:opacity-90"
                   >
                     <Image src="/pay-button-payme.png" alt={tCheckout("payWithPaymeButton")} width={1774} height={887} className="h-auto w-full" />

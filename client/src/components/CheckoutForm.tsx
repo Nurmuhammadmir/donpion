@@ -14,6 +14,7 @@ import PhoneInput from "@/components/PhoneInput";
 import { formatUZS } from "@/lib/format";
 import { getBranches } from "@/lib/api";
 import { buildClickPayUrl, buildPaymePayUrl } from "@/lib/payments";
+import { openExternalLink } from "@/lib/telegramWebApp";
 import type { Branch } from "@/types";
 import Button from "@/components/Button";
 
@@ -368,7 +369,7 @@ export default function CheckoutForm() {
                       {clickUrl && (
                         <button
                           type="button"
-                          onClick={() => (window.location.href = clickUrl)}
+                          onClick={() => openExternalLink(clickUrl)}
                           className="block w-full overflow-hidden rounded-xl transition-opacity hover:opacity-90"
                         >
                           <Image
@@ -383,7 +384,7 @@ export default function CheckoutForm() {
                       {paymeUrl && (
                         <button
                           type="button"
-                          onClick={() => (window.location.href = paymeUrl)}
+                          onClick={() => openExternalLink(paymeUrl)}
                           className="block w-full overflow-hidden rounded-xl transition-opacity hover:opacity-90"
                         >
                           <Image
