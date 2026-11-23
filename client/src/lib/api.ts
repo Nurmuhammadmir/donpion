@@ -119,6 +119,10 @@ export async function getProducts(params: {
   character?: string;
   addonCategory?: string;
   occasion?: string;
+  recipient?: string;
+  color?: string;
+  priceMin?: number;
+  priceMax?: number;
   featured?: boolean;
   page?: number;
   limit?: number;
@@ -128,6 +132,10 @@ export async function getProducts(params: {
   if (params.character) search.set("character", params.character);
   if (params.addonCategory) search.set("addonCategory", params.addonCategory);
   if (params.occasion) search.set("occasion", params.occasion);
+  if (params.recipient) search.set("recipient", params.recipient);
+  if (params.color) search.set("color", params.color);
+  if (params.priceMin) search.set("priceMin", String(params.priceMin));
+  if (params.priceMax) search.set("priceMax", String(params.priceMax));
   if (params.featured) search.set("featured", "true");
   if (params.page) search.set("page", String(params.page));
   if (params.limit) search.set("limit", String(params.limit));

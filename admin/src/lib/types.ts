@@ -68,6 +68,27 @@ export interface PricingSettings {
   deliveryFee: number;
 }
 
+// ТЗ 3.1 — catalog filters, a fixed list rather than an admin-managed
+// taxonomy (see server/src/constants/catalogFilters.js for why).
+export type Recipient = "mom" | "wife" | "girlfriend" | "colleague";
+export const RECIPIENT_LABELS: Record<Recipient, string> = {
+  mom: "Маме",
+  wife: "Жене",
+  girlfriend: "Девушке",
+  colleague: "Коллеге",
+};
+
+export type BouquetColor = "red" | "white" | "pink" | "yellow" | "purple" | "orange" | "mixed";
+export const COLOR_LABELS: Record<BouquetColor, string> = {
+  red: "Красный",
+  white: "Белый",
+  pink: "Розовый",
+  yellow: "Жёлтый",
+  purple: "Фиолетовый",
+  orange: "Оранжевый",
+  mixed: "Микс",
+};
+
 export type FlowerType = "flower" | "greenery" | "packaging" | "ribbon" | "basket";
 
 export const FLOWER_TYPE_LABELS: Record<FlowerType, string> = {
@@ -116,6 +137,8 @@ export interface Product {
   characters: { _id: string; name: string; slug: string }[];
   addonCategories: { _id: string; name: string; slug: string }[];
   occasions: { _id: string; name: string; slug: string }[];
+  recipients: Recipient[];
+  colors: BouquetColor[];
   price: number;
   oldPrice: number | null;
   stock: number;

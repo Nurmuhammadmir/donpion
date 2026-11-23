@@ -12,7 +12,8 @@ import {
   resolveImageUrl,
   uploadProductImages,
 } from "@/lib/api";
-import type { AddonCategory, Category, Flower, Occasion, PriceHistoryEntry, Product } from "@/lib/types";
+import type { AddonCategory, BouquetColor, Category, Flower, Occasion, PriceHistoryEntry, Product, Recipient } from "@/lib/types";
+import { COLOR_LABELS, RECIPIENT_LABELS } from "@/lib/types";
 import ShowcaseTabs from "@/components/ShowcaseTabs";
 import PriceInput from "@/components/PriceInput";
 import ImageCropModal from "@/components/ImageCropModal";
@@ -34,6 +35,8 @@ const emptyForm = {
   category: "",
   addonCategories: [] as string[],
   occasions: [] as string[],
+  recipients: [] as Recipient[],
+  colors: [] as BouquetColor[],
   price: "",
   oldPrice: "",
   stock: "",
@@ -145,6 +148,8 @@ export default function ProductForm() {
           category: p.category?._id ?? "",
           addonCategories: p.addonCategories?.map((c) => c._id) ?? [],
           occasions: p.occasions?.map((o) => o._id) ?? [],
+          recipients: p.recipients ?? [],
+          colors: p.colors ?? [],
           price: String(p.price),
           oldPrice: p.oldPrice ? String(p.oldPrice) : "",
           stock: String(p.stock),
@@ -361,6 +366,8 @@ export default function ProductForm() {
         ? {
             ...shared,
             occasions: form.occasions,
+            recipients: form.recipients,
+            colors: form.colors,
             recipe: validRecipeRows.map((r) => ({ flower: r.flowerId, quantity: Number(r.quantity) })),
             isPreOrder: form.isPreOrder,
             packagingCost: Number(form.packagingCost) || 0,
@@ -597,6 +604,46 @@ export default function ProductForm() {
                       }
                     />
                     {occasion.name}
+                  </label>
+                ))}
+              </div>
+            </Field>
+
+            <Field label="Кому">
+              <div className="flex flex-wrap gap-x-5 gap-y-2">
+                {(Object.entries(RECIPIENT_LABELS) as [Recipient, string][]).map(([value, label]) => (
+                  <label key={value} className="flex items-center gap-2 text-sm text-ink">
+                    <input
+                      type="checkbox"
+                      checked={form.recipients.includes(value)}
+                      onChange={(e) =>
+                        setForm((prev) => ({
+                          ...prev,
+                          recipients: e.target.checked ? [...prev.recipients, value] : prev.recipients.filter((r) => r !== value),
+                        }))
+                      }
+                    />
+                    {label}
+                  </label>
+                ))}
+              </div>
+            </Field>
+
+            <Field label="Цвет">
+              <div className="flex flex-wrap gap-x-5 gap-y-2">
+                {(Object.entries(COLOR_LABELS) as [BouquetColor, string][]).map(([value, label]) => (
+                  <label key={value} className="flex items-center gap-2 text-sm text-ink">
+                    <input
+                      type="checkbox"
+                      checked={form.colors.includes(value)}
+                      onChange={(e) =>
+                        setForm((prev) => ({
+                          ...prev,
+                          colors: e.target.checked ? [...prev.colors, value] : prev.colors.filter((c) => c !== value),
+                        }))
+                      }
+                    />
+                    {label}
                   </label>
                 ))}
               </div>

@@ -62,12 +62,17 @@ export interface SiteSettings {
   cashbackPercent: number;
 }
 
+export type Recipient = "mom" | "wife" | "girlfriend" | "colleague";
+export type BouquetColor = "red" | "white" | "pink" | "yellow" | "purple" | "orange" | "mixed";
+
 export interface Product {
   _id: string;
   name: string;
   slug: string;
   category: CategoryRef;
   addonCategories?: CategoryRef[];
+  recipients?: Recipient[];
+  colors?: BouquetColor[];
   price: number;
   oldPrice: number | null;
   currency: string;

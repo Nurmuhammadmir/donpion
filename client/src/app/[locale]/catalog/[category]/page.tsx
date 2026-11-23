@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getTranslations, setRequestLocale } from "next-intl/server";
-import { getCategories, getCategoryBySlug, getProducts } from "@/lib/api";
+import { getCategories, getCategoryBySlug, getOccasions, getProducts } from "@/lib/api";
 import ProductCard from "@/components/ProductCard";
 import BackLink from "@/components/BackLink";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import JsonLd from "@/components/JsonLd";
+import CatalogFilters from "@/components/CatalogFilters";
 import { resolveImageUrl } from "@/lib/images";
 import { routing } from "@/i18n/routing";
 import { localeAlternates } from "@/lib/seo";
@@ -16,6 +17,10 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 
 interface PageProps {
   params: { locale: string; category: string };
+  // Фильтры каталога (ТЗ 3.1) — reading any of these makes Next.js render
+  // this request dynamically instead of serving the static/ISR version,
+  // same as any other searchParams-driven page.
+  searchParams: { occasion?: string; recipient?: string; color?: string; priceMin?: string; priceMax?: string };
 }
 
 // Pre-renders every category page, for every locale, at build time (SSG);
@@ -46,7 +51,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   };
 }
 
-export default async function CategoryPage({ params: { locale, category: categorySlug } }: PageProps) {
+export default async function CategoryPage({ params: { locale, category: categorySlug }, searchParams }: PageProps) {
   setRequestLocale(locale);
   const t = await getTranslations("Catalog");
   const tc = await getTranslations("Common");
@@ -54,7 +59,18 @@ export default async function CategoryPage({ params: { locale, category: categor
   const category = await getCategoryBySlug(categorySlug);
   if (!category) notFound();
 
-  const { items } = await getProducts({ category: category.slug, limit: 60 });
+  const [{ items }, occasions] = await Promise.all([
+    getProducts({
+      category: category.slug,
+      limit: 60,
+      occasion: searchParams.occasion,
+      recipient: searchParams.recipient,
+      color: searchParams.color,
+      priceMin: searchParams.priceMin ? Number(searchParams.priceMin) : undefined,
+      priceMax: searchParams.priceMax ? Number(searchParams.priceMax) : undefined,
+    }),
+    getOccasions(),
+  ]);
 
   const itemListJsonLd = {
     "@context": "https://schema.org",
@@ -82,6 +98,8 @@ export default async function CategoryPage({ params: { locale, category: categor
         <h1 className="font-display text-3xl tracking-luxe text-ink sm:text-4xl">{category.name}</h1>
         <p className="mt-6 text-sm leading-relaxed text-graphite">{category.introText}</p>
       </header>
+
+      <CatalogFilters occasions={occasions.map((o) => ({ name: o.name, slug: o.slug }))} />
 
       {items.length > 0 ? (
         <div className="mt-16 grid grid-cols-2 gap-x-6 gap-y-12 sm:gap-x-8 lg:grid-cols-4">

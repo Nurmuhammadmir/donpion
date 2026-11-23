@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { RECIPIENTS, COLORS } from "../constants/catalogFilters.js";
 
 const productSchema = new mongoose.Schema(
   {
@@ -38,6 +39,11 @@ const productSchema = new mongoose.Schema(
     // What occasion(s) this product suits (see Occasion) — powers the
     // homepage "Свадебная флористика / Корпоративные заказы / ..." section.
     occasions: [{ type: mongoose.Schema.Types.ObjectId, ref: "Occasion" }],
+    // "Кому" and "цвет" catalog filters (ТЗ 3.1) — see constants/
+    // catalogFilters.js for why these are plain fixed enums, not a
+    // separate admin-managed taxonomy like Occasion above.
+    recipients: { type: [String], enum: RECIPIENTS, default: [] },
+    colors: { type: [String], enum: COLORS, default: [] },
 
     price: { type: Number, required: true, min: 0 },
     oldPrice: { type: Number, min: 0, default: null },

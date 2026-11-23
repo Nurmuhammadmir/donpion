@@ -212,7 +212,27 @@
     "description": "Возможно, товар закончился или ссылка устарела."
   },
   "Catalog": {
-    "empty": "В этой категории пока нет товаров. Загляните чуть позже — ассортимент обновляется каждую неделю."
+    "empty": "В этой категории пока нет товаров. Загляните чуть позже — ассортимент обновляется каждую неделю.",
+    "filters": "Фильтры",
+    "occasion": "Повод",
+    "recipient": "Кому",
+    "color": "Цвет",
+    "priceFrom": "Цена от",
+    "priceTo": "до",
+    "apply": "Применить",
+    "reset": "Сбросить",
+    "allOccasions": "Все поводы",
+    "recipient_mom": "Маме",
+    "recipient_wife": "Жене",
+    "recipient_girlfriend": "Девушке",
+    "recipient_colleague": "Коллеге",
+    "color_red": "Красный",
+    "color_white": "Белый",
+    "color_pink": "Розовый",
+    "color_yellow": "Жёлтый",
+    "color_purple": "Фиолетовый",
+    "color_orange": "Оранжевый",
+    "color_mixed": "Микс"
   },
   "Collection": {
     "eyebrow": "Luxury Collection",

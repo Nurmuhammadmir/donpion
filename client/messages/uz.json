@@ -212,7 +212,27 @@
     "description": "Ehtimol, mahsulot tugagan yoki havola eskirgan."
   },
   "Catalog": {
-    "empty": "Bu kategoriyada hozircha mahsulot yo'q. Birozdan so'ng qayta tashrif buyuring — assortiment har hafta yangilanadi."
+    "empty": "Bu kategoriyada hozircha mahsulot yo'q. Birozdan so'ng qayta tashrif buyuring — assortiment har hafta yangilanadi.",
+    "filters": "Filtrlar",
+    "occasion": "Sabab",
+    "recipient": "Kimga",
+    "color": "Rang",
+    "priceFrom": "Narxi",
+    "priceTo": "gacha",
+    "apply": "Qo'llash",
+    "reset": "Tozalash",
+    "allOccasions": "Barcha sabablar",
+    "recipient_mom": "Onaga",
+    "recipient_wife": "Xotinga",
+    "recipient_girlfriend": "Sevgiliga",
+    "recipient_colleague": "Hamkasbga",
+    "color_red": "Qizil",
+    "color_white": "Oq",
+    "color_pink": "Pushti",
+    "color_yellow": "Sariq",
+    "color_purple": "Binafsha",
+    "color_orange": "Apelsin",
+    "color_mixed": "Aralash"
   },
   "Collection": {
     "eyebrow": "Luxury Collection",

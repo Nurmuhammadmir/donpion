@@ -8,6 +8,7 @@ import { slugifyRu } from "../utils/slugify.js";
 import { notifyRevalidate } from "../utils/notifyRevalidate.js";
 import { recomputeBouquet } from "../utils/bouquetStock.js";
 import { computeRecommendedPrice } from "../utils/bouquetPricing.js";
+import { RECIPIENTS, COLORS } from "../constants/catalogFilters.js";
 
 // Every product tags every active Character — the admin never picks this
 // (there's nothing to decide: it's not "which personality does this suit",
@@ -61,13 +62,27 @@ function asQueryString(value) {
   return typeof value === "string" ? value : undefined;
 }
 
-// GET /api/products?category=rozy&character=..&addonCategory=..&occasion=..&search=..&featured=true&page=1&limit=24
+// Comma-separated list of enum values (ТЗ 3.1 — "кому"/цвет checkboxes
+// can select more than one), kept to the known fixed list so this can't
+// become a free-form query injection vector.
+function asEnumList(value, allowed) {
+  const str = asQueryString(value);
+  if (!str) return undefined;
+  const values = str.split(",").filter((v) => allowed.includes(v));
+  return values.length > 0 ? values : undefined;
+}
+
+// GET /api/products?category=rozy&character=..&addonCategory=..&occasion=..&recipient=..&color=..&priceMin=&priceMax=&search=..&featured=true&page=1&limit=24
 export const getProducts = asyncHandler(async (req, res) => {
   const { page = 1, limit = 24 } = req.query;
   const category = asQueryString(req.query.category);
   const character = asQueryString(req.query.character);
   const addonCategory = asQueryString(req.query.addonCategory);
   const occasion = asQueryString(req.query.occasion);
+  const recipients = asEnumList(req.query.recipient, RECIPIENTS);
+  const colors = asEnumList(req.query.color, COLORS);
+  const priceMin = Number(req.query.priceMin);
+  const priceMax = Number(req.query.priceMax);
   const search = asQueryString(req.query.search);
   const featured = asQueryString(req.query.featured);
 
@@ -98,6 +113,14 @@ export const getProducts = asyncHandler(async (req, res) => {
     const occ = await Occasion.findOne({ slug: occasion });
     if (!occ) return res.json({ items: [], total: 0, page: Number(page), pages: 0 });
     filter.occasions = occ._id;
+  }
+
+  if (recipients) filter.recipients = { $in: recipients };
+  if (colors) filter.colors = { $in: colors };
+  if (Number.isFinite(priceMin) || Number.isFinite(priceMax)) {
+    filter.price = {};
+    if (Number.isFinite(priceMin)) filter.price.$gte = priceMin;
+    if (Number.isFinite(priceMax)) filter.price.$lte = priceMax;
   }
 
   if (featured === "true") filter.isFeatured = true;
