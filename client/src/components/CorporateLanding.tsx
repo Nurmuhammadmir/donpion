@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import CatalogFilters from "@/components/CatalogFilters";
 import CorporateProductCard from "@/components/CorporateProductCard";
+import CorporateCartBar from "@/components/CorporateCartBar";
 import type { Product } from "@/types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4100/api";
@@ -48,20 +49,30 @@ export default function CorporateLanding({ products }: { products: Product[] }) 
   };
 
   return (
-    <div>
-      <header className="max-w-2xl">
-        <p className="eyebrow mb-4">{t("eyebrow")}</p>
-        <h1 className="font-display text-3xl tracking-luxe text-ink sm:text-4xl">{t("title")}</h1>
-        <p className="mt-6 text-sm leading-relaxed text-graphite">{t("intro")}</p>
-      </header>
+    <div className="pb-20">
+      <CorporateCartBar />
 
-      <div className="mt-12 grid grid-cols-2 gap-6 border-y border-hairline py-8 sm:grid-cols-4">
-        {VALUE_PROPS.map((key) => (
-          <div key={key} className="text-center">
-            <span className="block text-xs font-medium uppercase tracking-wide2 text-hermes-500">{String(VALUE_PROPS.indexOf(key) + 1).padStart(2, "0")}</span>
-            <p className="mt-2 text-xs leading-relaxed text-graphite">{t(`value_${key}`)}</p>
-          </div>
-        ))}
+      {/* Negative margin cancels the page's own px-6/lg:px-10 so this bleeds
+          to the edge of the content column (not the full viewport — a
+          plain 100vw breakout risks a horizontal scrollbar; this doesn't),
+          reading as a deliberate break from the rest of the (white-
+          background) site instead of just another section on the page. */}
+      <div className="-mx-6 bg-navy px-6 py-12 text-white sm:-mx-10 sm:px-10 sm:py-16">
+        <header className="max-w-2xl">
+          <p className="eyebrow mb-4 text-hermes-500">{t("eyebrow")}</p>
+          <h1 className="font-display text-3xl tracking-luxe text-white sm:text-4xl">{t("title")}</h1>
+          <div className="mt-5 h-px w-14 bg-hermes-500" />
+          <p className="mt-6 text-sm leading-relaxed text-white/70">{t("intro")}</p>
+        </header>
+
+        <div className="mt-12 grid grid-cols-2 gap-6 border-t border-white/10 pt-8 sm:grid-cols-4">
+          {VALUE_PROPS.map((key, i) => (
+            <div key={key}>
+              <span className="block text-xs font-medium uppercase tracking-wide2 text-hermes-500">{String(i + 1).padStart(2, "0")}</span>
+              <p className="mt-2 text-xs leading-relaxed text-white/70">{t(`value_${key}`)}</p>
+            </div>
+          ))}
+        </div>
       </div>
 
       <div className="mt-16 border border-hairline bg-hermes-50/20 p-6 sm:p-8">

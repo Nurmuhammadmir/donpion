@@ -3,6 +3,7 @@ import Subscription from "../models/Subscription.js";
 import Order from "../models/Order.js";
 import Product from "../models/Product.js";
 import Branch from "../models/Branch.js";
+import Customer from "../models/Customer.js";
 import StockEntry from "../models/StockEntry.js";
 import { deductFlowersForSale } from "../utils/bouquetStock.js";
 import { loadPricingDefaults, buildItemCostSnapshot } from "../utils/bouquetPricing.js";
@@ -148,6 +149,23 @@ export const createSubscription = asyncHandler(async (req, res) => {
     sendTelegramMessage(adminChatId, lines.join("\n"), { parseMode: "HTML" });
   }
 
+  // A nice confirmation to the customer themselves, not just the owner's
+  // alert above — only if they verified through the bot (telegramChatId
+  // set); a Telegram Gateway-verified customer who never opened the bot
+  // has none, and there's nowhere to send this.
+  if (req.customer.telegramChatId) {
+    const scheduleLines = deliveryDocs.map((d) => `· ${d.date} — ${d.name}`);
+    const customerLines = [
+      `🌸 <b>Подписка оформлена!</b>`,
+      "",
+      ...scheduleLines,
+      "",
+      `Итого: ${totalAmount.toLocaleString("ru-RU")} сум`,
+      paymentPlan === "prepaid" ? "Оплата: сразу за весь период" : "Оплата: при получении каждой доставки",
+    ];
+    sendTelegramMessage(req.customer.telegramChatId, customerLines.join("\n"), { parseMode: "HTML" });
+  }
+
   res.status(201).json({ subscription, paymentOrder });
 });
 
@@ -221,10 +239,21 @@ export const markDeliveryDelivered = asyncHandler(async (req, res) => {
   delivery.deliveredAt = new Date();
   delivery.deliveredBy = req.body.deliveredBy || "";
 
-  if (subscription.deliveries.every((d) => d.status !== "scheduled")) {
-    subscription.status = "completed";
-  }
+  const justCompleted = subscription.deliveries.every((d) => d.status !== "scheduled");
+  if (justCompleted) subscription.status = "completed";
   await subscription.save();
+
+  // A little life-cycle of messages, not just one at signup — the
+  // customer hears from us again each time a delivery actually goes out.
+  const customer = await Customer.findById(subscription.customerId).select("telegramChatId");
+  if (customer?.telegramChatId) {
+    const nextUp = subscription.deliveries.find((d) => d.status === "scheduled");
+    const lines = justCompleted
+      ? [`✅ <b>Доставлено:</b> ${delivery.name} (${delivery.date})`, "", "Это была последняя доставка по подписке — спасибо, что вы с нами! 🌸"]
+      : [`✅ <b>Доставлено:</b> ${delivery.name} (${delivery.date})`, "", nextUp ? `Следующая доставка: ${nextUp.date} — ${nextUp.name}` : ""];
+    sendTelegramMessage(customer.telegramChatId, lines.filter(Boolean).join("\n"), { parseMode: "HTML" });
+  }
+
   res.json(subscription);
 });
 

@@ -80,7 +80,9 @@ export default function CorporateProductCard({ product }: { product: ProductCard
           </button>
         </div>
         <button type="button" onClick={handleAdd} className="btn-primary flex-1 whitespace-nowrap px-3 py-2 text-xs">
-          {justAdded ? t("added") : t("addToCart")}
+          <span key={justAdded ? "added" : "idle"} className="amount-pulse inline-block">
+            {justAdded ? t("added") : t("addToCart")}
+          </span>
         </button>
       </div>
     </div>

@@ -461,27 +461,38 @@ export default function SubscriptionForm({ branches }: { branches: Branch[] }) {
                     <span className="text-sm font-medium text-ink">{formatUZS(sub.totalAmount, locale)}</span>
                     <span className="text-xs text-graphite">{t(`subStatus_${sub.status}`)}</span>
                   </div>
-                  <ul className="mt-2 space-y-1.5">
-                    {sub.deliveries.map((d) => {
+                  <ul className="mt-4">
+                    {sub.deliveries.map((d, i) => {
                       const key = `${sub._id}-${d.date}`;
+                      const isLast = i === sub.deliveries.length - 1;
+                      const dotClass =
+                        d.status === "delivered"
+                          ? "border-hermes-500 bg-hermes-500"
+                          : d.status === "scheduled"
+                            ? "border-ink bg-paper"
+                            : "border-hairline bg-hairline";
                       return (
-                        <li key={d.date} className="flex items-center justify-between text-xs text-graphite">
-                          <span>
-                            {d.date} — {d.name}
-                          </span>
-                          <span className="flex items-center gap-2">
-                            {t(`deliveryStatus_${d.status}`)}
+                        <li key={d.date} className="relative flex gap-3 pb-4 last:pb-0">
+                          {!isLast && <span className="absolute left-[5px] top-3 h-full w-px bg-hairline" />}
+                          <span className={`relative z-10 mt-1 h-3 w-3 flex-none rounded-full border-2 ${dotClass}`} />
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className={`text-xs ${d.status === "scheduled" ? "font-medium text-ink" : "text-graphite"}`}>
+                                {d.date} — {d.name}
+                              </span>
+                              <span className="flex-none text-[11px] text-graphite">{t(`deliveryStatus_${d.status}`)}</span>
+                            </div>
                             {d.status === "scheduled" && sub.status === "active" && (
                               <button
                                 type="button"
                                 disabled={mineBusyKey === key}
                                 onClick={() => handleSkipMine(sub._id, d.date)}
-                                className="text-hermes-600 underline-offset-4 hover:underline disabled:opacity-40"
+                                className="mt-1 text-[11px] text-hermes-600 underline-offset-4 hover:underline disabled:opacity-40"
                               >
                                 {t("skip")}
                               </button>
                             )}
-                          </span>
+                          </div>
                         </li>
                       );
                     })}

@@ -304,7 +304,9 @@
     "catalogTitle": "Katalog",
     "empty": "Mahsulotlar hozircha qo'shilmoqda — birozdan so'ng qayta tashrif buyuring.",
     "addToCart": "Savatga",
-    "added": "Qo'shildi"
+    "added": "Qo'shildi",
+    "cartCount": "Savatda {count} ta mahsulot",
+    "goToCart": "Savatga o'tish"
   },
   "Addon": {
     "eyebrow": "Qo'shimcha tovarlar",
