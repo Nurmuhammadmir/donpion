@@ -456,6 +456,24 @@ export interface Subscription {
   createdAt: string;
 }
 
+export type CorporateLeadStatus = "new" | "contacted" | "closed";
+
+export interface CorporateLead {
+  _id: string;
+  name: string;
+  phone: string;
+  companyName: string;
+  comment: string;
+  status: CorporateLeadStatus;
+  createdAt: string;
+}
+
+export const CORPORATE_LEAD_STATUS_LABELS: Record<CorporateLeadStatus, string> = {
+  new: "Новая",
+  contacted: "Связались",
+  closed: "Закрыта",
+};
+
 export const SUBSCRIPTION_STATUS_LABELS: Record<SubscriptionStatus, string> = {
   pending_payment: "Ждёт оплаты",
   active: "Активна",

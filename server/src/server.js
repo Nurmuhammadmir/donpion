@@ -35,6 +35,7 @@ import paymeRoutes from "./routes/payme.routes.js";
 import customerRoutes from "./routes/customers.routes.js";
 import assistantRoutes from "./routes/assistant.routes.js";
 import subscriptionRoutes from "./routes/subscriptions.routes.js";
+import corporateLeadRoutes from "./routes/corporateLeads.routes.js";
 // Side-effect only: starts @donpionadminbot's own long-poll loop (separate
 // bot/token from utils/telegramBot.js's customer-facing one) — no routes,
 // no exports anything else needs.
@@ -94,6 +95,7 @@ app.use("/api/payments/payme", paymeRoutes);
 app.use("/api/customers", customerRoutes);
 app.use("/api/assistant", assistantRoutes);
 app.use("/api/subscriptions", subscriptionRoutes);
+app.use("/api/corporate-leads", corporateLeadRoutes);
 
 app.use(notFound);
 app.use(errorHandler);

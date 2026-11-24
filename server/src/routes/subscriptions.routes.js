@@ -6,6 +6,8 @@ import {
   markDeliveryDelivered,
   skipDelivery,
   cancelSubscription,
+  skipMyDelivery,
+  cancelMySubscription,
 } from "../controllers/subscriptions.controller.js";
 import { protectAdmin } from "../middleware/auth.js";
 import { protectCustomer } from "../middleware/customerAuth.js";
@@ -14,6 +16,8 @@ const router = Router();
 
 router.post("/", protectCustomer, createSubscription);
 router.get("/mine", protectCustomer, getMySubscriptions);
+router.patch("/mine/:id/deliveries/:date/skip", protectCustomer, skipMyDelivery);
+router.patch("/mine/:id/cancel", protectCustomer, cancelMySubscription);
 router.get("/", protectAdmin, getSubscriptionsAdmin);
 router.patch("/:id/deliveries/:date/deliver", protectAdmin, markDeliveryDelivered);
 router.patch("/:id/deliveries/:date/skip", protectAdmin, skipDelivery);

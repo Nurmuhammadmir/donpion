@@ -1,8 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
 import { Calendar, Check, SkipForward, X } from "lucide-react";
-import { ApiError, cancelSubscription, getSubscriptionsAdmin, markSubscriptionDeliveryDelivered, skipSubscriptionDelivery } from "@/lib/api";
-import type { Subscription, SubscriptionDelivery } from "@/lib/types";
-import { SUBSCRIPTION_STATUS_LABELS } from "@/lib/types";
+import {
+  ApiError,
+  cancelSubscription,
+  getCorporateLeads,
+  getSubscriptionsAdmin,
+  markSubscriptionDeliveryDelivered,
+  skipSubscriptionDelivery,
+  updateCorporateLeadStatus,
+} from "@/lib/api";
+import type { CorporateLead, Subscription, SubscriptionDelivery } from "@/lib/types";
+import { CORPORATE_LEAD_STATUS_LABELS, SUBSCRIPTION_STATUS_LABELS } from "@/lib/types";
 import { Skeleton } from "@/components/Skeleton";
 
 function formatUZS(amount: number) {
@@ -30,11 +38,14 @@ interface WorklistRow {
 // заказы"). No cron job drives this: the florist works the "Ближайшие
 // доставки" worklist below by hand, same shape as Клиенты' "Скоро даты".
 export default function Subscriptions() {
-  const [tab, setTab] = useState<"worklist" | "all">("worklist");
+  const [tab, setTab] = useState<"worklist" | "all" | "leads">("worklist");
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionError, setActionError] = useState<string | null>(null);
   const [busyKey, setBusyKey] = useState<string | null>(null);
+
+  const [leads, setLeads] = useState<CorporateLead[]>([]);
+  const [leadsLoading, setLeadsLoading] = useState(true);
 
   const load = () => {
     setLoading(true);
@@ -44,7 +55,33 @@ export default function Subscriptions() {
       .finally(() => setLoading(false));
   };
 
+  const loadLeads = () => {
+    setLeadsLoading(true);
+    getCorporateLeads()
+      .then((data) => setLeads(data as CorporateLead[]))
+      .catch(() => setLeads([]))
+      .finally(() => setLeadsLoading(false));
+  };
+
   useEffect(load, []);
+  // Loaded on mount, not just when the "Заявки" tab opens — the pill
+  // itself shows a new-lead count, which needs the data before it's clicked.
+  useEffect(loadLeads, []);
+
+  const newLeadCount = leads.filter((l) => l.status === "new").length;
+
+  const handleLeadStatus = async (lead: CorporateLead, status: "contacted" | "closed") => {
+    setBusyKey(lead._id);
+    setActionError(null);
+    try {
+      await updateCorporateLeadStatus(lead._id, status);
+      loadLeads();
+    } catch (err) {
+      setActionError(err instanceof ApiError ? err.message : "Не удалось обновить заявку");
+    } finally {
+      setBusyKey(null);
+    }
+  };
 
   const worklist = useMemo<WorklistRow[]>(() => {
     const rows: WorklistRow[] = [];
@@ -113,11 +150,93 @@ export default function Subscriptions() {
         <button type="button" onClick={() => setTab("all")} className="pill" data-active={tab === "all"}>
           Все подписки
         </button>
+        <button type="button" onClick={() => setTab("leads")} className="pill" data-active={tab === "leads"}>
+          Заявки (корпоратив)
+          {newLeadCount > 0 && (
+            <span className="ml-1.5 inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-hermes-500 px-1 text-[11px] font-semibold text-white">
+              {newLeadCount}
+            </span>
+          )}
+        </button>
       </div>
 
       {actionError && <p className="mt-3 text-sm text-hermes-600">{actionError}</p>}
 
-      {loading ? (
+      {tab === "leads" ? (
+        leadsLoading ? (
+          <div className="card mt-4 space-y-3">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="h-12 w-full" />
+            ))}
+          </div>
+        ) : (
+          <div className="card mt-4 overflow-x-auto p-0">
+            <table className="admin-table w-full">
+              <thead>
+                <tr>
+                  <th>Дата</th>
+                  <th>Контакт</th>
+                  <th>Компания</th>
+                  <th>Комментарий</th>
+                  <th>Статус</th>
+                  <th />
+                </tr>
+              </thead>
+              <tbody>
+                {leads.map((lead) => (
+                  <tr key={lead._id}>
+                    <td className="whitespace-nowrap text-graphite">{formatRu(lead.createdAt.slice(0, 10))}</td>
+                    <td>
+                      <span className="block text-ink">{lead.name}</span>
+                      <span className="block text-xs text-graphite">{lead.phone}</span>
+                    </td>
+                    <td className="text-graphite">{lead.companyName || "—"}</td>
+                    <td className="max-w-xs text-graphite">{lead.comment || "—"}</td>
+                    <td>
+                      <span
+                        className={`inline-flex rounded-full border px-2 py-0.5 text-xs font-medium ${
+                          lead.status === "new"
+                            ? "border-hermes-200 bg-hermes-50 text-hermes-600"
+                            : lead.status === "closed"
+                              ? "border-hairline text-graphite"
+                              : "border-hairline text-ink"
+                        }`}
+                      >
+                        {CORPORATE_LEAD_STATUS_LABELS[lead.status]}
+                      </span>
+                    </td>
+                    <td className="text-right">
+                      <div className="flex justify-end gap-3">
+                        {lead.status === "new" && (
+                          <button
+                            type="button"
+                            disabled={busyKey === lead._id}
+                            onClick={() => handleLeadStatus(lead, "contacted")}
+                            className="text-sm text-sapphire-600 hover:underline disabled:opacity-40"
+                          >
+                            Связались
+                          </button>
+                        )}
+                        {lead.status !== "closed" && (
+                          <button
+                            type="button"
+                            disabled={busyKey === lead._id}
+                            onClick={() => handleLeadStatus(lead, "closed")}
+                            className="text-sm text-graphite hover:underline disabled:opacity-40"
+                          >
+                            Закрыть
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {leads.length === 0 && <p className="p-6 text-sm text-graphite">Заявок пока нет.</p>}
+          </div>
+        )
+      ) : loading ? (
         <div className="card mt-4 space-y-3">
           {Array.from({ length: 4 }).map((_, i) => (
             <Skeleton key={i} className="h-12 w-full" />

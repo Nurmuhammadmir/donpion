@@ -56,6 +56,16 @@ export default function SubscriptionForm({ branches }: { branches: Branch[] }) {
   const [mySubscriptions, setMySubscriptions] = useState<Subscription[]>([]);
   const [checkingReturn, setCheckingReturn] = useState(true);
   const [returnNotice, setReturnNotice] = useState<Subscription | null>(null);
+  const [mineBusyKey, setMineBusyKey] = useState<string | null>(null);
+
+  // Quick-fill: generate N evenly-spaced dates for one bouquet instead of
+  // adding every date by hand — writes straight into `rows` below, so
+  // someone can still tweak one date or swap a single bouquet afterward
+  // using the exact same per-row controls.
+  const [presetFrequency, setPresetFrequency] = useState<"weekly" | "biweekly" | "monthly">("weekly");
+  const [presetCount, setPresetCount] = useState(4);
+  const [presetStart, setPresetStart] = useState(isoToday());
+  const [presetProductId, setPresetProductId] = useState("");
 
   useEffect(() => {
     getProducts({ limit: 60 }).then((res) => setProducts(res.items));
@@ -119,6 +129,43 @@ export default function SubscriptionForm({ branches }: { branches: Branch[] }) {
   const removeRow = (index: number) => setRows((prev) => prev.filter((_, i) => i !== index));
   const updateRow = (index: number, patch: Partial<Row>) =>
     setRows((prev) => prev.map((r, i) => (i === index ? { ...r, ...patch } : r)));
+
+  const applyPreset = () => {
+    if (!presetProductId || presetCount < 1) return;
+    const generated: Row[] = [];
+    for (let i = 0; i < presetCount; i++) {
+      const d = new Date(presetStart);
+      if (presetFrequency === "weekly") d.setDate(d.getDate() + i * 7);
+      else if (presetFrequency === "biweekly") d.setDate(d.getDate() + i * 14);
+      else d.setMonth(d.getMonth() + i);
+      generated.push({ date: d.toISOString().slice(0, 10), productId: presetProductId });
+    }
+    setRows(generated);
+  };
+
+  const handleSkipMine = async (subscriptionId: string, date: string) => {
+    setMineBusyKey(`${subscriptionId}-${date}`);
+    try {
+      await fetch(`${API_URL}/subscriptions/mine/${subscriptionId}/deliveries/${date}/skip`, {
+        method: "PATCH",
+        credentials: "include",
+      });
+      loadMine();
+    } finally {
+      setMineBusyKey(null);
+    }
+  };
+
+  const handleCancelMine = async (subscriptionId: string) => {
+    if (!window.confirm(t("confirmCancel"))) return;
+    setMineBusyKey(subscriptionId);
+    try {
+      await fetch(`${API_URL}/subscriptions/mine/${subscriptionId}/cancel`, { method: "PATCH", credentials: "include" });
+      loadMine();
+    } finally {
+      setMineBusyKey(null);
+    }
+  };
 
   const productById = (id: string) => products.find((p) => p._id === id);
   const validRows = rows.filter((r) => r.date && r.productId);
@@ -259,6 +306,64 @@ export default function SubscriptionForm({ branches }: { branches: Branch[] }) {
       )}
 
       <div>
+        <p className="eyebrow mb-3">{t("quickFill")}</p>
+        <div className="flex flex-wrap items-end gap-3 border border-hairline p-3">
+          <label className="block">
+            <span className="mb-1.5 block text-xs text-graphite">{t("frequency")}</span>
+            <select
+              value={presetFrequency}
+              onChange={(e) => setPresetFrequency(e.target.value as typeof presetFrequency)}
+              className="border border-hairline bg-transparent px-3 py-2 text-sm text-ink"
+            >
+              <option value="weekly">{t("frequencyWeekly")}</option>
+              <option value="biweekly">{t("frequencyBiweekly")}</option>
+              <option value="monthly">{t("frequencyMonthly")}</option>
+            </select>
+          </label>
+          <label className="block">
+            <span className="mb-1.5 block text-xs text-graphite">{t("count")}</span>
+            <input
+              type="number"
+              min={2}
+              max={20}
+              value={presetCount}
+              onChange={(e) => setPresetCount(Math.min(20, Math.max(1, Number(e.target.value) || 1)))}
+              className="w-20 border border-hairline bg-transparent px-3 py-2 text-sm text-ink"
+            />
+          </label>
+          <label className="block">
+            <span className="mb-1.5 block text-xs text-graphite">{t("startDate")}</span>
+            <input
+              type="date"
+              min={isoToday()}
+              value={presetStart}
+              onChange={(e) => setPresetStart(e.target.value)}
+              className="border border-hairline bg-transparent px-3 py-2 text-sm text-ink"
+            />
+          </label>
+          <label className="block min-w-[180px] flex-1">
+            <span className="mb-1.5 block text-xs text-graphite">{t("bouquet")}</span>
+            <select
+              value={presetProductId}
+              onChange={(e) => setPresetProductId(e.target.value)}
+              className="w-full border border-hairline bg-transparent px-3 py-2 text-sm text-ink"
+            >
+              <option value="">{t("choose")}</option>
+              {products.map((p) => (
+                <option key={p._id} value={p._id}>
+                  {p.name} — {formatUZS(p.price, locale)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button type="button" onClick={applyPreset} disabled={!presetProductId} className="btn-outline disabled:opacity-40">
+            {t("fillDates")}
+          </button>
+        </div>
+        <p className="mt-2 text-xs text-graphite">{t("quickFillNote")}</p>
+      </div>
+
+      <div>
         <p className="eyebrow mb-3">{t("deliveries")}</p>
         <div className="space-y-3">
           {rows.map((row, i) => (
@@ -348,24 +453,52 @@ export default function SubscriptionForm({ branches }: { branches: Branch[] }) {
         <div className="border-t border-hairline pt-8">
           <p className="eyebrow mb-4">{t("mySubscriptions")}</p>
           <div className="space-y-4">
-            {mySubscriptions.map((sub) => (
-              <div key={sub._id} className="rounded-2xl border border-hairline p-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-ink">{formatUZS(sub.totalAmount, locale)}</span>
-                  <span className="text-xs text-graphite">{sub.status}</span>
+            {mySubscriptions.map((sub) => {
+              const canCancel = sub.status === "active" || sub.status === "pending_payment";
+              return (
+                <div key={sub._id} className="rounded-2xl border border-hairline p-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-ink">{formatUZS(sub.totalAmount, locale)}</span>
+                    <span className="text-xs text-graphite">{t(`subStatus_${sub.status}`)}</span>
+                  </div>
+                  <ul className="mt-2 space-y-1.5">
+                    {sub.deliveries.map((d) => {
+                      const key = `${sub._id}-${d.date}`;
+                      return (
+                        <li key={d.date} className="flex items-center justify-between text-xs text-graphite">
+                          <span>
+                            {d.date} — {d.name}
+                          </span>
+                          <span className="flex items-center gap-2">
+                            {t(`deliveryStatus_${d.status}`)}
+                            {d.status === "scheduled" && sub.status === "active" && (
+                              <button
+                                type="button"
+                                disabled={mineBusyKey === key}
+                                onClick={() => handleSkipMine(sub._id, d.date)}
+                                className="text-hermes-600 underline-offset-4 hover:underline disabled:opacity-40"
+                              >
+                                {t("skip")}
+                              </button>
+                            )}
+                          </span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                  {canCancel && (
+                    <button
+                      type="button"
+                      disabled={mineBusyKey === sub._id}
+                      onClick={() => handleCancelMine(sub._id)}
+                      className="mt-3 text-xs text-hermes-600 underline-offset-4 hover:underline disabled:opacity-40"
+                    >
+                      {t("cancelSubscription")}
+                    </button>
+                  )}
                 </div>
-                <ul className="mt-2 space-y-1">
-                  {sub.deliveries.map((d) => (
-                    <li key={d.date} className="flex justify-between text-xs text-graphite">
-                      <span>
-                        {d.date} — {d.name}
-                      </span>
-                      <span>{d.status}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}

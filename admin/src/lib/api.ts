@@ -117,6 +117,17 @@ export function getMarginReport(params: { branch?: string | null; from?: string;
   return api(`/finance/margin-report?${marginReportQuery(params)}`);
 }
 
+export function getCorporateLeads(params: { status?: string } = {}) {
+  const qs = new URLSearchParams();
+  if (params.status) qs.set("status", params.status);
+  const query = qs.toString();
+  return api(`/corporate-leads${query ? `?${query}` : ""}`);
+}
+
+export function updateCorporateLeadStatus(id: string, status: string) {
+  return api(`/corporate-leads/${id}`, { method: "PATCH", body: JSON.stringify({ status }) });
+}
+
 export function getSubscriptionsAdmin(params: { status?: string } = {}) {
   const qs = new URLSearchParams();
   if (params.status) qs.set("status", params.status);

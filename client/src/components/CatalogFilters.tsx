@@ -26,7 +26,15 @@ function chipClass(active: boolean) {
 // Every change rewrites the URL's query string — the actual filtering
 // happens server-side in page.tsx reading these same params, so a
 // shared/bookmarked filtered link always renders the same result.
-export default function CatalogFilters({ occasions = [] }: { occasions?: { name: string; slug: string }[] }) {
+export default function CatalogFilters({
+  occasions = [],
+  showRecipient = true,
+}: {
+  occasions?: { name: string; slug: string }[];
+  // Off on the corporate-orders page — "кому" (маме/жене/девушке/коллеге)
+  // doesn't make sense for a business buyer.
+  showRecipient?: boolean;
+}) {
   const t = useTranslations("Catalog");
   const locale = useLocale();
   const router = useRouter();
@@ -115,21 +123,23 @@ export default function CatalogFilters({ occasions = [] }: { occasions?: { name:
         </div>
       )}
 
-      <div>
-        <p className="eyebrow mb-2">{t("recipient")}</p>
-        <div className="flex flex-wrap gap-2">
-          {RECIPIENTS.map((r) => (
-            <button
-              key={r}
-              type="button"
-              onClick={() => toggleMulti("recipient", selectedRecipients, r)}
-              className={chipClass(selectedRecipients.includes(r))}
-            >
-              {t(`recipient_${r}`)}
-            </button>
-          ))}
+      {showRecipient && (
+        <div>
+          <p className="eyebrow mb-2">{t("recipient")}</p>
+          <div className="flex flex-wrap gap-2">
+            {RECIPIENTS.map((r) => (
+              <button
+                key={r}
+                type="button"
+                onClick={() => toggleMulti("recipient", selectedRecipients, r)}
+                className={chipClass(selectedRecipients.includes(r))}
+              >
+                {t(`recipient_${r}`)}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       <div>
         <p className="eyebrow mb-2">{t("color")}</p>

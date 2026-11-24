@@ -228,6 +228,24 @@ export const markDeliveryDelivered = asyncHandler(async (req, res) => {
   res.json(subscription);
 });
 
+function skipDeliveryCore(subscription, date) {
+  const delivery = subscription.deliveries.find((d) => d.date === date);
+  if (!delivery || delivery.status !== "scheduled") {
+    throw new Error("Эту доставку нельзя пропустить");
+  }
+  delivery.status = "skipped";
+  if (subscription.deliveries.every((d) => d.status !== "scheduled")) {
+    subscription.status = "completed";
+  }
+}
+
+function cancelSubscriptionCore(subscription) {
+  subscription.status = "cancelled";
+  for (const d of subscription.deliveries) {
+    if (d.status === "scheduled") d.status = "cancelled";
+  }
+}
+
 // PATCH /api/subscriptions/:id/deliveries/:date/skip  (admin)
 export const skipDelivery = asyncHandler(async (req, res) => {
   const subscription = await Subscription.findById(req.params.id);
@@ -235,17 +253,10 @@ export const skipDelivery = asyncHandler(async (req, res) => {
     res.status(404);
     throw new Error("Подписка не найдена");
   }
-  const delivery = subscription.deliveries.find((d) => d.date === req.params.date);
-  if (!delivery || delivery.status !== "scheduled") {
-    res.status(400);
-    throw new Error("Эту доставку нельзя пропустить");
-  }
-  delivery.status = "skipped";
-  if (subscription.deliveries.every((d) => d.status !== "scheduled")) {
-    subscription.status = "completed";
-  }
+  res.status(400);
+  skipDeliveryCore(subscription, req.params.date);
   await subscription.save();
-  res.json(subscription);
+  res.status(200).json(subscription);
 });
 
 // PATCH /api/subscriptions/:id/cancel  (admin) — cancels the whole
@@ -258,10 +269,35 @@ export const cancelSubscription = asyncHandler(async (req, res) => {
     res.status(404);
     throw new Error("Подписка не найдена");
   }
-  subscription.status = "cancelled";
-  for (const d of subscription.deliveries) {
-    if (d.status === "scheduled") d.status = "cancelled";
+  cancelSubscriptionCore(subscription);
+  await subscription.save();
+  res.json(subscription);
+});
+
+// PATCH /api/subscriptions/mine/:id/deliveries/:date/skip  (customer) —
+// same self-service convenience as cancelling below: a customer can back
+// out of a single not-yet-delivered date themselves instead of calling.
+export const skipMyDelivery = asyncHandler(async (req, res) => {
+  const subscription = await Subscription.findOne({ _id: req.params.id, customerId: req.customer._id });
+  if (!subscription) {
+    res.status(404);
+    throw new Error("Подписка не найдена");
   }
+  res.status(400);
+  skipDeliveryCore(subscription, req.params.date);
+  await subscription.save();
+  res.status(200).json(subscription);
+});
+
+// PATCH /api/subscriptions/mine/:id/cancel  (customer) — same rule as the
+// admin version: no auto-refund, that's a manual judgment call on contact.
+export const cancelMySubscription = asyncHandler(async (req, res) => {
+  const subscription = await Subscription.findOne({ _id: req.params.id, customerId: req.customer._id });
+  if (!subscription) {
+    res.status(404);
+    throw new Error("Подписка не найдена");
+  }
+  cancelSubscriptionCore(subscription);
   await subscription.save();
   res.json(subscription);
 });

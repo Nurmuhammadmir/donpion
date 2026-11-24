@@ -7,6 +7,7 @@ import BackLink from "@/components/BackLink";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import JsonLd from "@/components/JsonLd";
 import CatalogFilters from "@/components/CatalogFilters";
+import CorporateLanding from "@/components/CorporateLanding";
 import { routing } from "@/i18n/routing";
 import { localeAlternates } from "@/lib/seo";
 
@@ -76,22 +77,30 @@ export default async function OccasionPage({ params: { locale, slug }, searchPar
       <Breadcrumbs items={[{ name: tc("home"), href: "/" }, { name: occasion.name, href: `/occasion/${occasion.slug}` }]} />
       <BackLink className="mt-4 flex items-center gap-2 text-xs font-medium uppercase tracking-wide2 text-graphite hover:text-hermes-500" />
 
-      <header className="mt-10 max-w-2xl">
-        <p className="eyebrow mb-4">{t("eyebrow")}</p>
-        <h1 className="font-display text-3xl tracking-luxe text-ink sm:text-4xl">{occasion.name}</h1>
-        {occasion.description && <p className="mt-6 text-sm leading-relaxed text-graphite">{occasion.description}</p>}
-      </header>
-
-      <CatalogFilters />
-
-      {items.length > 0 ? (
-        <div className="mt-16 grid grid-cols-2 gap-x-6 gap-y-12 sm:gap-x-8 lg:grid-cols-4">
-          {items.map((product) => (
-            <ProductCard key={product._id} product={product} showFromPrice={occasion.slug === CORPORATE_SLUG} />
-          ))}
+      {occasion.slug === CORPORATE_SLUG ? (
+        <div className="mt-10">
+          <CorporateLanding products={items} />
         </div>
       ) : (
-        <p className="mt-16 text-sm text-graphite">{t("empty")}</p>
+        <>
+          <header className="mt-10 max-w-2xl">
+            <p className="eyebrow mb-4">{t("eyebrow")}</p>
+            <h1 className="font-display text-3xl tracking-luxe text-ink sm:text-4xl">{occasion.name}</h1>
+            {occasion.description && <p className="mt-6 text-sm leading-relaxed text-graphite">{occasion.description}</p>}
+          </header>
+
+          <CatalogFilters />
+
+          {items.length > 0 ? (
+            <div className="mt-16 grid grid-cols-2 gap-x-6 gap-y-12 sm:gap-x-8 lg:grid-cols-4">
+              {items.map((product) => (
+                <ProductCard key={product._id} product={product} />
+              ))}
+            </div>
+          ) : (
+            <p className="mt-16 text-sm text-graphite">{t("empty")}</p>
+          )}
+        </>
       )}
     </div>
   );
