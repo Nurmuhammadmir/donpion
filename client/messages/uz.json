@@ -321,7 +321,17 @@
     "addToCart": "Savatga",
     "added": "Qo'shildi",
     "cartCount": "Savatda {count} ta mahsulot",
-    "goToCart": "Savatga o'tish"
+    "goToCart": "Savatga o'tish",
+    "bulkTitle": "Ro'yxat bilan qo'shish",
+    "bulkIntro": "Ro'yxatni joylashtiring: nomi va miqdori, har bir band alohida qatorda.",
+    "bulkExpand": "Ochish",
+    "bulkCollapse": "Yopish",
+    "bulkPlaceholder": "Pushti tong x5\nShokolad to'plami x10\n\"Nafislik\" guldastasi 3 dona",
+    "bulkParse": "Ro'yxatni tahlil qilish",
+    "bulkMatchedCount": "{total} tadan {matched} ta topildi",
+    "bulkNotMatched": "— topilmadi, qo'lda tanlang —",
+    "bulkAddAll": "{count} ta bandni savatga qo'shish",
+    "bulkAdded": "Savatga qo'shildi."
   },
   "Addon": {
     "eyebrow": "Qo'shimcha tovarlar",
@@ -371,6 +381,8 @@
     "quickFillNote": "Quyidagi sanalar ro'yxatini to'ldiradi — alohida sana va guldastani keyin qo'lda tuzatish mumkin.",
     "confirmCancel": "Obunani bekor qilasizmi? Qolgan rejalashtirilgan yetkazib berishlar bekor qilinadi.",
     "skip": "O'tkazib yuborish",
+    "changeBouquet": "Guldastani almashtirish",
+    "swapErrorGeneric": "Guldastani almashtirib bo'lmadi. Qaytadan urinib ko'ring.",
     "cancelSubscription": "Obunani bekor qilish",
     "deliveryStatus_scheduled": "rejalashtirilgan",
     "deliveryStatus_delivered": "yetkazildi",

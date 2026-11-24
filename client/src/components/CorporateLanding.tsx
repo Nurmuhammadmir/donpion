@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import CatalogFilters from "@/components/CatalogFilters";
 import CorporateProductCard from "@/components/CorporateProductCard";
 import CorporateCartBar from "@/components/CorporateCartBar";
+import CorporateBulkAdd from "@/components/CorporateBulkAdd";
 import type { Product } from "@/types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4100/api";
@@ -115,6 +116,10 @@ export default function CorporateLanding({ products }: { products: Product[] }) 
             </form>
           </>
         )}
+      </div>
+
+      <div className="mt-10">
+        <CorporateBulkAdd products={products} />
       </div>
 
       <div className="mt-16">

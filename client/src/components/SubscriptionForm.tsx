@@ -28,8 +28,13 @@ interface Row {
   productId: string;
 }
 
+// Local getters, not new Date().toISOString() — that converts to UTC
+// first, which during Tashkent's (UTC+5) early morning hours is still
+// "yesterday", letting the date pickers below offer a date that's
+// actually already in the past for the person looking at them.
 function isoToday() {
-  return new Date().toISOString().slice(0, 10);
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 function emptyRow(): Row {
@@ -57,6 +62,10 @@ export default function SubscriptionForm({ branches }: { branches: Branch[] }) {
   const [checkingReturn, setCheckingReturn] = useState(true);
   const [returnNotice, setReturnNotice] = useState<Subscription | null>(null);
   const [mineBusyKey, setMineBusyKey] = useState<string | null>(null);
+  // Which delivery row (if any) currently has its inline "change bouquet"
+  // picker open — only one at a time, closing automatically on success.
+  const [swappingKey, setSwappingKey] = useState<string | null>(null);
+  const [swapError, setSwapError] = useState<string | null>(null);
 
   // Quick-fill: generate N evenly-spaced dates for one bouquet instead of
   // adding every date by hand — writes straight into `rows` below, so
@@ -151,6 +160,30 @@ export default function SubscriptionForm({ branches }: { branches: Branch[] }) {
         credentials: "include",
       });
       loadMine();
+    } finally {
+      setMineBusyKey(null);
+    }
+  };
+
+  const handleSwapMine = async (subscriptionId: string, date: string, productId: string) => {
+    const key = `${subscriptionId}-${date}`;
+    setMineBusyKey(key);
+    setSwapError(null);
+    try {
+      const res = await fetch(`${API_URL}/subscriptions/mine/${subscriptionId}/deliveries/${date}/bouquet`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ productId }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.message || t("swapErrorGeneric"));
+      }
+      setSwappingKey(null);
+      loadMine();
+    } catch (err) {
+      setSwapError(err instanceof Error ? err.message : t("swapErrorGeneric"));
     } finally {
       setMineBusyKey(null);
     }
@@ -483,14 +516,42 @@ export default function SubscriptionForm({ branches }: { branches: Branch[] }) {
                               <span className="flex-none text-[11px] text-graphite">{t(`deliveryStatus_${d.status}`)}</span>
                             </div>
                             {d.status === "scheduled" && sub.status === "active" && (
-                              <button
-                                type="button"
-                                disabled={mineBusyKey === key}
-                                onClick={() => handleSkipMine(sub._id, d.date)}
-                                className="mt-1 text-[11px] text-hermes-600 underline-offset-4 hover:underline disabled:opacity-40"
-                              >
-                                {t("skip")}
-                              </button>
+                              <div className="mt-1 flex items-center gap-3">
+                                {sub.paymentPlan === "pay_on_delivery" && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setSwappingKey((prev) => (prev === key ? null : key))}
+                                    className="text-[11px] text-ink underline-offset-4 hover:underline"
+                                  >
+                                    {t("changeBouquet")}
+                                  </button>
+                                )}
+                                <button
+                                  type="button"
+                                  disabled={mineBusyKey === key}
+                                  onClick={() => handleSkipMine(sub._id, d.date)}
+                                  className="text-[11px] text-hermes-600 underline-offset-4 hover:underline disabled:opacity-40"
+                                >
+                                  {t("skip")}
+                                </button>
+                              </div>
+                            )}
+                            {swappingKey === key && (
+                              <div className="mt-2 flex flex-wrap items-center gap-2">
+                                <select
+                                  defaultValue={d.product}
+                                  onChange={(e) => handleSwapMine(sub._id, d.date, e.target.value)}
+                                  disabled={mineBusyKey === key}
+                                  className="min-w-[180px] flex-1 border border-hairline bg-paper px-2 py-1.5 text-xs text-ink disabled:opacity-40"
+                                >
+                                  {products.map((p) => (
+                                    <option key={p._id} value={p._id}>
+                                      {p.name} — {formatUZS(p.price, locale)}
+                                    </option>
+                                  ))}
+                                </select>
+                                {swapError && <p className="w-full text-[11px] text-hermes-600">{swapError}</p>}
+                              </div>
                             )}
                           </div>
                         </li>

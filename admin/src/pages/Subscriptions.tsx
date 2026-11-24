@@ -12,6 +12,7 @@ import {
 import type { CorporateLead, Subscription, SubscriptionDelivery } from "@/lib/types";
 import { CORPORATE_LEAD_STATUS_LABELS, SUBSCRIPTION_STATUS_LABELS } from "@/lib/types";
 import { Skeleton } from "@/components/Skeleton";
+import SubscriptionCalendar from "@/components/SubscriptionCalendar";
 
 function formatUZS(amount: number) {
   return `${new Intl.NumberFormat("ru-RU").format(Math.round(amount))} сум`;
@@ -23,8 +24,15 @@ function formatRu(dateStr: string) {
   return new Date(y, m - 1, d).toLocaleDateString("ru-RU", { day: "2-digit", month: "short", weekday: "short" });
 }
 
+// NOT new Date().toISOString().slice(0, 10) — that converts to UTC first,
+// which is the wrong calendar day for a chunk of every morning in
+// Tashkent (UTC+5): at 02:00 local it's still "yesterday" in UTC, so the
+// "сегодня"/"просрочено" badges below would misjudge exactly the
+// deliveries this worklist exists to flag correctly. Local getters avoid
+// the UTC round-trip entirely.
 function isoToday() {
-  return new Date().toISOString().slice(0, 10);
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 interface WorklistRow {
@@ -38,7 +46,7 @@ interface WorklistRow {
 // заказы"). No cron job drives this: the florist works the "Ближайшие
 // доставки" worklist below by hand, same shape as Клиенты' "Скоро даты".
 export default function Subscriptions() {
-  const [tab, setTab] = useState<"worklist" | "all" | "leads">("worklist");
+  const [tab, setTab] = useState<"worklist" | "calendar" | "all" | "leads">("worklist");
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -147,6 +155,9 @@ export default function Subscriptions() {
         <button type="button" onClick={() => setTab("worklist")} className="pill" data-active={tab === "worklist"}>
           Ближайшие доставки
         </button>
+        <button type="button" onClick={() => setTab("calendar")} className="pill" data-active={tab === "calendar"}>
+          Календарь
+        </button>
         <button type="button" onClick={() => setTab("all")} className="pill" data-active={tab === "all"}>
           Все подписки
         </button>
@@ -234,6 +245,18 @@ export default function Subscriptions() {
               </tbody>
             </table>
             {leads.length === 0 && <p className="p-6 text-sm text-graphite">Заявок пока нет.</p>}
+          </div>
+        )
+      ) : tab === "calendar" ? (
+        loading ? (
+          <div className="card mt-4 space-y-3">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="h-12 w-full" />
+            ))}
+          </div>
+        ) : (
+          <div className="mt-4">
+            <SubscriptionCalendar subscriptions={subscriptions} today={today} onDeliver={handleDeliver} onSkip={handleSkip} busyKey={busyKey} />
           </div>
         )
       ) : loading ? (

@@ -20,6 +20,17 @@ function generateOrderNumber() {
   return `SB-${rand}`;
 }
 
+// "Today" in Tashkent specifically (UTC+5, no DST) — not whatever
+// timezone the server process happens to be running in (almost always
+// UTC on a VPS) and not new Date().toISOString() (same wrong-UTC-day
+// problem the client's isoToday() has, just mirrored server-side). Never
+// trust the client's own date picker alone for this — it only constrains
+// the UI, a direct API call can send anything.
+function tashkentToday() {
+  const shifted = new Date(Date.now() + 5 * 60 * 60 * 1000);
+  return `${shifted.getUTCFullYear()}-${String(shifted.getUTCMonth() + 1).padStart(2, "0")}-${String(shifted.getUTCDate()).padStart(2, "0")}`;
+}
+
 async function createOrderWithUniqueNumber(data, attempts = 5) {
   for (let i = 0; i < attempts; i++) {
     try {
@@ -72,6 +83,7 @@ export const createSubscription = asyncHandler(async (req, res) => {
   const productMap = new Map(products.map((p) => [String(p._id), p]));
   const pricingSettings = await loadPricingDefaults();
 
+  const today = tashkentToday();
   let totalAmount = 0;
   const deliveryDocs = deliveries.map((d) => {
     const product = productMap.get(String(d.productId));
@@ -82,6 +94,13 @@ export const createSubscription = asyncHandler(async (req, res) => {
     if (!d.date || !/^\d{4}-\d{2}-\d{2}$/.test(d.date)) {
       res.status(400);
       throw new Error("Некорректная дата доставки");
+    }
+    // The date picker already enforces this client-side — re-checked here
+    // since that's only a UI constraint, not something a direct API call
+    // has to respect.
+    if (d.date < today) {
+      res.status(400);
+      throw new Error(`Дата ${d.date} уже прошла`);
     }
     totalAmount += product.price;
     return { date: d.date, product: product._id, name: product.name, image: product.images[0], price: product.price };
@@ -299,6 +318,44 @@ export const cancelSubscription = asyncHandler(async (req, res) => {
     throw new Error("Подписка не найдена");
   }
   cancelSubscriptionCore(subscription);
+  await subscription.save();
+  res.json(subscription);
+});
+
+// PATCH /api/subscriptions/mine/:id/deliveries/:date/bouquet  (customer)
+// — body: { productId }. Only for "оплата при получении": that plan
+// charges each delivery separately when it actually happens, so changing
+// the bouquet just changes what's charged *then*. A prepaid plan already
+// collected a fixed total up front — letting the bouquet (and therefore
+// the price) change afterward would silently break that total, so it's
+// not offered there; cancel/re-subscribe is the right path instead.
+export const swapMyDeliveryBouquet = asyncHandler(async (req, res) => {
+  const subscription = await Subscription.findOne({ _id: req.params.id, customerId: req.customer._id });
+  if (!subscription) {
+    res.status(404);
+    throw new Error("Подписка не найдена");
+  }
+  if (subscription.paymentPlan !== "pay_on_delivery") {
+    res.status(400);
+    throw new Error("Букет можно менять только при оплате при получении");
+  }
+  const delivery = subscription.deliveries.find((d) => d.date === req.params.date);
+  if (!delivery || delivery.status !== "scheduled") {
+    res.status(400);
+    throw new Error("Эту доставку нельзя изменить");
+  }
+  const product = await Product.findOne({ _id: req.body.productId, isActive: true, priceConfirmed: { $ne: false } });
+  if (!product) {
+    res.status(400);
+    throw new Error("Товар не найден");
+  }
+
+  const priceDelta = product.price - delivery.price;
+  delivery.product = product._id;
+  delivery.name = product.name;
+  delivery.image = product.images[0];
+  delivery.price = product.price;
+  subscription.totalAmount += priceDelta;
   await subscription.save();
   res.json(subscription);
 });
