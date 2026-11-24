@@ -50,6 +50,18 @@ function generateOrderNumber() {
   return `FL-${rand}`;
 }
 
+// Public code for the "Вам дарят..." gift-reveal link (/gift/[code]) —
+// long enough (33^10 ≈ 2.6×10^14 possibilities) that a collision is
+// practically impossible, so unlike generateOrderNumber this doesn't need
+// a retry loop. No 0/1/l/o — those get misread when someone reads the
+// link aloud or retypes it by hand.
+function generateGiftCode() {
+  const chars = "abcdefghijkmnpqrstuvwxyz23456789";
+  let code = "";
+  for (let i = 0; i < 10; i++) code += chars[Math.floor(Math.random() * chars.length)];
+  return code;
+}
+
 async function createOrderWithUniqueNumber(data, attempts = 5) {
   for (let i = 0; i < attempts; i++) {
     try {
@@ -173,6 +185,7 @@ export const createOrder = asyncHandler(async (req, res) => {
     order = await createOrderWithUniqueNumber({
       customerId: req.customer._id,
       customer,
+      giftCode: generateGiftCode(),
       location: cleanLocation,
       items: orderItems,
       fulfillmentMethod,
@@ -254,6 +267,32 @@ export const createOrder = asyncHandler(async (req, res) => {
 export const getMyOrders = asyncHandler(async (req, res) => {
   const orders = await Order.find({ customerId: req.customer._id }).sort({ createdAt: -1 });
   res.json(orders);
+});
+
+// GET /api/orders/gift/:code  (public, no login — this is the whole
+// point: a sender forwards the link to whoever the flowers are actually
+// for). Hand-built response, never the raw order — a leaked/forwarded
+// link must never expose the address, phone, price, or payment method.
+export const getOrderByGiftCode = asyncHandler(async (req, res) => {
+  const order = await Order.findOne({ giftCode: req.params.code }).select(
+    "items postcardText ribbonColor deliveryDate deliveryTime fulfillmentMethod customer.name status"
+  );
+  if (!order) {
+    res.status(404);
+    throw new Error("Gift link not found");
+  }
+  const firstItem = order.items[0];
+  res.json({
+    bouquetName: firstItem?.name ?? "",
+    bouquetImage: firstItem?.image ?? "",
+    postcardText: order.postcardText,
+    ribbonColor: order.ribbonColor,
+    deliveryDate: order.deliveryDate,
+    deliveryTime: order.deliveryTime,
+    fulfillmentMethod: order.fulfillmentMethod,
+    senderName: order.customer.name,
+    status: order.status,
+  });
 });
 
 // POST /api/orders/pos  (admin) — a walk-in sale rung up in person at a

@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { formatUZS } from "@/lib/format";
+import OrderStatusStepper from "@/components/OrderStatusStepper";
+import GiftShareLink from "@/components/GiftShareLink";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4100/api";
 
@@ -20,6 +22,7 @@ interface OrderSummary {
   totalAmount: number;
   status: string;
   createdAt: string;
+  giftCode?: string;
 }
 
 export default function OrderHistory() {
@@ -27,14 +30,6 @@ export default function OrderHistory() {
   const t = useTranslations("OrderHistory");
   const tc = useTranslations("Common");
   const locale = useLocale();
-
-  const statusLabels: Record<string, string> = {
-    new: t("statusNew"),
-    confirmed: t("statusConfirmed"),
-    delivering: t("statusDelivering"),
-    completed: t("statusCompleted"),
-    cancelled: t("statusCancelled"),
-  };
 
   const formatDate = (iso: string) =>
     new Date(iso).toLocaleDateString(locale === "uz" ? "uz-UZ" : "ru-RU", {
@@ -74,13 +69,14 @@ export default function OrderHistory() {
             <div key={order._id} className="border border-hairline p-6">
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <span className="font-display text-base text-ink">{order.orderNumber}</span>
-                <span className="text-xs font-medium uppercase tracking-wide2 text-hermes-500">
-                  {statusLabels[order.status] || order.status}
-                </span>
+                <span className="text-xs text-graphite">{formatDate(order.createdAt)}</span>
               </div>
-              <p className="mt-1 text-xs text-graphite">{formatDate(order.createdAt)}</p>
 
-              <ul className="mt-4 space-y-2 text-sm text-graphite">
+              <div className="mt-4 max-w-[260px]">
+                <OrderStatusStepper status={order.status} />
+              </div>
+
+              <ul className="mt-6 space-y-2 text-sm text-graphite">
                 {order.items.map((item, i) => (
                   <li key={`${item.slug}-${i}`} className="flex justify-between gap-3">
                     <span>
@@ -95,6 +91,12 @@ export default function OrderHistory() {
                 <span className="text-graphite">{tc("total")}</span>
                 <span className="font-display text-base text-ink/85">{formatUZS(order.totalAmount, locale)}</span>
               </div>
+
+              {order.giftCode && order.status !== "cancelled" && (
+                <div className="mt-4">
+                  <GiftShareLink code={order.giftCode} />
+                </div>
+              )}
             </div>
           ))}
         </div>

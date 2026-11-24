@@ -186,6 +186,9 @@
     "usePointsLabel": "Списать Пионы (доступно {count})",
     "pointsDiscountLabel": "Скидка Пионами",
     "pointsEarnedNote": "{count} Пионов поступят на баланс после оплаты заказа",
+    "giftShareIntro": "Это подарок кому-то? Отправьте ссылку — получатель увидит красивое открытие открытки и статус доставки.",
+    "giftCopyLink": "Скопировать ссылку",
+    "giftLinkCopied": "Скопировано",
     "submitting": "Оформляем…",
     "submit": "Подтвердить заказ",
     "genericError": "Ошибка оформления заказа",
@@ -215,7 +218,19 @@
     "statusConfirmed": "Подтверждён",
     "statusDelivering": "Доставляется",
     "statusCompleted": "Завершён",
-    "statusCancelled": "Отменён"
+    "statusCancelled": "Отменён",
+    "statusShort_new": "Новый",
+    "statusShort_confirmed": "Принят",
+    "statusShort_delivering": "В пути",
+    "statusShort_completed": "Готово"
+  },
+  "Gift": {
+    "eyebrow": "Вам дарят",
+    "title": "Цветы от {name}",
+    "today": "Доставка сегодня",
+    "tomorrow": "Доставка завтра",
+    "inDays": "Доставка через {count} дн.",
+    "tapToOpen": "Нажмите, чтобы открыть открытку"
   },
   "RegisterGate": {
     "eyebrow": "Один шаг перед заказом",

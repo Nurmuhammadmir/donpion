@@ -186,6 +186,9 @@
     "usePointsLabel": "Pionlarni ishlatish (mavjud {count})",
     "pointsDiscountLabel": "Pion chegirmasi",
     "pointsEarnedNote": "Buyurtma to'lovidan so'ng balansga {count} Pion qo'shiladi",
+    "giftShareIntro": "Bu kimgadir sovg'ami? Havolani yuboring — qabul qiluvchi chiroyli ochiladigan otkritka va yetkazib berish holatini ko'radi.",
+    "giftCopyLink": "Havolani nusxalash",
+    "giftLinkCopied": "Nusxalandi",
     "submitting": "Rasmiylashtirilmoqda…",
     "submit": "Buyurtmani tasdiqlash",
     "genericError": "Buyurtmani rasmiylashtirishda xatolik",
@@ -215,7 +218,19 @@
     "statusConfirmed": "Tasdiqlangan",
     "statusDelivering": "Yetkazilmoqda",
     "statusCompleted": "Yakunlangan",
-    "statusCancelled": "Bekor qilingan"
+    "statusCancelled": "Bekor qilingan",
+    "statusShort_new": "Yangi",
+    "statusShort_confirmed": "Qabul qilindi",
+    "statusShort_delivering": "Yo'lda",
+    "statusShort_completed": "Tayyor"
+  },
+  "Gift": {
+    "eyebrow": "Sizga sovg'a",
+    "title": "{name}dan gullar",
+    "today": "Bugun yetkaziladi",
+    "tomorrow": "Ertaga yetkaziladi",
+    "inDays": "{count} kundan keyin yetkaziladi",
+    "tapToOpen": "Otkritkani ochish uchun bosing"
   },
   "RegisterGate": {
     "eyebrow": "Buyurtmadan oldin bir qadam",

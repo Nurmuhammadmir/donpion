@@ -151,3 +151,18 @@ export interface CreateSubscriptionResponse {
   subscription: Subscription;
   paymentOrder: { orderNumber: string; totalAmount: number } | null;
 }
+
+// GET /api/orders/gift/:code — deliberately NOT the raw order: see
+// getOrderByGiftCode's own comment on why (address/phone/price/payment
+// must never reach a link that can be forwarded).
+export interface GiftOrder {
+  bouquetName: string;
+  bouquetImage: string;
+  postcardText: string;
+  ribbonColor: string;
+  deliveryDate: string;
+  deliveryTime: string;
+  fulfillmentMethod: "delivery" | "pickup" | "in_store";
+  senderName: string;
+  status: string;
+}

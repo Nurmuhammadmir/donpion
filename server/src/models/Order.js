@@ -26,6 +26,12 @@ const orderItemSchema = new mongoose.Schema(
 const orderSchema = new mongoose.Schema(
   {
     orderNumber: { type: String, required: true, unique: true },
+    // Short public code for the "Вам дарят..." gift-reveal page
+    // (/gift/[code] — see getOrderByGiftCode) — only ever generated for a
+    // real checkout order (not POS, where "forward this to someone else"
+    // doesn't apply). sparse so every order created before this field
+    // existed (all missing it) doesn't collide against the unique index.
+    giftCode: { type: String, unique: true, sparse: true },
     customerId: { type: mongoose.Schema.Types.ObjectId, ref: "Customer" },
     customer: {
       name: { type: String, required: true },

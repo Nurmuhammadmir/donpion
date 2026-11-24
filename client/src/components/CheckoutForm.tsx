@@ -11,6 +11,7 @@ import RegisterGate from "@/components/RegisterGate";
 import DeliverySlotPicker from "@/components/DeliverySlotPicker";
 import type { PickedLocation } from "@/components/AddressMapPicker";
 import PhoneInput from "@/components/PhoneInput";
+import GiftShareLink from "@/components/GiftShareLink";
 import { formatUZS } from "@/lib/format";
 import { getBranches } from "@/lib/api";
 import { buildClickPayUrl, buildPaymePayUrl } from "@/lib/payments";
@@ -66,6 +67,7 @@ interface PlacedOrder {
   pickupBranch?: { name: string; address: string };
   paymentMethod: "cash" | "card" | "online";
   paymentStatus: "pending" | "paid" | "failed";
+  giftCode?: string;
 }
 
 interface ApiOrder {
@@ -82,6 +84,7 @@ interface ApiOrder {
   pickupBranch?: { name?: string; address?: string };
   paymentMethod: "cash" | "card" | "online";
   paymentStatus: "pending" | "paid" | "failed";
+  giftCode?: string;
 }
 
 function toPlacedOrder(order: ApiOrder): PlacedOrder {
@@ -101,6 +104,7 @@ function toPlacedOrder(order: ApiOrder): PlacedOrder {
         : undefined,
     paymentMethod: order.paymentMethod,
     paymentStatus: order.paymentStatus,
+    giftCode: order.giftCode,
   };
 }
 
@@ -393,6 +397,12 @@ export default function CheckoutForm() {
               <p className="mt-4 text-xs text-graphite">
                 {t("pointsEarnedNote", { count: new Intl.NumberFormat("en-US").format(placedOrder.pointsEarned) })}
               </p>
+            )}
+
+            {placedOrder.giftCode && (
+              <div className="mt-6">
+                <GiftShareLink code={placedOrder.giftCode} />
+              </div>
             )}
 
             {placedOrder.paymentMethod === "online" &&

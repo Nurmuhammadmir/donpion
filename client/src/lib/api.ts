@@ -3,6 +3,7 @@ import type {
   Branch,
   Category,
   Character,
+  GiftOrder,
   Occasion,
   Product,
   ProductDetailResponse,
@@ -98,6 +99,16 @@ export async function getBranches(): Promise<Branch[]> {
     return await apiFetch<Branch[]>("/branches");
   } catch {
     return [];
+  }
+}
+
+// Shorter revalidate than the site-wide default — this is live delivery
+// status, not catalog content, so a stale copy matters a lot more here.
+export async function getGiftOrder(code: string): Promise<GiftOrder | null> {
+  try {
+    return await apiFetch<GiftOrder>(`/orders/gift/${code}`, 60);
+  } catch {
+    return null;
   }
 }
 
