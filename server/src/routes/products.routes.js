@@ -1,6 +1,7 @@
 import { Router } from "express";
 import {
   getProducts,
+  getCorporateProducts,
   getProductBySlug,
   getProductsAdmin,
   getProductByIdAdmin,
@@ -14,6 +15,7 @@ import { protectAdmin } from "../middleware/auth.js";
 const router = Router();
 
 router.get("/", getProducts);
+router.get("/corporate", getCorporateProducts);
 router.get("/admin/all", protectAdmin, getProductsAdmin);
 router.get("/admin/id/:id", protectAdmin, getProductByIdAdmin);
 router.post("/", protectAdmin, createProduct);

@@ -244,6 +244,8 @@
     "occasion": "Повод",
     "recipient": "Кому",
     "color": "Цвет",
+    "price": "Цена",
+    "priceUpTo": "До {amount}",
     "priceFrom": "Цена от",
     "priceTo": "до",
     "apply": "Применить",

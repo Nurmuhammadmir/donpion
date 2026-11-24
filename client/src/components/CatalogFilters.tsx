@@ -2,11 +2,15 @@
 
 import { useState } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import type { BouquetColor, Recipient } from "@/types";
+import { formatUZS } from "@/lib/format";
 
 const RECIPIENTS: Recipient[] = ["mom", "wife", "girlfriend", "colleague"];
 const COLORS: BouquetColor[] = ["red", "white", "pink", "yellow", "purple", "orange", "mixed"];
+// Quick one-tap buckets (ТЗ: "до 1 млн, до 2, до 3, до 4") — sit above the
+// от/до inputs so most people never have to type a number at all.
+const PRICE_PRESETS = [1_000_000, 2_000_000, 3_000_000, 4_000_000];
 
 // Small toggleable chip, same quiet-ink/navy-fill-on-hover language as the
 // site's .btn-outline — just lower-profile for a whole row of these.
@@ -22,8 +26,9 @@ function chipClass(active: boolean) {
 // Every change rewrites the URL's query string — the actual filtering
 // happens server-side in page.tsx reading these same params, so a
 // shared/bookmarked filtered link always renders the same result.
-export default function CatalogFilters({ occasions }: { occasions: { name: string; slug: string }[] }) {
+export default function CatalogFilters({ occasions = [] }: { occasions?: { name: string; slug: string }[] }) {
   const t = useTranslations("Catalog");
+  const locale = useLocale();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -60,6 +65,20 @@ export default function CatalogFilters({ occasions }: { occasions: { name: strin
     if (priceMin) next.set("priceMin", priceMin);
     else next.delete("priceMin");
     if (priceMax) next.set("priceMax", priceMax);
+    else next.delete("priceMax");
+    pushParams(next);
+  };
+
+  // A preset is "from 0 to X" — picking one clears priceMin and any other
+  // preset, picking the already-active one again clears it back to no filter.
+  const applyPricePreset = (value: number) => {
+    const isActive = !priceMin && priceMax === String(value);
+    const nextMax = isActive ? "" : String(value);
+    setPriceMin("");
+    setPriceMax(nextMax);
+    const next = new URLSearchParams(searchParams.toString());
+    next.delete("priceMin");
+    if (nextMax) next.set("priceMax", nextMax);
     else next.delete("priceMax");
     pushParams(next);
   };
@@ -123,6 +142,22 @@ export default function CatalogFilters({ occasions }: { occasions: { name: strin
               className={chipClass(selectedColors.includes(c))}
             >
               {t(`color_${c}`)}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <p className="eyebrow mb-2">{t("price")}</p>
+        <div className="flex flex-wrap gap-2">
+          {PRICE_PRESETS.map((value) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => applyPricePreset(value)}
+              className={chipClass(!priceMin && priceMax === String(value))}
+            >
+              {t("priceUpTo", { amount: formatUZS(value, locale) })}
             </button>
           ))}
         </div>

@@ -149,6 +149,33 @@ export async function getProducts(params: {
   }
 }
 
+// Корпоративные заказы (переделка) — весь каталог, цветы → шоколадки →
+// остальное, не только товары с тэгом Occasion'а "Корпоративные заказы".
+export async function getCorporateProducts(params: {
+  recipient?: string;
+  color?: string;
+  priceMin?: number;
+  priceMax?: number;
+  page?: number;
+  limit?: number;
+} = {}): Promise<ProductListResponse> {
+  const search = new URLSearchParams();
+  if (params.recipient) search.set("recipient", params.recipient);
+  if (params.color) search.set("color", params.color);
+  if (params.priceMin) search.set("priceMin", String(params.priceMin));
+  if (params.priceMax) search.set("priceMax", String(params.priceMax));
+  if (params.page) search.set("page", String(params.page));
+  if (params.limit) search.set("limit", String(params.limit));
+
+  const qs = search.toString();
+
+  try {
+    return await apiFetch<ProductListResponse>(`/products/corporate${qs ? `?${qs}` : ""}`);
+  } catch {
+    return { items: [], total: 0, page: 1, pages: 0 };
+  }
+}
+
 export async function getProductBySlug(slug: string): Promise<ProductDetailResponse | null> {
   try {
     return await apiFetch<ProductDetailResponse>(`/products/${slug}`);

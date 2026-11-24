@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getTranslations, setRequestLocale } from "next-intl/server";
-import { getOccasionBySlug, getOccasions, getProducts } from "@/lib/api";
+import { getCorporateProducts, getOccasionBySlug, getOccasions, getProducts } from "@/lib/api";
 import ProductCard from "@/components/ProductCard";
 import BackLink from "@/components/BackLink";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import JsonLd from "@/components/JsonLd";
+import CatalogFilters from "@/components/CatalogFilters";
 import { routing } from "@/i18n/routing";
 import { localeAlternates } from "@/lib/seo";
 
@@ -13,8 +14,14 @@ export const revalidate = 600;
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 
+// "Корпоративные заказы" shows the whole catalog (цветы → шоколадки →
+// остальное) instead of just products tagged with this Occasion — see
+// getCorporateProducts. Every other occasion keeps the original tag filter.
+const CORPORATE_SLUG = "korporativnye-zakazy";
+
 interface PageProps {
   params: { locale: string; slug: string };
+  searchParams: { recipient?: string; color?: string; priceMin?: string; priceMax?: string };
 }
 
 export async function generateStaticParams() {
@@ -36,7 +43,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   };
 }
 
-export default async function OccasionPage({ params: { locale, slug } }: PageProps) {
+export default async function OccasionPage({ params: { locale, slug }, searchParams }: PageProps) {
   setRequestLocale(locale);
   const t = await getTranslations("Occasion");
   const tc = await getTranslations("Common");
@@ -44,7 +51,16 @@ export default async function OccasionPage({ params: { locale, slug } }: PagePro
   const occasion = await getOccasionBySlug(slug);
   if (!occasion) notFound();
 
-  const { items } = await getProducts({ occasion: occasion.slug, limit: 60 });
+  const sharedFilterParams = {
+    recipient: searchParams.recipient,
+    color: searchParams.color,
+    priceMin: searchParams.priceMin ? Number(searchParams.priceMin) : undefined,
+    priceMax: searchParams.priceMax ? Number(searchParams.priceMax) : undefined,
+  };
+  const { items } =
+    occasion.slug === CORPORATE_SLUG
+      ? await getCorporateProducts({ ...sharedFilterParams, limit: 200 })
+      : await getProducts({ occasion: occasion.slug, limit: 60, ...sharedFilterParams });
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -66,10 +82,12 @@ export default async function OccasionPage({ params: { locale, slug } }: PagePro
         {occasion.description && <p className="mt-6 text-sm leading-relaxed text-graphite">{occasion.description}</p>}
       </header>
 
+      <CatalogFilters />
+
       {items.length > 0 ? (
         <div className="mt-16 grid grid-cols-2 gap-x-6 gap-y-12 sm:gap-x-8 lg:grid-cols-4">
           {items.map((product) => (
-            <ProductCard key={product._id} product={product} showFromPrice={occasion.slug === "korporativnye-zakazy"} />
+            <ProductCard key={product._id} product={product} showFromPrice={occasion.slug === CORPORATE_SLUG} />
           ))}
         </div>
       ) : (

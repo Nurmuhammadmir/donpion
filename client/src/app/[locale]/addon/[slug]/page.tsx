@@ -6,6 +6,7 @@ import ProductCard from "@/components/ProductCard";
 import BackLink from "@/components/BackLink";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import JsonLd from "@/components/JsonLd";
+import CatalogFilters from "@/components/CatalogFilters";
 import { routing } from "@/i18n/routing";
 import { localeAlternates } from "@/lib/seo";
 
@@ -15,6 +16,7 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 
 interface PageProps {
   params: { locale: string; slug: string };
+  searchParams: { recipient?: string; color?: string; priceMin?: string; priceMax?: string };
 }
 
 export async function generateStaticParams() {
@@ -35,7 +37,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   };
 }
 
-export default async function AddonCategoryPage({ params: { locale, slug } }: PageProps) {
+export default async function AddonCategoryPage({ params: { locale, slug }, searchParams }: PageProps) {
   setRequestLocale(locale);
   const t = await getTranslations("Addon");
   const tc = await getTranslations("Common");
@@ -43,7 +45,14 @@ export default async function AddonCategoryPage({ params: { locale, slug } }: Pa
   const category = await getAddonCategoryBySlug(slug);
   if (!category) notFound();
 
-  const { items } = await getProducts({ addonCategory: category.slug, limit: 60 });
+  const { items } = await getProducts({
+    addonCategory: category.slug,
+    limit: 60,
+    recipient: searchParams.recipient,
+    color: searchParams.color,
+    priceMin: searchParams.priceMin ? Number(searchParams.priceMin) : undefined,
+    priceMax: searchParams.priceMax ? Number(searchParams.priceMax) : undefined,
+  });
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -62,6 +71,8 @@ export default async function AddonCategoryPage({ params: { locale, slug } }: Pa
         <p className="eyebrow mb-4">{t("eyebrow")}</p>
         <h1 className="font-display text-3xl tracking-luxe text-ink sm:text-4xl">{category.name}</h1>
       </header>
+
+      <CatalogFilters />
 
       {items.length > 0 ? (
         <div className="mt-16 grid grid-cols-2 gap-x-6 gap-y-12 sm:gap-x-8 lg:grid-cols-4">

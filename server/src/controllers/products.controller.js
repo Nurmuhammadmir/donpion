@@ -157,6 +157,57 @@ export const getProducts = asyncHandler(async (req, res) => {
   });
 });
 
+// GET /api/products/corporate?recipient=&color=&priceMin=&priceMax=&page=&limit=
+// "Корпоративные заказы" (переделка): больше не только товары, вручную
+// отмеченные Occasion'ом "Корпоративные заказы" — вся витрина целиком, но
+// отсортированная так, чтобы сначала шли цветы (букеты), потом шоколадные
+// подарки, потом всё остальное (вазы, игрушки, украшения, сертификаты).
+// kind: "bouquet" IS "цветы" at the schema level, so that tier needs no
+// taxonomy lookup; "шоколадки" is whatever's tagged the one AddonCategory
+// named "Шоколад" or filed under the "Клубника в шоколаде" Category —
+// the only chocolate-ish taxonomy that actually exists right now.
+export const getCorporateProducts = asyncHandler(async (req, res) => {
+  const { page = 1, limit = 200 } = req.query;
+  const recipients = asEnumList(req.query.recipient, RECIPIENTS);
+  const colors = asEnumList(req.query.color, COLORS);
+  const priceMin = Number(req.query.priceMin);
+  const priceMax = Number(req.query.priceMax);
+
+  const filter = { isActive: true, priceConfirmed: { $ne: false } };
+  if (recipients) filter.recipients = { $in: recipients };
+  if (colors) filter.colors = { $in: colors };
+  if (Number.isFinite(priceMin) || Number.isFinite(priceMax)) {
+    filter.price = {};
+    if (Number.isFinite(priceMin)) filter.price.$gte = priceMin;
+    if (Number.isFinite(priceMax)) filter.price.$lte = priceMax;
+  }
+
+  const [chocolateAddon, chocolateCategory, all] = await Promise.all([
+    AddonCategory.findOne({ slug: "shokolad" }).select("_id"),
+    Category.findOne({ slug: "klubnika-v-shokolade" }).select("_id"),
+    Product.find(filter)
+      .populate("category", "name slug")
+      .select("-costPrice -recipe -packagingCost -ribbonCost -assemblyPercent -markupMultiplier -deliveryFee -priceConfirmed -priceHistory")
+      .lean(),
+  ]);
+
+  function tier(product) {
+    if (product.kind === "bouquet") return 0;
+    const isChocolate =
+      (chocolateCategory && String(product.category?._id) === String(chocolateCategory._id)) ||
+      (chocolateAddon && product.addonCategories?.some((id) => String(id) === String(chocolateAddon._id)));
+    return isChocolate ? 1 : 2;
+  }
+
+  all.sort((a, b) => tier(a) - tier(b) || a.price - b.price);
+
+  const total = all.length;
+  const skip = (Number(page) - 1) * Number(limit);
+  const items = all.slice(skip, skip + Number(limit));
+
+  res.json({ items, total, page: Number(page), pages: Math.ceil(total / Number(limit)) });
+});
+
 // GET /api/products/:slug  (public)
 export const getProductBySlug = asyncHandler(async (req, res) => {
   const product = await Product.findOne({ slug: req.params.slug, isActive: true, priceConfirmed: { $ne: false } })

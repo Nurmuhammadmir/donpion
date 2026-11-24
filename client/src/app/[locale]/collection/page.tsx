@@ -4,12 +4,17 @@ import { getProducts } from "@/lib/api";
 import ProductCard from "@/components/ProductCard";
 import BackLink from "@/components/BackLink";
 import Breadcrumbs from "@/components/Breadcrumbs";
+import CatalogFilters from "@/components/CatalogFilters";
 import { localeAlternates } from "@/lib/seo";
 
 export const revalidate = 600;
 
 interface PageProps {
   params: { locale: string };
+  // Same кому/цвет/цена filters as /catalog/[category] (ТЗ: "на сайте
+  // клиентов должно быть фильтры если нажать на смотреть все") — reading
+  // searchParams makes this render dynamically, same tradeoff as there.
+  searchParams: { recipient?: string; color?: string; priceMin?: string; priceMax?: string };
 }
 
 export async function generateMetadata({ params: { locale } }: PageProps): Promise<Metadata> {
@@ -21,14 +26,21 @@ export async function generateMetadata({ params: { locale } }: PageProps): Promi
   };
 }
 
-export default async function CollectionPage({ params: { locale } }: PageProps) {
+export default async function CollectionPage({ params: { locale }, searchParams }: PageProps) {
   setRequestLocale(locale);
   const t = await getTranslations("Collection");
   const tc = await getTranslations("Common");
 
   // Only what the admin has explicitly marked "Показывать в Популярном" —
   // no fallback substitutes.
-  const { items } = await getProducts({ featured: true, limit: 100 });
+  const { items } = await getProducts({
+    featured: true,
+    limit: 100,
+    recipient: searchParams.recipient,
+    color: searchParams.color,
+    priceMin: searchParams.priceMin ? Number(searchParams.priceMin) : undefined,
+    priceMax: searchParams.priceMax ? Number(searchParams.priceMax) : undefined,
+  });
 
   return (
     <div className="mx-auto max-w-6xl px-6 py-16 lg:px-10 lg:py-20">
@@ -40,6 +52,8 @@ export default async function CollectionPage({ params: { locale } }: PageProps) 
         <h1 className="font-display text-3xl tracking-luxe text-ink sm:text-4xl">{t("title")}</h1>
         <p className="mt-6 text-sm leading-relaxed text-graphite">{t("description")}</p>
       </header>
+
+      <CatalogFilters />
 
       {items.length > 0 ? (
         <div className="mt-16 grid grid-cols-2 gap-x-6 gap-y-12 sm:gap-x-8 lg:grid-cols-4">

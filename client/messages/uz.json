@@ -244,6 +244,8 @@
     "occasion": "Sabab",
     "recipient": "Kimga",
     "color": "Rang",
+    "price": "Narxi",
+    "priceUpTo": "{amount} gacha",
     "priceFrom": "Narxi",
     "priceTo": "gacha",
     "apply": "Qo'llash",
