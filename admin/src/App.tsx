@@ -22,6 +22,7 @@ const Branches = lazy(() => import("@/pages/Branches"));
 const Settings = lazy(() => import("@/pages/Settings"));
 const Customers = lazy(() => import("@/pages/Customers"));
 const CustomerDetail = lazy(() => import("@/pages/CustomerDetail"));
+const Subscriptions = lazy(() => import("@/pages/Subscriptions"));
 
 function RouteFallback() {
   return <div className="p-8 text-sm text-graphite">Загрузка…</div>;
@@ -129,6 +130,15 @@ export default function App() {
           element={
             <Suspense fallback={<RouteFallback />}>
               <Warehouse />
+            </Suspense>
+          }
+        />
+
+        <Route
+          path="/subscriptions"
+          element={
+            <Suspense fallback={<RouteFallback />}>
+              <Subscriptions />
             </Suspense>
           }
         />

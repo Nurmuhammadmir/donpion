@@ -1,4 +1,5 @@
 import Order from "../models/Order.js";
+import Subscription from "../models/Subscription.js";
 import { buildClickSignString, CLICK_ERROR, CLICK_ERROR_NOTE } from "../utils/click.js";
 import { sendTelegramMessage } from "../utils/telegramBot.js";
 import { applyOrderPayment } from "../utils/cashBalance.js";
@@ -122,6 +123,12 @@ export const clickComplete = async (req, res) => {
       { $set: { cashBalanceApplied: true } }
     );
     if (claimed) await applyOrderPayment(order);
+
+    // This order is the one upfront charge for a prepaid Subscription
+    // (see subscriptions.controller.js) — flip it to paid/active too.
+    if (order.subscriptionPaymentFor) {
+      await Subscription.findByIdAndUpdate(order.subscriptionPaymentFor, { paid: true, status: "active" });
+    }
 
     const adminChatId = process.env.ADMIN_TELEGRAM_CHAT_ID;
     if (adminChatId) {

@@ -19,6 +19,10 @@ const cashMovementSchema = new mongoose.Schema(
     },
     order: { type: mongoose.Schema.Types.ObjectId, ref: "Order", default: null },
     expense: { type: mongoose.Schema.Types.ObjectId, ref: "Expense", default: null },
+    // Set instead of `order` for a "pay on delivery" subscription delivery
+    // (see subscriptions.controller.js) — that payment was never a real
+    // Order, so it isn't mixed into the `order` ref above.
+    subscription: { type: mongoose.Schema.Types.ObjectId, ref: "Subscription", default: null },
     note: { type: String, default: "" },
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "Admin", default: null },
   },

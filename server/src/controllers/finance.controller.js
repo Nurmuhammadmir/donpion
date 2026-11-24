@@ -346,6 +346,7 @@ export const getBalanceMovements = asyncHandler(async (req, res) => {
       .populate("branch", "name")
       .populate("order", "orderNumber")
       .populate("expense", "category description")
+      .populate("subscription", "customer")
       .populate("createdBy", "name")
       .sort({ createdAt: -1 })
       .skip(skip)

@@ -128,6 +128,12 @@ export default function Header({ categories, occasions }: { categories: Category
               {occasion.name}
             </Link>
           ))}
+          <Link
+            href="/subscription"
+            className="flex-shrink-0 whitespace-nowrap text-xs font-medium uppercase tracking-wide2 text-white/75 transition-colors hover:text-hermes-500"
+          >
+            {t("subscription")}
+          </Link>
         </nav>
 
         <div className="flex flex-shrink-0 items-center gap-5">
@@ -187,6 +193,13 @@ export default function Header({ categories, occasions }: { categories: Category
               {chocolateCategory.name}
             </Link>
           )}
+          <Link
+            href="/subscription"
+            onClick={() => setMenuOpen(false)}
+            className="border-b border-hairline py-3 text-xs font-medium uppercase tracking-wide2 text-graphite hover:text-hermes-500"
+          >
+            {t("subscription")}
+          </Link>
           <Link
             href="/account"
             onClick={() => setMenuOpen(false)}

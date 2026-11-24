@@ -6,7 +6,7 @@ import CashMovement from "../models/CashMovement.js";
 // CashMovement entry — the two can never drift apart. "bank" is one shared
 // SiteSettings field regardless of branchId; "cash" is a specific Branch's
 // till, so branchId is required for it.
-async function moveBucket({ bucket, branchId, amount, reason, order, expense, note, createdBy }) {
+async function moveBucket({ bucket, branchId, amount, reason, order, expense, subscription, note, createdBy }) {
   let balanceAfter;
   if (bucket === "cash") {
     const branch = await Branch.findByIdAndUpdate(branchId, { $inc: { cashBalance: amount } }, { new: true });
@@ -28,6 +28,7 @@ async function moveBucket({ bucket, branchId, amount, reason, order, expense, no
     reason,
     order: order ?? null,
     expense: expense ?? null,
+    subscription: subscription ?? null,
     note: note ?? "",
     createdBy: createdBy ?? null,
   });
@@ -59,6 +60,20 @@ export async function reverseOrderPayment(order) {
     await moveBucket({ bucket: "bank", amount: -order.totalAmount, reason: "order_payment", order: order._id, note: "Отмена заказа" });
   } else if (order.branch) {
     await moveBucket({ bucket: "cash", branchId: order.branch, amount: -order.totalAmount, reason: "order_payment", order: order._id, note: "Отмена заказа" });
+  }
+}
+
+// A "pay on delivery" Subscription delivery, collected in person the
+// moment it's marked delivered (see subscriptions.controller.js) — same
+// shape as applyOrderPayment, but logged against the Subscription instead
+// of a (nonexistent, for this payment plan) Order.
+export async function applySubscriptionDelivery({ paymentMethod, branchId, amount, subscriptionId }) {
+  if (paymentMethod === "online") {
+    await moveBucket({ bucket: "bank", amount, reason: "order_payment", subscription: subscriptionId });
+  } else if (paymentMethod === "card") {
+    await moveBucket({ bucket: "bank", amount, reason: "order_payment", subscription: subscriptionId });
+  } else if (branchId) {
+    await moveBucket({ bucket: "cash", branchId, amount, reason: "order_payment", subscription: subscriptionId });
   }
 }
 

@@ -117,6 +117,25 @@ export function getMarginReport(params: { branch?: string | null; from?: string;
   return api(`/finance/margin-report?${marginReportQuery(params)}`);
 }
 
+export function getSubscriptionsAdmin(params: { status?: string } = {}) {
+  const qs = new URLSearchParams();
+  if (params.status) qs.set("status", params.status);
+  const query = qs.toString();
+  return api(`/subscriptions${query ? `?${query}` : ""}`);
+}
+
+export function markSubscriptionDeliveryDelivered(id: string, date: string, deliveredBy?: string) {
+  return api(`/subscriptions/${id}/deliveries/${date}/deliver`, { method: "PATCH", body: JSON.stringify({ deliveredBy }) });
+}
+
+export function skipSubscriptionDelivery(id: string, date: string) {
+  return api(`/subscriptions/${id}/deliveries/${date}/skip`, { method: "PATCH" });
+}
+
+export function cancelSubscription(id: string) {
+  return api(`/subscriptions/${id}/cancel`, { method: "PATCH" });
+}
+
 export function getBalance() {
   return api("/finance/balance");
 }

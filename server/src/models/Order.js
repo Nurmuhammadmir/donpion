@@ -165,6 +165,11 @@ const orderSchema = new mongoose.Schema(
       enum: ["new", "confirmed", "delivering", "completed", "cancelled"],
       default: "new",
     },
+    // Set only on the one Order a *prepaid* Subscription charges up front
+    // (see models/Subscription.js) — lets the Click/Payme "paid" webhooks
+    // flip that Subscription's own paid/status after marking this order
+    // paid, without teaching Click/Payme anything new about subscriptions.
+    subscriptionPaymentFor: { type: mongoose.Schema.Types.ObjectId, ref: "Subscription", default: null },
   },
   { timestamps: true }
 );

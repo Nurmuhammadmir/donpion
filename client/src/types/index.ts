@@ -119,3 +119,35 @@ export interface CartLine {
   image: string;
   quantity: number;
 }
+
+export type SubscriptionDeliveryStatus = "scheduled" | "delivered" | "skipped" | "cancelled";
+
+export interface SubscriptionDelivery {
+  date: string;
+  product: string;
+  name: string;
+  image: string;
+  price: number;
+  status: SubscriptionDeliveryStatus;
+}
+
+export type SubscriptionPaymentPlan = "prepaid" | "pay_on_delivery";
+export type SubscriptionStatus = "pending_payment" | "active" | "completed" | "cancelled";
+
+export interface Subscription {
+  _id: string;
+  fulfillmentMethod: "delivery" | "pickup";
+  address: string;
+  pickupBranch?: { name: string; address: string };
+  deliveries: SubscriptionDelivery[];
+  paymentPlan: SubscriptionPaymentPlan;
+  totalAmount: number;
+  paid: boolean;
+  status: SubscriptionStatus;
+  createdAt: string;
+}
+
+export interface CreateSubscriptionResponse {
+  subscription: Subscription;
+  paymentOrder: { orderNumber: string; totalAmount: number } | null;
+}

@@ -422,6 +422,47 @@ export const CASH_MOVEMENT_REASON_LABELS: Record<CashMovementReason, string> = {
   manual_adjustment: "Коррекция",
 };
 
+export type SubscriptionDeliveryStatus = "scheduled" | "delivered" | "skipped" | "cancelled";
+
+export interface SubscriptionDelivery {
+  date: string;
+  product: string;
+  name: string;
+  image: string;
+  price: number;
+  status: SubscriptionDeliveryStatus;
+  deliveredAt: string | null;
+  deliveredBy: string;
+}
+
+export type SubscriptionPaymentPlan = "prepaid" | "pay_on_delivery";
+export type SubscriptionStatus = "pending_payment" | "active" | "completed" | "cancelled";
+
+export interface Subscription {
+  _id: string;
+  customerId: string;
+  customer: { name: string; phone: string };
+  fulfillmentMethod: "delivery" | "pickup";
+  address: string;
+  location?: { lat: number; lng: number };
+  pickupBranch?: { branchId: { _id: string; name: string } | string; name: string; address: string };
+  deliveries: SubscriptionDelivery[];
+  paymentPlan: SubscriptionPaymentPlan;
+  paymentMethod: "cash" | "card" | "online";
+  totalAmount: number;
+  paymentOrder: string | null;
+  paid: boolean;
+  status: SubscriptionStatus;
+  createdAt: string;
+}
+
+export const SUBSCRIPTION_STATUS_LABELS: Record<SubscriptionStatus, string> = {
+  pending_payment: "Ждёт оплаты",
+  active: "Активна",
+  completed: "Завершена",
+  cancelled: "Отменена",
+};
+
 export interface CashMovement {
   _id: string;
   bucket: "cash" | "bank";
@@ -431,6 +472,7 @@ export interface CashMovement {
   reason: CashMovementReason;
   order: { _id: string; orderNumber: string } | null;
   expense: { _id: string; category: ExpenseCategory; description: string } | null;
+  subscription: { _id: string; customer: { name: string; phone: string } } | null;
   note: string;
   createdBy: { _id: string; name: string } | null;
   createdAt: string;

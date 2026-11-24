@@ -728,6 +728,7 @@ export default function Finance() {
                       {CASH_MOVEMENT_REASON_LABELS[m.reason]}
                       {m.order && <span className="ml-1 text-graphite">· {m.order.orderNumber}</span>}
                       {m.expense && <span className="ml-1 text-graphite">· {EXPENSE_CATEGORY_LABELS[m.expense.category]}</span>}
+                      {m.subscription && <span className="ml-1 text-graphite">· подписка {m.subscription.customer.name}</span>}
                     </td>
                     <td className={`tabular-nums ${m.amount < 0 ? "text-hermes-600" : "text-ink"}`}>
                       {m.amount > 0 ? "+" : ""}
