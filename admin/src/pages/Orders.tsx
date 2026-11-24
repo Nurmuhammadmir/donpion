@@ -1,4 +1,5 @@
 import { Fragment, lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { ChevronDown, ChevronUp, Globe, MapPin, Store } from "lucide-react";
 import { api, ApiError, resolveImageUrl, sendAssemblyPhoto, uploadProductImages } from "@/lib/api";
 import type { Branch, Order } from "@/lib/types";
@@ -400,6 +401,7 @@ export default function Orders() {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<Order["status"] | "all">("all");
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const load = () => {
     setLoading(true);
@@ -415,6 +417,39 @@ export default function Orders() {
   // or "all branches") — status, by contrast, is filtered client-side below
   // so switching tabs is instant instead of a round trip every click.
   useEffect(load, [activeBranchId]);
+
+  // Landed here from GlobalSearch's "?highlight=<id>" — the order it found
+  // might be older than this page's own most-recent-100 window, or on a
+  // branch the switcher isn't currently showing, so it's fetched directly
+  // by id rather than just hoping it's already in `orders`.
+  useEffect(() => {
+    const highlightId = searchParams.get("highlight");
+    if (!highlightId) return;
+    api<Order>(`/orders/${highlightId}`)
+      .then((order) => {
+        setOrders((prev) => (prev.some((o) => o._id === order._id) ? prev : [order, ...prev]));
+        setStatusFilter("all");
+        setExpanded(order._id);
+        setSearchParams((prev) => {
+          const next = new URLSearchParams(prev);
+          next.delete("highlight");
+          return next;
+        });
+        window.setTimeout(() => {
+          document.getElementById(`order-row-${order._id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+        }, 150);
+      })
+      .catch(() => {
+        // Not found, or no access from the current session — nothing to
+        // highlight, just drop the param so a refresh doesn't retry forever.
+        setSearchParams((prev) => {
+          const next = new URLSearchParams(prev);
+          next.delete("highlight");
+          return next;
+        });
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   const counts = useMemo(() => {
     const base = { all: orders.length } as Record<Order["status"] | "all", number>;
@@ -495,16 +530,17 @@ export default function Orders() {
       {/* Mobile: a real card list, not a shrunk table. */}
       <div className="mt-5 space-y-3 md:hidden">
         {filteredOrders.map((order) => (
-          <OrderCard
-            key={order._id}
-            order={order}
-            branches={branches}
-            showBranch={showBranchColumn}
-            expanded={expanded === order._id}
-            onToggle={() => toggleExpanded(order._id)}
-            onStatusChange={(status) => handleStatusChange(order._id, status)}
-            onUpdated={(patch) => handleOrderUpdated(order._id, patch)}
-          />
+          <div key={order._id} id={`order-row-${order._id}`}>
+            <OrderCard
+              order={order}
+              branches={branches}
+              showBranch={showBranchColumn}
+              expanded={expanded === order._id}
+              onToggle={() => toggleExpanded(order._id)}
+              onStatusChange={(status) => handleStatusChange(order._id, status)}
+              onUpdated={(patch) => handleOrderUpdated(order._id, patch)}
+            />
+          </div>
         ))}
         {loading && filteredOrders.length === 0 && (
           <>
@@ -548,7 +584,7 @@ export default function Orders() {
               const resolvedBranch = showBranchColumn ? resolveBranchName(order, branches) : null;
               return (
                 <Fragment key={order._id}>
-                  <tr>
+                  <tr id={`order-row-${order._id}`}>
                     <td className="font-medium">
                       {order.orderNumber}
                       {order.needsProcurement && (

@@ -1,6 +1,7 @@
 import { NavLink, Outlet } from "react-router-dom";
 import { CalendarClock, ClipboardList, Flower2, LayoutDashboard, Settings, Users, Wallet, Warehouse } from "lucide-react";
 import BranchSwitcher from "@/components/BranchSwitcher";
+import GlobalSearch from "@/components/GlobalSearch";
 import { BranchProvider } from "@/context/BranchContext";
 
 // The seven sections the whole admin is organized around — same set, same
@@ -32,6 +33,10 @@ export default function AdminLayout() {
           <div className="mb-6 px-1">
             <span className="font-display text-xl font-semibold text-ink">DonPion</span>
             <span className="ml-1.5 text-xs text-graphite">CRM</span>
+          </div>
+
+          <div className="mb-4">
+            <GlobalSearch />
           </div>
 
           <div className="mb-6">
@@ -81,11 +86,14 @@ export default function AdminLayout() {
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
           {/* Mobile top bar — no longer just an ordinary flow element: it
               needs to stay put while <main> scrolls past underneath it. */}
-          <header className="z-20 flex flex-none items-center justify-between border-b border-hairline bg-paper px-4 py-3 md:hidden">
-            <span className="font-display text-lg font-semibold text-ink">
-              DonPion<span className="ml-1 text-xs font-normal text-graphite">CRM</span>
-            </span>
-            <BranchSwitcher variant="topbar" />
+          <header className="z-20 flex flex-none flex-col gap-2.5 border-b border-hairline bg-paper px-4 py-3 md:hidden">
+            <div className="flex items-center justify-between">
+              <span className="font-display text-lg font-semibold text-ink">
+                DonPion<span className="ml-1 text-xs font-normal text-graphite">CRM</span>
+              </span>
+              <BranchSwitcher variant="topbar" />
+            </div>
+            <GlobalSearch />
           </header>
 
           <main className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto p-4 mobile-nav-spacer md:p-8 md:pb-8">

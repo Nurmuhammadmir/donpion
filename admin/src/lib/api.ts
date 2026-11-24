@@ -117,6 +117,10 @@ export function getMarginReport(params: { branch?: string | null; from?: string;
   return api(`/finance/margin-report?${marginReportQuery(params)}`);
 }
 
+export function globalSearch(q: string) {
+  return api(`/admin/search?q=${encodeURIComponent(q)}`);
+}
+
 export function getCorporateLeads(params: { status?: string } = {}) {
   const qs = new URLSearchParams();
   if (params.status) qs.set("status", params.status);

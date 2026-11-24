@@ -456,6 +456,12 @@ export interface Subscription {
   createdAt: string;
 }
 
+export interface GlobalSearchResults {
+  orders: { _id: string; orderNumber: string; customer: { name: string; phone: string }; totalAmount: number; status: string; createdAt: string }[];
+  customers: { _id: string; name: string; phone: string; pointsBalance: number }[];
+  products: { _id: string; name: string; slug: string; price: number; images: string[]; isActive: boolean }[];
+}
+
 export type CorporateLeadStatus = "new" | "contacted" | "closed";
 
 export interface CorporateLead {
