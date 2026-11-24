@@ -9,6 +9,7 @@ import { sendTelegramMessage, sendTelegramPhoto } from "../utils/telegramBot.js"
 import { deductFlowersForSale, restoreFlowersForCancel } from "../utils/bouquetStock.js";
 import { loadPricingDefaults, buildItemCostSnapshot } from "../utils/bouquetPricing.js";
 import { parseRange } from "../utils/dateRange.js";
+import { applyOrderPayment, reverseOrderPayment } from "../utils/cashBalance.js";
 
 const PAYMENT_METHOD_LABELS = { cash: "Наличными", card: "Картой", online: "Онлайн" };
 
@@ -335,7 +336,12 @@ export const createPosOrder = asyncHandler(async (req, res) => {
     subtotal,
     totalAmount: subtotal,
     status: "completed",
+    // A POS sale is money in hand (till or card terminal) the moment it's
+    // rung up — no separate "completed" transition to wait for, unlike a
+    // pickup/delivery order (see updateOrderStatus below).
+    cashBalanceApplied: true,
   });
+  await applyOrderPayment(order);
 
   console.log(`[stock] deducting items for POS sale ${order.orderNumber} at ${branch.name}`);
   await Promise.all(
@@ -437,6 +443,28 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
       console.log(`[points] crediting ${order.pointsEarned} to customer ${order.customerId} for completed order ${order.orderNumber}`);
       await Customer.findByIdAndUpdate(order.customerId, { $inc: { pointsBalance: order.pointsEarned } });
     }
+  }
+
+  // Касса/баланс — same one-shot guard, the first time a cash/card order
+  // (pickup, in-store — not online, see applyOrderPayment) reaches
+  // "completed". Online orders are counted separately, the moment Click/
+  // Payme actually confirms payment (see those controllers), not here.
+  if (status === "completed" && order.paymentMethod !== "online" && !order.cashBalanceApplied) {
+    const claimed = await Order.findOneAndUpdate(
+      { _id: order._id, cashBalanceApplied: false },
+      { $set: { cashBalanceApplied: true } }
+    );
+    if (claimed) await applyOrderPayment(order);
+  }
+
+  // Reverse it — same one-shot guard — if an order that had already been
+  // counted then gets cancelled.
+  if (status === "cancelled" && order.cashBalanceApplied && !order.cashBalanceReversed) {
+    const claimed = await Order.findOneAndUpdate(
+      { _id: order._id, cashBalanceReversed: false },
+      { $set: { cashBalanceReversed: true } }
+    );
+    if (claimed) await reverseOrderPayment(order);
   }
 
   // Refund of redeemed points — same one-shot guard, on the order's first

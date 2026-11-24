@@ -1,6 +1,7 @@
 import Order from "../models/Order.js";
 import { PAYME_ERROR, PAYME_ACCOUNT_FIELD, paymeMessage, checkPaymeAuth, somToTiyin } from "../utils/payme.js";
 import { sendTelegramMessage } from "../utils/telegramBot.js";
+import { applyOrderPayment } from "../utils/cashBalance.js";
 
 // Same reason as click.controller.js's reply() helper: Payme calls this
 // endpoint directly (Basic Auth, not a session) and requires HTTP 200 on
@@ -98,6 +99,13 @@ async function performTransaction(res, params, id) {
   order.paymentStatus = "paid";
   order.paidAt = new Date();
   await order.save();
+
+  // Касса/баланс — same one-shot guard as click.controller.js.
+  const claimed = await Order.findOneAndUpdate(
+    { _id: order._id, cashBalanceApplied: false },
+    { $set: { cashBalanceApplied: true } }
+  );
+  if (claimed) await applyOrderPayment(order);
 
   const adminChatId = process.env.ADMIN_TELEGRAM_CHAT_ID;
   if (adminChatId) {

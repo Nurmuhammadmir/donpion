@@ -15,6 +15,11 @@ const branchSchema = new mongoose.Schema(
     // are attributed to when no branch is explicitly chosen — e.g. online
     // delivery orders, which aren't tied to any physical pickup point.
     isMain: { type: Boolean, default: false },
+    // Running cash-on-hand for this branch's physical till — "сколько в
+    // кассе" (see utils/cashBalance.js). Starts at 0; the admin sets the
+    // real opening count once via a manual adjustment, same action used
+    // later to correct it after a miscount.
+    cashBalance: { type: Number, default: 0 },
   },
   { timestamps: true }
 );

@@ -7,6 +7,10 @@ import {
   deleteExpense,
   getMarginReport,
   exportMarginReport,
+  getBalance,
+  getBalanceMovements,
+  transferBalance,
+  adjustBalanceEntry,
 } from "../controllers/finance.controller.js";
 import { protectAdmin } from "../middleware/auth.js";
 
@@ -19,5 +23,9 @@ router.get("/expenses", protectAdmin, getExpenses);
 router.post("/expenses", protectAdmin, createExpense);
 router.put("/expenses/:id", protectAdmin, updateExpense);
 router.delete("/expenses/:id", protectAdmin, deleteExpense);
+router.get("/balance", protectAdmin, getBalance);
+router.get("/balance/movements", protectAdmin, getBalanceMovements);
+router.post("/balance/transfer", protectAdmin, transferBalance);
+router.post("/balance/adjust", protectAdmin, adjustBalanceEntry);
 
 export default router;

@@ -32,6 +32,13 @@ const siteSettingsSchema = new mongoose.Schema(
     assemblyPercent: { type: Number, default: 10, min: 0 },
     markupMultiplier: { type: Number, default: 2, min: 0 },
     deliveryFee: { type: Number, default: 50000, min: 0 },
+
+    // "Сколько в фирме" — one shared non-cash balance (card + online
+    // payments, minus non-cash expenses), not split by branch the way
+    // Branch.cashBalance is: card/Click/Payme settle into one company bank
+    // account regardless of which till rang up the sale. See
+    // utils/cashBalance.js.
+    bankBalance: { type: Number, default: 0 },
   },
   { timestamps: true }
 );

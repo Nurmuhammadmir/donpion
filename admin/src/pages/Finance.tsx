@@ -1,14 +1,15 @@
 import { lazy, Suspense, useEffect, useState } from "react";
-import { Globe, Plus, Store, TrendingDown, TrendingUp, Warehouse as WarehouseIcon, X } from "lucide-react";
-import { api, ApiError, downloadMarginReportCsv, getFinanceSummary, getMarginReport } from "@/lib/api";
+import { ArrowRightLeft, Banknote, Globe, Landmark, Pencil, Plus, Store, TrendingDown, TrendingUp, Warehouse as WarehouseIcon, X } from "lucide-react";
+import { api, ApiError, downloadMarginReportCsv, getBalance, getBalanceMovements, getFinanceSummary, getMarginReport } from "@/lib/api";
 import { useBranch } from "@/context/BranchContext";
-import type { Branch, Expense, ExpenseCategory, FinanceSummary, MarginReport, Order } from "@/lib/types";
-import { EXPENSE_CATEGORY_LABELS, ORDER_SOURCE_LABELS } from "@/lib/types";
+import type { Branch, BalanceSummary, CashMovement, Expense, ExpenseCategory, FinanceSummary, MarginReport, Order, PaymentSource } from "@/lib/types";
+import { CASH_MOVEMENT_REASON_LABELS, EXPENSE_CATEGORY_LABELS, ORDER_SOURCE_LABELS, PAYMENT_SOURCE_LABELS } from "@/lib/types";
 import { Skeleton } from "@/components/Skeleton";
 import PriceInput from "@/components/PriceInput";
 
 const QuickSaleModal = lazy(() => import("@/components/QuickSaleModal"));
 const ExpenseBreakdownChart = lazy(() => import("@/components/ExpenseBreakdownChart"));
+const CashBalanceModal = lazy(() => import("@/components/CashBalanceModal"));
 
 function formatUZS(amount: number) {
   return `${new Intl.NumberFormat("ru-RU").format(Math.round(amount))} сум`;
@@ -69,10 +70,11 @@ interface ExpenseForm {
   branch: string;
   description: string;
   isRecurring: boolean;
+  paymentSource: PaymentSource;
 }
 
 function emptyExpenseForm(branch: string): ExpenseForm {
-  return { category: "packaging", amount: "", date: isoDate(new Date()), branch, description: "", isRecurring: false };
+  return { category: "packaging", amount: "", date: isoDate(new Date()), branch, description: "", isRecurring: false, paymentSource: "cash" };
 }
 
 function branchName(b: Expense["branch"]): string {
@@ -120,6 +122,24 @@ export default function Finance() {
   const [pages, setPages] = useState(1);
   const [categoryFilter, setCategoryFilter] = useState<ExpenseCategory | "">("");
   const [logLoading, setLogLoading] = useState(true);
+
+  // "Касса" — a real running balance (не за период, как остальное выше),
+  // so it ignores the period picker entirely.
+  const [cashExpanded, setCashExpanded] = useState(false);
+  const [balance, setBalance] = useState<BalanceSummary | null>(null);
+  const [balanceLoading, setBalanceLoading] = useState(true);
+  const [movements, setMovements] = useState<CashMovement[]>([]);
+  const [movementsTotal, setMovementsTotal] = useState(0);
+  const [movementsPage, setMovementsPage] = useState(1);
+  const [movementsPages, setMovementsPages] = useState(1);
+  const [movementsLoading, setMovementsLoading] = useState(true);
+  const [cashModal, setCashModal] = useState<{
+    mode: "adjust" | "transfer";
+    bucket: "cash" | "bank";
+    branchId?: string;
+    branchName?: string;
+    currentAmount: number;
+  } | null>(null);
 
   // Unified "+" entry point: pick "Расход" or "Продажа" first, then open
   // the matching form/modal.
@@ -208,6 +228,31 @@ export default function Finance() {
       .finally(() => setLogLoading(false));
   };
 
+  const loadBalance = () => {
+    setBalanceLoading(true);
+    getBalance()
+      .then((data) => setBalance(data as BalanceSummary))
+      .catch(() => setBalance(null))
+      .finally(() => setBalanceLoading(false));
+  };
+
+  const loadMovements = () => {
+    setMovementsLoading(true);
+    getBalanceMovements({ branch: activeBranchId ?? undefined, page: movementsPage, limit: LIST_PAGE_SIZE })
+      .then((res) => {
+        const r = res as Page<CashMovement>;
+        setMovements(r.items);
+        setMovementsTotal(r.total);
+        setMovementsPages(Math.max(1, r.pages));
+      })
+      .catch(() => {
+        setMovements([]);
+        setMovementsTotal(0);
+        setMovementsPages(1);
+      })
+      .finally(() => setMovementsLoading(false));
+  };
+
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(loadSummary, [activeBranchId, from, to]);
 
@@ -231,6 +276,24 @@ export default function Finance() {
     loadMargin();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [marginExpanded, activeBranchId, from, to, marginGroupBy]);
+
+  // Касса ignores the period picker (it's a running balance, not a flow
+  // for a date range) — only reacts to the branch switcher.
+  useEffect(() => {
+    if (!cashExpanded) return;
+    loadBalance();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cashExpanded, activeBranchId]);
+
+  useEffect(() => {
+    if (!cashExpanded) return;
+    loadMovements();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cashExpanded, activeBranchId, movementsPage]);
+
+  useEffect(() => {
+    setMovementsPage(1);
+  }, [activeBranchId]);
 
   // Period/category changes reset their own page from the handlers below;
   // a branch switch comes from the switcher elsewhere in the shell, so it
@@ -271,6 +334,7 @@ export default function Finance() {
       branch: typeof expense.branch === "string" ? expense.branch : expense.branch._id,
       description: expense.description,
       isRecurring: expense.isRecurring,
+      paymentSource: expense.paymentSource,
     });
     setShowForm(true);
     setFormError(null);
@@ -283,12 +347,25 @@ export default function Finance() {
   const reloadAfterExpenseChange = () => {
     loadSummary();
     if (expensesExpanded) loadExpenses();
+    if (cashExpanded) {
+      loadBalance();
+      loadMovements();
+    }
   };
 
   const reloadAfterSale = () => {
     loadSummary();
     if (incomeExpanded) loadIncome();
     if (marginExpanded) loadMargin();
+    if (cashExpanded) {
+      loadBalance();
+      loadMovements();
+    }
+  };
+
+  const reloadAfterCashChange = () => {
+    loadBalance();
+    loadMovements();
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -312,6 +389,7 @@ export default function Finance() {
       date: form.date,
       description: form.description,
       isRecurring: form.isRecurring,
+      paymentSource: form.paymentSource,
     };
 
     try {
@@ -451,6 +529,9 @@ export default function Finance() {
         <button type="button" onClick={() => setMarginExpanded((v) => !v)} className="pill" data-active={marginExpanded}>
           Маржа
         </button>
+        <button type="button" onClick={() => setCashExpanded((v) => !v)} className="pill" data-active={cashExpanded}>
+          Касса
+        </button>
       </div>
 
       {incomeExpanded && (
@@ -551,6 +632,138 @@ export default function Finance() {
             {marginExportError && <p className="text-sm text-hermes-600">{marginExportError}</p>}
           </div>
         </div>
+      )}
+
+      {cashExpanded && (
+        <div className="anim-dropdown mt-3 space-y-3">
+          <p className="text-xs text-graphite">
+            Реальный остаток «на сейчас» — не отчёт за период. Нал-заказы при самовывозе/в магазине идут в кассу филиала; карта и онлайн — в
+            общий счёт фирмы.
+          </p>
+
+          {balanceLoading && !balance ? (
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              {Array.from({ length: 2 }).map((_, i) => (
+                <div key={i} className="rounded-2xl border border-hairline bg-paper p-5">
+                  <Skeleton className="h-3 w-20" />
+                  <Skeleton className="mt-3 h-8 w-32" />
+                </div>
+              ))}
+            </div>
+          ) : !balance ? (
+            <p className="text-sm text-graphite">Не удалось загрузить баланс.</p>
+          ) : (
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              {balance.branches.map((b) => (
+                <div key={b._id} className="rounded-2xl border border-hairline bg-paper p-5">
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-canvas text-graphite">
+                      <Banknote className="h-[18px] w-[18px]" />
+                    </span>
+                    <div className="flex gap-1">
+                      <button
+                        type="button"
+                        title="Поправить остаток"
+                        onClick={() => setCashModal({ mode: "adjust", bucket: "cash", branchId: b._id, branchName: b.name, currentAmount: b.cashBalance })}
+                        className="rounded-full p-1.5 text-graphite transition-colors hover:bg-canvas hover:text-ink"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        title="Сдать наличку в банк"
+                        onClick={() => setCashModal({ mode: "transfer", bucket: "cash", branchId: b._id, branchName: b.name, currentAmount: b.cashBalance })}
+                        className="rounded-full p-1.5 text-graphite transition-colors hover:bg-canvas hover:text-ink"
+                      >
+                        <ArrowRightLeft className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                  <p className="eyebrow mt-3">Касса · {b.name}</p>
+                  <p className="mt-1 font-display text-xl font-semibold text-ink">{formatUZS(b.cashBalance)}</p>
+                </div>
+              ))}
+
+              {balance.bankBalance !== null && (
+                <div className="rounded-2xl border border-hairline bg-paper p-5">
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-canvas text-graphite">
+                      <Landmark className="h-[18px] w-[18px]" />
+                    </span>
+                    <button
+                      type="button"
+                      title="Поправить остаток"
+                      onClick={() => setCashModal({ mode: "adjust", bucket: "bank", currentAmount: balance.bankBalance ?? 0 })}
+                      className="rounded-full p-1.5 text-graphite transition-colors hover:bg-canvas hover:text-ink"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </button>
+                  </div>
+                  <p className="eyebrow mt-3">Счёт фирмы</p>
+                  <p className="mt-1 font-display text-xl font-semibold text-ink">{formatUZS(balance.bankBalance)}</p>
+                  <p className="text-xs text-graphite">Карта + онлайн (Click/Payme), все филиалы</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="card overflow-x-auto p-0">
+            <table className="admin-table w-full">
+              <thead>
+                <tr>
+                  <th>Дата</th>
+                  <th>Касса/Счёт</th>
+                  <th>Операция</th>
+                  <th>Сумма</th>
+                  <th>Остаток после</th>
+                  <th>Комментарий</th>
+                </tr>
+              </thead>
+              <tbody>
+                {movements.map((m) => (
+                  <tr key={m._id}>
+                    <td className="whitespace-nowrap text-graphite">{formatRu(m.createdAt)}</td>
+                    <td className="text-graphite">{m.bucket === "cash" ? m.branch?.name ?? "—" : "Счёт фирмы"}</td>
+                    <td>
+                      {CASH_MOVEMENT_REASON_LABELS[m.reason]}
+                      {m.order && <span className="ml-1 text-graphite">· {m.order.orderNumber}</span>}
+                      {m.expense && <span className="ml-1 text-graphite">· {EXPENSE_CATEGORY_LABELS[m.expense.category]}</span>}
+                    </td>
+                    <td className={`tabular-nums ${m.amount < 0 ? "text-hermes-600" : "text-ink"}`}>
+                      {m.amount > 0 ? "+" : ""}
+                      {formatUZS(m.amount)}
+                    </td>
+                    <td className="tabular-nums text-graphite">{formatUZS(m.balanceAfter)}</td>
+                    <td className="text-graphite">{m.note || "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {!movementsLoading && movements.length === 0 && <p className="p-6 text-sm text-graphite">Движений пока нет.</p>}
+            <Pager
+              page={movementsPage}
+              pages={movementsPages}
+              total={movementsTotal}
+              noun="операций"
+              onPrev={() => setMovementsPage((p) => p - 1)}
+              onNext={() => setMovementsPage((p) => p + 1)}
+            />
+          </div>
+        </div>
+      )}
+
+      {cashModal && (
+        <Suspense fallback={<div className="anim-backdrop fixed inset-0 z-50 bg-ink/30" />}>
+          <CashBalanceModal
+            mode={cashModal.mode}
+            bucket={cashModal.bucket}
+            branchId={cashModal.branchId}
+            branchName={cashModal.branchName}
+            currentAmount={cashModal.currentAmount}
+            onClose={() => setCashModal(null)}
+            onSuccess={reloadAfterCashChange}
+          />
+        </Suspense>
       )}
 
       {addChoiceOpen && (
@@ -998,6 +1211,21 @@ function ExpenseFormModal({
               </label>
             )}
           </div>
+
+          <label className="block max-w-xs">
+            <span className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-graphite">Откуда списано</span>
+            <select
+              value={form.paymentSource}
+              onChange={(e) => setForm((prev) => ({ ...prev, paymentSource: e.target.value as PaymentSource }))}
+              className="input"
+            >
+              {Object.entries(PAYMENT_SOURCE_LABELS).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </label>
 
           <label className="block">
             <span className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-graphite">Описание</span>

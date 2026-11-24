@@ -117,6 +117,32 @@ export function getMarginReport(params: { branch?: string | null; from?: string;
   return api(`/finance/margin-report?${marginReportQuery(params)}`);
 }
 
+export function getBalance() {
+  return api("/finance/balance");
+}
+
+export function getBalanceMovements(params: { bucket?: "cash" | "bank"; branch?: string; page?: number; limit?: number }) {
+  const qs = new URLSearchParams();
+  if (params.bucket) qs.set("bucket", params.bucket);
+  if (params.branch) qs.set("branch", params.branch);
+  if (params.page) qs.set("page", String(params.page));
+  if (params.limit) qs.set("limit", String(params.limit));
+  const query = qs.toString();
+  return api(`/finance/balance/movements${query ? `?${query}` : ""}`);
+}
+
+// "Сдать наличку в банк" — moves money from one branch's till into the
+// shared company account.
+export function transferCashToBank(payload: { branchId: string; amount: number; note?: string }) {
+  return api("/finance/balance/transfer", { method: "POST", body: JSON.stringify(payload) });
+}
+
+// Manual correction — admin types the real counted amount (opening
+// balance, or fixing a miscount), not a delta.
+export function adjustBalance(payload: { bucket: "cash" | "bank"; branchId?: string; targetAmount: number; note?: string }) {
+  return api("/finance/balance/adjust", { method: "POST", body: JSON.stringify(payload) });
+}
+
 // CSV (Excel opens it natively) — a plain <a href> can't carry the auth
 // header, so this fetches it as the logged-in admin and hands the browser
 // a Blob to save instead.

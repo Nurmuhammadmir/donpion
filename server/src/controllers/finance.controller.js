@@ -4,7 +4,11 @@ import Order from "../models/Order.js";
 import StockEntry from "../models/StockEntry.js";
 import Expense from "../models/Expense.js";
 import Product from "../models/Product.js";
+import Branch from "../models/Branch.js";
+import SiteSettings from "../models/SiteSettings.js";
+import CashMovement from "../models/CashMovement.js";
 import { parseRange } from "../utils/dateRange.js";
+import { applyExpense, reverseExpense, transferCashToBank, adjustBalance } from "../utils/cashBalance.js";
 
 // GET /api/finance/summary?branch=&from=&to=  (admin) — the P&L the
 // Финансы tab is built around: revenue (paid-out orders) minus COGS (sale
@@ -254,7 +258,7 @@ export const getExpenses = asyncHandler(async (req, res) => {
 
 // POST /api/finance/expenses  (admin)
 export const createExpense = asyncHandler(async (req, res) => {
-  const { branch, category, amount, date, description, isRecurring } = req.body;
+  const { branch, category, amount, date, description, isRecurring, paymentSource } = req.body;
   if (!branch || !category || !Number.isFinite(Number(amount)) || Number(amount) <= 0) {
     res.status(400);
     throw new Error("Укажите филиал, категорию и сумму расхода");
@@ -263,11 +267,13 @@ export const createExpense = asyncHandler(async (req, res) => {
     branch,
     category,
     amount: Number(amount),
+    paymentSource: paymentSource === "bank" ? "bank" : "cash",
     date: date || Date.now(),
     description: description || "",
     isRecurring: Boolean(isRecurring),
     createdBy: req.admin._id,
   });
+  await applyExpense(expense);
   res.status(201).json(expense);
 });
 
@@ -278,8 +284,13 @@ export const updateExpense = asyncHandler(async (req, res) => {
     res.status(404);
     throw new Error("Расход не найден");
   }
+  const before = expense.toObject();
   Object.assign(expense, req.body);
   await expense.save();
+  // Reverse the old amount/bucket, then apply the new one — simplest way
+  // to stay correct no matter which fields actually changed.
+  await reverseExpense(before);
+  await applyExpense(expense);
   res.json(expense);
 });
 
@@ -290,6 +301,102 @@ export const deleteExpense = asyncHandler(async (req, res) => {
     res.status(404);
     throw new Error("Расход не найден");
   }
+  await reverseExpense(expense, "Расход удалён");
   await expense.deleteOne();
   res.json({ message: "Expense deleted" });
+});
+
+// GET /api/finance/balance  (admin) — "Касса/Баланс": реальный остаток —
+// сколько наличных в кассе каждого филиала + один общий безналичный счёт
+// фирмы (карта + онлайн). A branch-pinned admin (not CEO) only ever sees
+// their own till, never other branches' cash or the company-wide bank
+// balance — same scoping BranchContext already enforces on the frontend,
+// just also enforced here so hitting the API directly can't bypass it.
+export const getBalance = asyncHandler(async (req, res) => {
+  const isCEO = req.admin.role === "superadmin";
+  const branchFilter = isCEO ? {} : { _id: req.admin.branch };
+  const [branches, settings] = await Promise.all([
+    Branch.find(branchFilter).select("name isActive cashBalance").sort({ isMain: -1, name: 1 }),
+    isCEO ? SiteSettings.findOne({ key: "homepage" }).select("bankBalance") : null,
+  ]);
+  res.json({
+    branches,
+    bankBalance: isCEO ? settings?.bankBalance ?? 0 : null,
+    totalCash: branches.reduce((sum, b) => sum + b.cashBalance, 0),
+  });
+});
+
+// GET /api/finance/balance/movements?bucket=&branch=&page=&limit=  (admin)
+export const getBalanceMovements = asyncHandler(async (req, res) => {
+  const { page = 1, limit = 30 } = req.query;
+  const isCEO = req.admin.role === "superadmin";
+  const filter = {};
+  if (isCEO) {
+    if (req.query.bucket === "cash" || req.query.bucket === "bank") filter.bucket = req.query.bucket;
+    if (req.query.branch) filter.branch = req.query.branch;
+  } else {
+    // Same reasoning as getBalance above — never bank-bucket, never another branch's till.
+    filter.bucket = "cash";
+    filter.branch = req.admin.branch;
+  }
+
+  const skip = (Number(page) - 1) * Number(limit);
+  const [items, total] = await Promise.all([
+    CashMovement.find(filter)
+      .populate("branch", "name")
+      .populate("order", "orderNumber")
+      .populate("expense", "category description")
+      .populate("createdBy", "name")
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(Number(limit)),
+    CashMovement.countDocuments(filter),
+  ]);
+  res.json({ items, total, page: Number(page), pages: Math.ceil(total / Number(limit)) });
+});
+
+// POST /api/finance/balance/transfer  (admin) — "сдать наличку в банк". A
+// branch-pinned admin may only deposit their own till; the deposit still
+// lands in the one shared bank balance either way.
+export const transferBalance = asyncHandler(async (req, res) => {
+  const { branchId, amount, note } = req.body;
+  const isCEO = req.admin.role === "superadmin";
+  if (!branchId || !Number.isFinite(Number(amount)) || Number(amount) <= 0) {
+    res.status(400);
+    throw new Error("Укажите филиал и сумму перевода");
+  }
+  if (!isCEO && String(branchId) !== String(req.admin.branch)) {
+    res.status(403);
+    throw new Error("Можно сдавать наличку только из своего филиала");
+  }
+  res.status(400); // in case transferCashToBank rejects it below (e.g. insufficient cash) — a client mistake, not a server fault
+  await transferCashToBank({ branchId, amount: Number(amount), note: note || "", adminId: req.admin._id });
+  res.status(200).json({ message: "Перевод выполнен" });
+});
+
+// POST /api/finance/balance/adjust  (admin) — ручная коррекция/стартовый
+// остаток. A branch-pinned admin may only correct their own till's cash,
+// never the shared company bank balance — that's CEO-only.
+export const adjustBalanceEntry = asyncHandler(async (req, res) => {
+  const { bucket, branchId, targetAmount, note } = req.body;
+  const isCEO = req.admin.role === "superadmin";
+  if (bucket !== "cash" && bucket !== "bank") {
+    res.status(400);
+    throw new Error("Некорректный тип баланса");
+  }
+  if (bucket === "cash" && !branchId) {
+    res.status(400);
+    throw new Error("Укажите филиал");
+  }
+  if (!Number.isFinite(Number(targetAmount))) {
+    res.status(400);
+    throw new Error("Укажите сумму");
+  }
+  if (!isCEO && (bucket === "bank" || String(branchId) !== String(req.admin.branch))) {
+    res.status(403);
+    throw new Error("Можно поправить только остаток своего филиала");
+  }
+  res.status(400);
+  await adjustBalance({ bucket, branchId, targetAmount: Number(targetAmount), note: note || "", adminId: req.admin._id });
+  res.status(200).json({ message: "Баланс обновлён" });
 });

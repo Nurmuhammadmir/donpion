@@ -48,6 +48,7 @@ export interface Branch {
   workingHours: string;
   isActive: boolean;
   isMain: boolean;
+  cashBalance: number;
 }
 
 export interface SiteSettings {
@@ -385,14 +386,53 @@ export const EXPENSE_CATEGORY_LABELS: Record<ExpenseCategory, string> = {
   other: "Другое",
 };
 
+export type PaymentSource = "cash" | "bank";
+
+export const PAYMENT_SOURCE_LABELS: Record<PaymentSource, string> = {
+  cash: "Наличные (касса)",
+  bank: "Безнал (счёт фирмы)",
+};
+
 export interface Expense {
   _id: string;
   branch: { _id: string; name: string } | string;
   category: ExpenseCategory;
   amount: number;
+  paymentSource: PaymentSource;
   date: string;
   description: string;
   isRecurring: boolean;
+  createdAt: string;
+}
+
+// "Касса" — real running balance, not a period report (see
+// server/src/utils/cashBalance.js for how each number is kept up to date).
+export interface BalanceSummary {
+  branches: { _id: string; name: string; isActive: boolean; cashBalance: number }[];
+  bankBalance: number;
+  totalCash: number;
+}
+
+export type CashMovementReason = "order_payment" | "expense" | "transfer_to_bank" | "manual_adjustment";
+
+export const CASH_MOVEMENT_REASON_LABELS: Record<CashMovementReason, string> = {
+  order_payment: "Оплата заказа",
+  expense: "Расход",
+  transfer_to_bank: "Перевод в банк",
+  manual_adjustment: "Коррекция",
+};
+
+export interface CashMovement {
+  _id: string;
+  bucket: "cash" | "bank";
+  branch: { _id: string; name: string } | null;
+  amount: number;
+  balanceAfter: number;
+  reason: CashMovementReason;
+  order: { _id: string; orderNumber: string } | null;
+  expense: { _id: string; category: ExpenseCategory; description: string } | null;
+  note: string;
+  createdBy: { _id: string; name: string } | null;
   createdAt: string;
 }
 

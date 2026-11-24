@@ -1,6 +1,7 @@
 import Order from "../models/Order.js";
 import { buildClickSignString, CLICK_ERROR, CLICK_ERROR_NOTE } from "../utils/click.js";
 import { sendTelegramMessage } from "../utils/telegramBot.js";
+import { applyOrderPayment } from "../utils/cashBalance.js";
 
 // Click calls these two endpoints directly (no session/JWT — the sign_string
 // check below IS the auth) and always expects HTTP 200 with this JSON shape,
@@ -113,6 +114,14 @@ export const clickComplete = async (req, res) => {
     order.paymentStatus = "paid";
     order.paidAt = new Date();
     await order.save();
+
+    // Касса/баланс — guarded the same way as the ALREADY_PAID check above,
+    // plus its own one-shot flag in case two Complete calls ever race.
+    const claimed = await Order.findOneAndUpdate(
+      { _id: order._id, cashBalanceApplied: false },
+      { $set: { cashBalanceApplied: true } }
+    );
+    if (claimed) await applyOrderPayment(order);
 
     const adminChatId = process.env.ADMIN_TELEGRAM_CHAT_ID;
     if (adminChatId) {

@@ -13,6 +13,11 @@ const expenseSchema = new mongoose.Schema(
       required: true,
     },
     amount: { type: Number, required: true, min: 0 }, // always UZS
+    // Which balance this came out of (see utils/cashBalance.js) — paid in
+    // cash from the till, or by card/transfer straight from the company
+    // account. Defaults to "cash" since packaging/small day-to-day buys are
+    // typically paid for out of pocket at the register, not by transfer.
+    paymentSource: { type: String, enum: ["cash", "bank"], default: "cash" },
     date: { type: Date, default: Date.now },
     description: { type: String, default: "" },
     isRecurring: { type: Boolean, default: false },
