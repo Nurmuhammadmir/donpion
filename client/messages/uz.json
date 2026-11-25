@@ -47,6 +47,11 @@
     "priceFrom": "{price} dan"
   },
   "Home": {
+    "upcomingToday": "Bugun",
+    "upcomingTomorrow": "Ertaga",
+    "upcomingInDays": "{count} kundan keyin",
+    "upcomingTextFor": "{occasion} — {recipient} uchun.",
+    "upcomingCta": "Guldasta tanlash →",
     "heroTitle": "His-tuyg'ularni sovg'a qilish san'ati",
     "heroTitleMobilePrefix": "",
     "heroTitleMobileAccent": "His-tuyg'ularni",
@@ -332,6 +337,21 @@
     "bulkNotMatched": "— topilmadi, qo'lda tanlang —",
     "bulkAddAll": "{count} ta bandni savatga qo'shish",
     "bulkAdded": "Savatga qo'shildi."
+  },
+  "ContactLead": {
+    "triggerLabel": "Savollaringiz qoldimi?",
+    "triggerCta": "Bizga yozing",
+    "modalTitle": "Bizga yozing",
+    "modalIntro": "Ismingiz va telefon raqamingizni qoldiring — tez orada siz bilan bog'lanamiz.",
+    "name": "Ism",
+    "phone": "Telefon",
+    "message": "Xabar (ixtiyoriy)",
+    "submit": "Yuborish",
+    "submitting": "Yuborilmoqda…",
+    "sent": "Rahmat! Ariza yuborildi — tez orada siz bilan bog'lanamiz.",
+    "errorIncomplete": "Ism va telefonni kiriting",
+    "errorGeneric": "Arizani yuborib bo'lmadi. Qaytadan urinib ko'ring.",
+    "close": "Yopish"
   },
   "Addon": {
     "eyebrow": "Qo'shimcha tovarlar",

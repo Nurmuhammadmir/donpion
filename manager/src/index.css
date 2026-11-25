@@ -1,0 +1,132 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* iOS safe-area inset, used by the mobile bottom tab bar so it never
+     sits under the home-indicator gesture area. */
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+body {
+  @apply bg-canvas text-ink antialiased;
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+}
+
+h1,
+h2,
+h3,
+.font-display {
+  font-family: "Playfair Display", serif;
+}
+
+.input {
+  @apply w-full rounded-xl border border-hairline bg-paper px-3.5 py-2.5 text-sm text-ink outline-none transition-colors;
+}
+.input:focus {
+  @apply border-hermes-500 ring-4 ring-hermes-50;
+}
+
+.btn-primary {
+  @apply inline-flex items-center justify-center gap-2 rounded-xl bg-hermes-500 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition-all hover:bg-hermes-600 hover:shadow active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100;
+}
+
+.btn-secondary {
+  @apply inline-flex items-center justify-center gap-2 rounded-xl border border-hairline bg-paper px-4 py-2.5 text-sm font-medium text-ink transition-all hover:bg-canvas active:scale-[0.97];
+}
+
+.btn-danger {
+  @apply inline-flex items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-hermes-600 transition-colors hover:bg-hermes-50;
+}
+
+.card {
+  @apply rounded-2xl border border-hairline bg-paper p-6 shadow-sm;
+}
+
+.eyebrow {
+  @apply text-xs font-semibold uppercase tracking-wide text-graphite;
+}
+
+.pill {
+  @apply inline-flex items-center gap-1.5 rounded-full border border-hairline px-3 py-1.5 text-xs font-medium text-graphite transition-all active:scale-95;
+}
+.pill[data-active="true"] {
+  @apply border-ink bg-ink text-white shadow-sm;
+}
+
+table.admin-table th {
+  @apply border-b border-hairline px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-graphite;
+}
+table.admin-table td {
+  @apply border-b border-hairline px-4 py-3 text-sm text-ink;
+}
+
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.mobile-nav-height {
+  padding-bottom: var(--safe-bottom);
+}
+.mobile-nav-spacer {
+  padding-bottom: calc(64px + var(--safe-bottom));
+}
+
+@keyframes backdrop-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes modal-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.97);
+  }
+}
+@keyframes sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+}
+@keyframes dropdown-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+}
+
+.anim-backdrop {
+  animation: backdrop-in 0.2s ease-out both;
+}
+.anim-modal {
+  animation: modal-in 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.anim-sheet {
+  animation: sheet-up 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.anim-dropdown {
+  animation: dropdown-in 0.16s ease-out both;
+}
+
+@keyframes card-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+.anim-card {
+  animation: card-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .anim-backdrop,
+  .anim-modal,
+  .anim-sheet,
+  .anim-dropdown,
+  .anim-card {
+    animation: none;
+  }
+}

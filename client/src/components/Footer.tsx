@@ -2,6 +2,7 @@ import { useTranslations } from "next-intl";
 import Image from "next/image";
 import { Link } from "@/i18n/Link";
 import BranchesMapLazy from "@/components/BranchesMapLazy";
+import FooterContactModal from "@/components/FooterContactModal";
 import type { Branch, Category } from "@/types";
 
 const INSTAGRAM_URL = "https://www.instagram.com/donpion.uz/";
@@ -83,6 +84,9 @@ export default function Footer({ categories, branches }: { categories: Category[
               </a>
             </li>
             <li>{t("workingHours")}</li>
+            <li>
+              <FooterContactModal />
+            </li>
           </ul>
         </div>
       </div>

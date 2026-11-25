@@ -47,6 +47,11 @@
     "priceFrom": "от {price}"
   },
   "Home": {
+    "upcomingToday": "Сегодня",
+    "upcomingTomorrow": "Завтра",
+    "upcomingInDays": "Через {count} дн.",
+    "upcomingTextFor": "{occasion} — для {recipient}.",
+    "upcomingCta": "Выбрать букет →",
     "heroTitle": "Искусство дарить эмоции",
     "heroTitleMobilePrefix": "Искусство дарить ",
     "heroTitleMobileAccent": "эмоции",
@@ -332,6 +337,21 @@
     "bulkNotMatched": "— не найдено, выберите вручную —",
     "bulkAddAll": "Добавить {count} позиций в корзину",
     "bulkAdded": "Добавлено в корзину."
+  },
+  "ContactLead": {
+    "triggerLabel": "Остались вопросы?",
+    "triggerCta": "Написать нам",
+    "modalTitle": "Напишите нам",
+    "modalIntro": "Оставьте имя и телефон — мы свяжемся с вами в ближайшее время.",
+    "name": "Имя",
+    "phone": "Телефон",
+    "message": "Сообщение (необязательно)",
+    "submit": "Отправить",
+    "submitting": "Отправляем…",
+    "sent": "Спасибо! Заявка отправлена — скоро свяжемся с вами.",
+    "errorIncomplete": "Укажите имя и телефон",
+    "errorGeneric": "Не удалось отправить заявку. Попробуйте ещё раз.",
+    "close": "Закрыть"
   },
   "Addon": {
     "eyebrow": "Дополнительные товары",

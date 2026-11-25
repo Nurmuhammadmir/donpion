@@ -37,6 +37,10 @@ import assistantRoutes from "./routes/assistant.routes.js";
 import subscriptionRoutes from "./routes/subscriptions.routes.js";
 import corporateLeadRoutes from "./routes/corporateLeads.routes.js";
 import adminSearchRoutes from "./routes/adminSearch.routes.js";
+import leadsRoutes from "./routes/leads.routes.js";
+import managerAuthRoutes from "./routes/managerAuth.routes.js";
+import managerRoutes from "./routes/manager.routes.js";
+import instagramRoutes from "./routes/instagram.routes.js";
 // Side-effect only: starts @donpionadminbot's own long-poll loop (separate
 // bot/token from utils/telegramBot.js's customer-facing one) — no routes,
 // no exports anything else needs.
@@ -56,11 +60,21 @@ app.set("trust proxy", true);
 app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
 app.use(
   cors({
-    origin: [process.env.CLIENT_URL, process.env.ADMIN_URL].filter(Boolean),
+    origin: [process.env.CLIENT_URL, process.env.ADMIN_URL, process.env.MANAGER_URL].filter(Boolean),
     credentials: true,
   })
 );
-app.use(express.json({ limit: "2mb" }));
+app.use(
+  express.json({
+    limit: "2mb",
+    // Captured for Instagram webhook signature verification (HMAC over the
+    // raw body — see controllers/instagram.controller.js). A Buffer
+    // reference, not a copy, so this is negligible on every other request.
+    verify: (req, res, buf) => {
+      req.rawBody = buf;
+    },
+  })
+);
 app.use(cookieParser());
 app.use(morgan("dev"));
 
@@ -98,6 +112,13 @@ app.use("/api/assistant", assistantRoutes);
 app.use("/api/subscriptions", subscriptionRoutes);
 app.use("/api/corporate-leads", corporateLeadRoutes);
 app.use("/api/admin", adminSearchRoutes);
+app.use("/api/leads", leadsRoutes);
+// /api/manager/auth must be mounted before /api/manager — that router's
+// own protectManager (router.use) would otherwise intercept the login
+// route itself, and a token is needed to get a token.
+app.use("/api/manager/auth", managerAuthRoutes);
+app.use("/api/manager", managerRoutes);
+app.use("/api/instagram", instagramRoutes);
 
 app.use(notFound);
 app.use(errorHandler);
